@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Damstencil</title>
+<link rel="stylesheet" href="src/ui/styles.css" />
+</head>
+<body>
+<header class="app-header">
+  <h1>Damstencil</h1>
+  <nav class="app-nav">
+    <button type="button" data-route="nieuw" class="active">Nieuwe stand</button>
+    <button type="button" data-route="database">Database</button>
+    <button type="button" data-route="stencils">Stencils</button>
+    <button type="button" data-route="backup">Back-up</button>
+  </nav>
+</header>
+<div id="backup-banner" style="display:none;background:#fff3e0;color:#8a4b00;padding:0.6rem 1rem;text-align:center;font-size:0.9rem;">
+  Het is een tijdje geleden dat je een back-up maakte. <a href="#/backup" style="color:#8a4b00;font-weight:600;">Nu back-up maken</a>
+</div>
+<main id="app"></main>
+<script type="module" src="src/ui/app.js"></script>
+</body>
+</html>

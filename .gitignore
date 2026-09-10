@@ -1,0 +1,15 @@
+.DS_Store
+
+# Eigen testfoto's en boekplaatjes (auteursrechtelijk gevoelig) blijven alleen op deze Mac,
+# ze gaan niet mee naar GitHub.
+/testdata/
+/referentie/
+/IMG_*.jpeg
+/aa9874c2-8520-4cf7-b610-5ba3ff8c3f71.jpg
+/diagram voorbeeld.png
+/diagram voorbeeld2.png
+/Schijfposities testfoto's damdiagram .txt
+
+# Eigen ontwikkel-hulpbestanden
+/tests/compare.html
+/tests/_run*.html

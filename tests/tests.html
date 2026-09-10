@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8" />
+<title>Damstencil — testen</title>
+<style>
+  body { font-family: ui-monospace, monospace; background: #111; color: #ddd; padding: 1rem; }
+  pre { white-space: pre-wrap; }
+</style>
+</head>
+<body>
+<h1>Damstencil — automatische tests</h1>
+<pre id="output">Bezig met testen...</pre>
+<script type="module">
+  import { runAll } from "./test-runner.js";
+  import "./core.test.js";
+  import "./diagram.test.js";
+  import "./db.test.js";
+  import "./stencil.test.js";
+  import "./docx.test.js";
+  import "./portable.test.js";
+  runAll(document.getElementById("output"));
+</script>
+</body>
+</html>
