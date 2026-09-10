@@ -2,7 +2,7 @@
 
 Een eigen, gratis app om damstanden te verzamelen en er opgavestencils (A4, met oplossingenblad) van te maken in Word. Alles werkt in de browser, op je telefoon en op je laptop, zonder kosten en zonder dat er iets naar internet wordt gestuurd.
 
-**Waar staat de app?** _(volgt zodra hij online staat — zie hieronder)_
+**Waar staat de app?** https://4tzy9fgcz5-lang.github.io/Damdiagram-app/
 
 ## Wat kan de app nu (Fase 1)?
 
