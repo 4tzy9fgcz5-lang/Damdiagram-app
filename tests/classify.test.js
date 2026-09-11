@@ -54,11 +54,16 @@ describe("fotoherkenning: classificatie", () => {
     assertTrue(correct >= 45, `slechts ${correct}/50 correct`);
   });
 
-  it("geeft dammen een lage betrouwbaarheid (best-effort)", () => {
+  it("herkent geen dammen automatisch (bleek onbetrouwbaar) — elk bezet veld wordt de gewone kleur", () => {
+    // "wk"/"bk" hier simuleert een veld met extra textuur (zoals een echte dam eruit kan
+    // zien), maar de app mag dit nooit als dam classificeren — alleen als gewone schijf,
+    // met de juiste kleur. Dammen wijst Jan zelf aan in de editor.
     const occ = { 13: "w", 33: "wk", 1: "b", 30: "bk" };
-    const { board, confidences } = classifyFromFeatures(makeFeatures(occ, 1, mulberry32(3)));
-    if (board[33] === PIECE_TYPES.WHITE_KING) assertTrue(confidences[33] <= 0.41);
-    if (board[30] === PIECE_TYPES.BLACK_KING) assertTrue(confidences[30] <= 0.41);
+    const { board } = classifyFromFeatures(makeFeatures(occ, 1, mulberry32(3)));
+    assertEqual(board[13], PIECE_TYPES.WHITE_PIECE);
+    assertEqual(board[33], PIECE_TYPES.WHITE_PIECE);
+    assertEqual(board[1], PIECE_TYPES.BLACK_PIECE);
+    assertEqual(board[30], PIECE_TYPES.BLACK_PIECE);
   });
 
   it("duidelijke velden krijgen betrouwbaarheid boven de onzeker-drempel", () => {

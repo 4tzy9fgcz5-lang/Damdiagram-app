@@ -62,10 +62,15 @@ function kmeans1d2(values) {
 // nemen we aan dat het bord leeg is — puur fotoruis levert typisch een kloof < 1 op,
 // echte foto's met stukken erop gaven in onze tests altijd een kloof > 2.
 const MIN_STD_GAP = 1.2;
-const KING_MIN_GAP = 2;
-const KING_CONFIDENCE_CAP = 0.4;
 
 // features: array (index 1..50) van { mean, std } (grijswaarde-gemiddelde en textuur per veld)
+//
+// Let op: er wordt hier NIET geprobeerd een dam te onderscheiden van een gewone schijf.
+// Dat is geprobeerd via een tweede clustering op textuur, maar bleek onbetrouwbaar: op
+// zowel echte foto's als op de eigen diagramtekenaar wees die net zo vaak een gewone
+// schijf als een echte dam aan (geen enkel verband met de werkelijke dam-status). Beter
+// eerlijk niets gokken dan stelselmatig fout gokken — elk bezet veld wordt dus een
+// gewone schijf; Jan tikt een veld met een dam er zelf nog een keer op om te wisselen.
 export function classifyFromFeatures(features) {
   const fields = [];
   for (let f = 1; f <= FIELD_COUNT; f++) fields.push(f);
@@ -87,13 +92,6 @@ export function classifyFromFeatures(features) {
 
   const stdGapHalf = Math.max((high - low) / 2, 1e-6);
 
-  const occupiedStds = fields.filter((f) => features[f].std > threshold).map((f) => features[f].std);
-  const kingSplit = occupiedStds.length >= 2 ? kmeans1d2(occupiedStds) : null;
-  const kingThreshold =
-    kingSplit && kingSplit.gap >= KING_MIN_GAP && kingSplit.highGroup.length > 0
-      ? (kingSplit.low + kingSplit.high) / 2
-      : null;
-
   for (const f of fields) {
     const { mean, std } = features[f];
 
@@ -111,16 +109,8 @@ export function classifyFromFeatures(features) {
     const occupiedConfidence = clamp01(0.5 + occupiedSignal * 0.25);
     const isWhite = delta > 0;
 
-    const isKing = kingThreshold !== null && std > kingThreshold;
-    let piece = isWhite ? PIECE_TYPES.WHITE_PIECE : PIECE_TYPES.BLACK_PIECE;
-    let confidence = Math.min(occupiedConfidence, colorConfidence);
-    if (isKing) {
-      piece = isWhite ? PIECE_TYPES.WHITE_KING : PIECE_TYPES.BLACK_KING;
-      confidence = Math.min(confidence, KING_CONFIDENCE_CAP);
-    }
-
-    board[f] = piece;
-    confidences[f] = confidence;
+    board[f] = isWhite ? PIECE_TYPES.WHITE_PIECE : PIECE_TYPES.BLACK_PIECE;
+    confidences[f] = Math.min(occupiedConfidence, colorConfidence);
   }
 
   return { board, confidences };
@@ -134,7 +124,11 @@ function toGray(r, g, b) {
 // (inset, om raster/randpixels te vermijden) en berekent gemiddelde en spreiding.
 export function extractFeatures(imageData, outSize) {
   const squareSize = outSize / 10;
-  const inset = squareSize * 0.22;
+  // 0.22 leek eerst genoeg, maar op de eigen (scherpe, niet-foto-achtige) diagramstijl
+  // viel de achtergrond van het vakje nog gedeeltelijk binnen het venster, wat het
+  // gemiddelde vervuilde. 0.26 blijft ruim binnen een schijf, op zowel foto's als
+  // schone screenshots (geverifieerd tegen 2 echte testfoto's + de eigen tekenaar).
+  const inset = squareSize * 0.26;
   const { data, width } = imageData;
   const features = new Array(FIELD_COUNT + 1).fill(null);
 

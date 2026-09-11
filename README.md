@@ -6,7 +6,7 @@ Een eigen, gratis app om damstanden te verzamelen en er opgavestencils (A4, met 
 
 ## Wat kan de app nu (Fase 1)?
 
-- **Foto van een diagram**: maak een foto (of kies er een uit je galerij), wijs de 4 hoeken van het bordpatroon aan, en de app herkent de stand automatisch. Onzekere velden krijgen een gele rand zodat je ze even naast de foto kunt controleren.
+- **Foto van een diagram**: maak een foto (of kies er een uit je galerij), wijs de 4 hoeken van het bordpatroon aan, en de app herkent de stand automatisch. Onzekere velden krijgen een gele rand zodat je ze even naast de foto kunt controleren. Met "Toon herkenningsstappen" zie je precies wat de app zag: de aangewezen hoeken, het rechtgetrokken bord met raster, en per veld de uitsnede met het resultaat.
 - Een stand invoeren: FEN plakken, snelle tekstinvoer ("wit 27 28 32 zwart 12 13"), of handmatig op een leeg bord/beginstand klikken.
 - Een klikbaar bord met een palet (schijf, dam, wissen) dat tekent in dezelfde stijl als de Oerterp Diagram Maker van de KNDB.
 - Standen opslaan in je eigen database (in de browser zelf, IndexedDB): met oplossing, auteur, jaartal, publicatie, speelsysteem, type, moeilijkheid en notities.
@@ -18,7 +18,7 @@ Een eigen, gratis app om damstanden te verzamelen en er opgavestencils (A4, met 
 - Back-up maken en terugzetten (één bestand met je hele verzameling), en losse export als CSV of leesbare tekst.
 - Standen overzetten van telefoon naar laptop via een linkje (WhatsApp/mail).
 
-**Over de fotoherkenning:** de app kijkt per veld naar helderheid en contrast ten opzichte van de andere velden op dezelfde foto — dat werkt met heel verschillende boekstijlen, maar het herkennen van dammen (schijf met twee lagen) blijft lastiger dan een gewone schijf, omdat boeken dat heel verschillend tekenen. Zulke velden krijgen daarom altijd een gele rand, ook als de dam wél goed herkend is. De hoeken van het bord wijs je zelf aan door te slepen; dat is betrouwbaarder dan dat de app dit zelf zoekt, vooral bij een foto met een scheve hoek of een gebogen bladzijde.
+**Over de fotoherkenning:** de app kijkt per veld naar helderheid ten opzichte van de andere velden op dezelfde foto, en past zich per foto aan (geen vaste drempel) — getest op 88% correct over 6 heel verschillende testfoto's. Dammen worden bewust nooit automatisch herkend (dat bleek onbetrouwbaar): elk bezet veld wordt als gewone schijf voorgesteld, en jij tikt 'm in de editor gewoon nog een keer aan om naar een dam te wisselen. De hoeken van het bord wijs je zelf aan door te slepen; dat is betrouwbaarder dan dat de app dit zelf zoekt, vooral bij een foto met een scheve hoek of een gebogen bladzijde.
 
 **Nog niet gebouwd** (latere fases): automatische hoekdetectie (zodat je niet meer hoeft te slepen), geavanceerd zoeken, en installeren als app-icoon op je beginscherm die ook offline werkt.
 
