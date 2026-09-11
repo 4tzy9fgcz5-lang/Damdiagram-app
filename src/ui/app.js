@@ -4,9 +4,11 @@ import { renderStencilsListView } from "./stencilsListView.js";
 import { renderStencilView, addStandenToStencil } from "./stencilView.js";
 import { renderBackupView, getLastBackupDate } from "./backupView.js";
 import { renderImportView } from "./importView.js";
+import { renderPhotoImportView } from "./photoImportView.js";
 import { listStanden } from "../db/standen.js";
 
-const routes = ["nieuw", "database", "stencils", "stencil", "backup", "import"];
+const routes = ["nieuw", "foto", "database", "stencils", "stencil", "backup", "import"];
+let pendingRecognition = null;
 
 function showToast(message) {
   const toast = document.createElement("div");
@@ -25,6 +27,7 @@ function currentRoute() {
 
 const NAV_FOR_ROUTE = {
   nieuw: "nieuw",
+  foto: "nieuw",
   database: "database",
   stencils: "stencils",
   stencil: "stencils",
@@ -98,9 +101,21 @@ async function render() {
       encoded: param,
       onDone: () => checkBackupReminder(),
     });
+  } else if (name === "foto") {
+    await renderPhotoImportView(app, {
+      onRecognized: (result) => {
+        pendingRecognition = result;
+        location.hash = "#/nieuw";
+      },
+    });
   } else {
+    const recognition = param ? null : pendingRecognition;
+    pendingRecognition = null;
     await renderEditorView(app, {
       standId: param,
+      initialBoard: recognition?.board,
+      confidences: recognition?.confidences,
+      photoDataUrl: recognition?.photoDataUrl,
       onSaved: (stand, { addToStencil }) => {
         showToast(addToStencil ? "Opgeslagen. Kies of maak nu een stencil." : "Opgeslagen in de database.");
         if (addToStencil) {

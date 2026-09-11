@@ -226,7 +226,8 @@ textarea {
   padding-left: 1.2rem;
 }
 
-button.primary {
+button.primary,
+a.primary {
   background: var(--kleur-accent);
   color: white;
   border: none;
@@ -234,9 +235,13 @@ button.primary {
   border-radius: 8px;
   font-size: 1rem;
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
 }
 
-button.secondary {
+button.secondary,
+a.secondary {
   background: white;
   color: var(--kleur-accent);
   border: 1px solid var(--kleur-accent);
@@ -244,6 +249,9 @@ button.secondary {
   border-radius: 8px;
   font-size: 1rem;
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
 }
 
 .button-row {

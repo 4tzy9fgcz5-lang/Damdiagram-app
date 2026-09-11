@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8" />
+<title>Damstencil — evaluatie fotoherkenning</title>
+<style>
+  body { font-family: system-ui, sans-serif; background: #f4f6f8; color: #171b1f; padding: 1rem; max-width: 700px; margin: 0 auto; }
+  h1 { font-size: 1.2rem; }
+  p.uitleg { color: #555; font-size: 0.9rem; }
+  .foto-card { background: white; border: 1px solid #dbe1e6; border-radius: 8px; padding: 1rem; margin-bottom: 1rem; }
+  .foto-card h2 { font-size: 1rem; margin: 0 0 0.5rem; }
+  canvas { max-width: 100%; touch-action: none; border-radius: 6px; }
+  button { background: #1a5c38; color: white; border: none; padding: 0.5rem 0.9rem; border-radius: 6px; cursor: pointer; margin-top: 0.5rem; }
+  .result { margin-top: 0.5rem; font-size: 0.9rem; white-space: pre-wrap; }
+  .result.ok { color: #1f8f5f; }
+  .result.fail { color: #c62839; }
+  #summary { font-weight: 700; font-size: 1.1rem; margin: 1rem 0; padding: 1rem; background: white; border-radius: 8px; border: 1px solid #dbe1e6; }
+</style>
+</head>
+<body>
+<h1>Evaluatie: fotoherkenning op echte testfoto's</h1>
+<p class="uitleg">
+  Per foto: sleep de 4 puntjes naar de hoeken van het dambordpatroon, klik "Herken", en vergelijk met de
+  bekende juiste stand uit <code>testfotos/standen.txt</code>.
+</p>
+<div id="summary">Nog niets getest.</div>
+<div id="fotos"></div>
+
+<script type="module">
+import { parseFen, boardToFen } from "../src/core/fen.js";
+import { warpToSquareCanvas } from "../src/recognition/homography.js";
+import { classifyBoard } from "../src/recognition/classify.js";
+import { FIELD_COUNT } from "../src/core/board.js";
+
+const GROUND_TRUTH = [
+  { file: "aa9874c2-8520-4cf7-b610-5ba3ff8c3f71.jpg", wit: [15,20,21,24,32,33,34,37,38], zwart: [4,9,12,13,14,17,18,22,26] },
+  { file: "IMG_0127.jpeg", wit: [23,24,27,28,29,32,36,37,38,41,43,44,45,47,48,49], zwart: [2,4,6,8,9,10,12,13,14,15,16,17,18,20,21,25] },
+  { file: "IMG_0377.jpeg", wit: [24,27,29,30,32,33,34,38,39,40,41,47,48], zwart: [6,9,11,12,13,14,15,16,18,19,20,21,22] },
+  { file: "IMG_0497.jpeg", wit: [25,29,32,33,41,43,44], zwart: [5,7,8,15,17,19,37] },
+  { file: "IMG_0533.jpeg", wit: [25,26,31,33,34,35,36,39,40,41,43,44,46,47,48,49,50], zwart: [2,3,4,5,9,11,12,13,14,17,18,19,21,22,23,24,28] },
+  { file: "IMG_0616.jpeg", wit: [27,28,31,32,33,35,36,38,40,41,43], zwart: [3,6,11,12,16,17,18,19,24,26,29] },
+];
+
+function fenFromLists(wit, zwart) {
+  return `W:W${wit.join(",")}:B${zwart.join(",")}`;
+}
+
+const WORKING_MAX_SIDE = 1200;
+const WARP_SIZE = 500;
+
+let totalFields = 0;
+let totalCorrect = 0;
+let standenDone = 0;
+let standenCorrect = 0;
+
+function updateSummary() {
+  const summary = document.getElementById("summary");
+  if (totalFields === 0) {
+    summary.textContent = "Nog niets getest.";
+    return;
+  }
+  const pct = ((100 * totalCorrect) / totalFields).toFixed(1);
+  summary.textContent = `${standenDone} foto('s) getest — ${totalCorrect}/${totalFields} velden correct (${pct}%), ${standenCorrect}/${standenDone} standen 100% correct.`;
+}
+
+function defaultCorners(w, h) {
+  const mx = w * 0.1, my = h * 0.1;
+  return [{ x: mx, y: my }, { x: w - mx, y: my }, { x: w - mx, y: h - my }, { x: mx, y: h - my }];
+}
+
+async function loadDrawable(src) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = src;
+  });
+}
+
+function buildCard(entry) {
+  const card = document.createElement("div");
+  card.className = "foto-card";
+  card.innerHTML = `
+    <h2>${entry.file}</h2>
+    <canvas></canvas><br>
+    <button type="button">Herken</button>
+    <div class="result"></div>
+  `;
+  const canvas = card.querySelector("canvas");
+  const ctx = canvas.getContext("2d");
+  const resultEl = card.querySelector(".result");
+  let drawable = null;
+  let corners = null;
+  let dragIndex = -1;
+
+  function toCanvasPoint(clientX, clientY) {
+    const rect = canvas.getBoundingClientRect();
+    return { x: (clientX - rect.left) * (canvas.width / rect.width), y: (clientY - rect.top) * (canvas.height / rect.height) };
+  }
+  function redraw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(drawable, 0, 0, canvas.width, canvas.height);
+    ctx.strokeStyle = "#1a5c38";
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    corners.forEach((p, i) => (i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y)));
+    ctx.closePath();
+    ctx.stroke();
+    corners.forEach((p) => {
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 12, 0, Math.PI * 2);
+      ctx.fillStyle = "#fff";
+      ctx.fill();
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = "#1a5c38";
+      ctx.stroke();
+    });
+  }
+  function nearest(point) {
+    let best = -1, bestDist = Infinity;
+    corners.forEach((p, i) => {
+      const d = Math.hypot(p.x - point.x, p.y - point.y);
+      if (d < bestDist) { bestDist = d; best = i; }
+    });
+    return bestDist <= 30 * (canvas.width / canvas.getBoundingClientRect().width) ? best : -1;
+  }
+  canvas.addEventListener("pointerdown", (e) => {
+    const idx = nearest(toCanvasPoint(e.clientX, e.clientY));
+    if (idx === -1) return;
+    dragIndex = idx;
+    canvas.setPointerCapture(e.pointerId);
+  });
+  canvas.addEventListener("pointermove", (e) => {
+    if (dragIndex === -1) return;
+    const p = toCanvasPoint(e.clientX, e.clientY);
+    corners[dragIndex] = { x: Math.max(0, Math.min(canvas.width, p.x)), y: Math.max(0, Math.min(canvas.height, p.y)) };
+    redraw();
+  });
+  canvas.addEventListener("pointerup", () => { dragIndex = -1; });
+
+  card.querySelector("button").addEventListener("click", () => {
+    try {
+      // Rechttrekken vanaf de originele foto (drawable), niet vanaf het canvas met de
+      // groene hoekmarkeringen erop — anders lekt die overlay mee het herkenningsbeeld in.
+      // Corners staan in canvas-coördinaten (mogelijk verkleind), dus terugschalen naar
+      // de resolutie van de originele foto.
+      const scaleUp = drawable.naturalWidth / canvas.width;
+      const fullResCorners = corners.map((p) => ({ x: p.x * scaleUp, y: p.y * scaleUp }));
+      const warped = warpToSquareCanvas(drawable, fullResCorners, WARP_SIZE);
+      const imageData = warped.getContext("2d").getImageData(0, 0, WARP_SIZE, WARP_SIZE);
+      const { board, confidences } = classifyBoard(imageData, WARP_SIZE);
+      const { board: trueBoard } = parseFen(fenFromLists(entry.wit, entry.zwart));
+
+      const norm = (p) => (p === "wk" ? "wp" : p === "bk" ? "bp" : p);
+      let correct = 0;
+      const fouten = [];
+      for (let f = 1; f <= FIELD_COUNT; f++) {
+        if (norm(trueBoard[f]) === norm(board[f])) correct++;
+        else fouten.push(`veld ${f}: verwacht ${trueBoard[f] ?? "leeg"}, gekregen ${board[f] ?? "leeg"} (${confidences[f].toFixed(2)})`);
+      }
+      totalFields += FIELD_COUNT;
+      totalCorrect += correct;
+      standenDone++;
+      if (correct === FIELD_COUNT) standenCorrect++;
+      updateSummary();
+
+      resultEl.className = "result " + (correct === FIELD_COUNT ? "ok" : "fail");
+      resultEl.textContent = `${correct}/50 velden correct.` + (fouten.length ? "\n" + fouten.join("\n") : "");
+    } catch (err) {
+      resultEl.className = "result fail";
+      resultEl.textContent = "Fout: " + err.message;
+    }
+  });
+
+  loadDrawable(`../testdata/testfotos/${entry.file}`).then((img) => {
+    drawable = img;
+    const scale = Math.min(1, WORKING_MAX_SIDE / Math.max(img.naturalWidth, img.naturalHeight));
+    canvas.width = Math.round(img.naturalWidth * scale);
+    canvas.height = Math.round(img.naturalHeight * scale);
+    corners = defaultCorners(canvas.width, canvas.height);
+    redraw();
+  }).catch((err) => {
+    resultEl.className = "result fail";
+    resultEl.textContent = "Kon de foto niet laden: " + err.message + " (staat testdata/testfotos/ naast tests/?)";
+  });
+
+  return card;
+}
+
+const container = document.getElementById("fotos");
+for (const entry of GROUND_TRUTH) {
+  container.appendChild(buildCard(entry));
+}
+</script>
+</body>
+</html>

@@ -9,9 +9,10 @@ const CYCLE = [
   PIECE_TYPES.BLACK_KING,
 ];
 
-export function createBoardEditor(container, { board, onChange } = {}) {
+export function createBoardEditor(container, { board, onChange, highlightFields } = {}) {
   let current = board ? cloneBoard(board) : cloneBoard(board);
   let tool = "cycle";
+  let highlighted = new Set(highlightFields ?? []);
 
   function renderBoard() {
     container.innerHTML = renderDiagramSVG(current, { size: container.dataset.size || 320 });
@@ -20,6 +21,26 @@ export function createBoardEditor(container, { board, onChange } = {}) {
     svg.style.userSelect = "none";
     svg.style.cursor = "pointer";
     svg.addEventListener("click", handleClick);
+    drawHighlights(svg);
+  }
+
+  function drawHighlights(svg) {
+    if (highlighted.size === 0) return;
+    const ns = "http://www.w3.org/2000/svg";
+    for (const field of highlighted) {
+      const square = svg.querySelector(`rect[data-field="${field}"]`);
+      if (!square) continue;
+      const marker = document.createElementNS(ns, "rect");
+      marker.setAttribute("x", square.getAttribute("x"));
+      marker.setAttribute("y", square.getAttribute("y"));
+      marker.setAttribute("width", square.getAttribute("width"));
+      marker.setAttribute("height", square.getAttribute("height"));
+      marker.setAttribute("fill", "none");
+      marker.setAttribute("stroke", "#e0a800");
+      marker.setAttribute("stroke-width", "2.5");
+      marker.setAttribute("pointer-events", "none");
+      svg.appendChild(marker);
+    }
   }
 
   function handleClick(evt) {
@@ -27,6 +48,7 @@ export function createBoardEditor(container, { board, onChange } = {}) {
     if (!target) return;
     const field = Number.parseInt(target.dataset.field, 10);
     if (!isValidField(field)) return;
+    highlighted.delete(field);
     applyToolToField(field);
   }
 
@@ -54,6 +76,10 @@ export function createBoardEditor(container, { board, onChange } = {}) {
     },
     setTool: (newTool) => {
       tool = newTool;
+    },
+    setHighlights: (fields) => {
+      highlighted = new Set(fields);
+      renderBoard();
     },
   };
 }

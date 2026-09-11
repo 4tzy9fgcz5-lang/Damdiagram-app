@@ -5,17 +5,30 @@ import { parseQuickText, QuickTextParseError } from "../core/quicktext.js";
 import { validateBoard } from "../core/validate.js";
 import { saveStand, getStand, findDuplicates } from "../db/standen.js";
 import { getList, addListValue } from "../db/lijsten.js";
+import { CONFIDENCE_THRESHOLD } from "../recognition/classify.js";
 
 const MOEILIJKHEID_MAX = 5;
 
-export async function renderEditorView(container, { standId, onSaved } = {}) {
+export async function renderEditorView(
+  container,
+  { standId, onSaved, initialBoard, confidences, photoDataUrl } = {}
+) {
   container.innerHTML = `
     <h2>Nieuwe stand invoeren</h2>
     <div class="card editor-layout">
       <div class="editor-board-col">
+        ${
+          photoDataUrl
+            ? `<div data-role="photoBlock" style="margin-bottom:0.75rem;">
+                <p style="font-size:0.85rem;color:#666;margin:0 0 0.3rem;">Rechtgetrokken foto — velden met een <span style="color:#e0a800;font-weight:600;">gele rand</span> op het bord zijn onzeker, vergelijk ze even.</p>
+                <img src="${photoDataUrl}" style="width:100%;max-width:320px;border-radius:8px;border:1px solid #d0d0d0;display:block;" />
+              </div>`
+            : ""
+        }
         <div data-role="board"></div>
         <div data-role="palette"></div>
         <div class="quick-actions">
+          <a href="#/foto" class="secondary">📷 Foto van diagram</a>
           <button type="button" class="secondary" data-action="leeg">Leeg bord</button>
           <button type="button" class="secondary" data-action="beginstand">Beginstand</button>
           <label style="display:inline-flex;align-items:center;gap:0.3rem;font-weight:normal;margin:0;">
@@ -120,9 +133,14 @@ export async function renderEditorView(container, { standId, onSaved } = {}) {
     }
   }
 
+  const uncertainFields = confidences
+    ? confidences.reduce((acc, c, f) => (f >= 1 && c < CONFIDENCE_THRESHOLD ? [...acc, f] : acc), [])
+    : [];
+
   const boardEditor = createBoardEditor(boardHost, {
-    board: existingStand ? parseFen(existingStand.fen).board : createEmptyBoard(),
+    board: existingStand ? parseFen(existingStand.fen).board : initialBoard ?? createEmptyBoard(),
     onChange: renderWarnings,
+    highlightFields: uncertainFields,
   });
   createPalette(paletteHost, { onSelect: (tool) => boardEditor.setTool(tool) });
 
@@ -243,6 +261,7 @@ export async function renderEditorView(container, { standId, onSaved } = {}) {
       types: [...selectedTypes],
       moeilijkheid: selectedMoeilijkheid,
       notities: el('[data-field="notities"]').value.trim(),
+      foto: photoDataUrl ?? existingStand?.foto ?? null,
       gebruiktIn: existingStand?.gebruiktIn ?? [],
     };
   }
