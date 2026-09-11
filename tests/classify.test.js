@@ -7,11 +7,27 @@ function makeFeatures(occupiedMap, noiseScale = 1, rng = Math.random) {
   const rand = (a, b) => a + rng() * (b - a);
   for (let f = 1; f <= 50; f++) {
     const kind = occupiedMap[f];
-    if (!kind) features[f] = { mean: 180 + rand(-6 * noiseScale, 6 * noiseScale), std: 8 + rand(-2 * noiseScale, 2 * noiseScale) };
-    else if (kind === "w") features[f] = { mean: 235 + rand(-5, 5), std: 34 + rand(-3, 3) };
-    else if (kind === "b") features[f] = { mean: 55 + rand(-5, 5), std: 34 + rand(-3, 3) };
-    else if (kind === "wk") features[f] = { mean: 235 + rand(-5, 5), std: 55 + rand(-4, 4) };
-    else if (kind === "bk") features[f] = { mean: 55 + rand(-5, 5), std: 55 + rand(-4, 4) };
+    if (!kind) {
+      const mean = 180 + rand(-6 * noiseScale, 6 * noiseScale);
+      features[f] = { mean, std: 8 + rand(-2 * noiseScale, 2 * noiseScale), centerMean: mean };
+    } else if (kind === "w") {
+      const mean = 235 + rand(-5, 5);
+      features[f] = { mean, std: 34 + rand(-3, 3), centerMean: mean };
+    } else if (kind === "b") {
+      const mean = 55 + rand(-5, 5);
+      features[f] = { mean, std: 34 + rand(-3, 3), centerMean: mean };
+    } else if (kind === "wk") {
+      const mean = 235 + rand(-5, 5);
+      features[f] = { mean, std: 55 + rand(-4, 4), centerMean: mean };
+    } else if (kind === "bk") {
+      const mean = 55 + rand(-5, 5);
+      features[f] = { mean, std: 55 + rand(-4, 4), centerMean: mean };
+    } else if (kind === "ring") {
+      // Simuleert een open ringetje voor wit (zoals sommige boeken tekenen): het
+      // venster-gemiddelde ligt door de rand van de ring net onder de achtergrond,
+      // maar het midden van de ring blijft achtergrondkleurig (hol).
+      features[f] = { mean: 178 + rand(-3, 3), std: 30 + rand(-3, 3), centerMean: 182 + rand(-3, 3) };
+    }
   }
   return features;
 }
@@ -64,6 +80,20 @@ describe("fotoherkenning: classificatie", () => {
     assertEqual(board[33], PIECE_TYPES.WHITE_PIECE);
     assertEqual(board[1], PIECE_TYPES.BLACK_PIECE);
     assertEqual(board[30], PIECE_TYPES.BLACK_PIECE);
+  });
+
+  it("herkent een open ringetje (hol, wit) correct ondanks een donkerder venster-gemiddelde", () => {
+    // Regressietest voor een echt gemelde fout: bij sommige boekstijlen (open ringetje
+    // voor wit op een gearceerde achtergrond) trekt de ringrand het hele-venster-
+    // gemiddelde net onder de achtergrond, waardoor wit eerder als zwart werd gelezen.
+    // De classificatie moet daarom het midden van het veld gebruiken (dat blijft
+    // achtergrondkleurig bij een holle ring), niet het venster-gemiddelde.
+    const occ = { 15: "ring", 20: "ring", 1: "b", 5: "b" };
+    const { board } = classifyFromFeatures(makeFeatures(occ, 1, mulberry32(23)));
+    assertEqual(board[15], PIECE_TYPES.WHITE_PIECE);
+    assertEqual(board[20], PIECE_TYPES.WHITE_PIECE);
+    assertEqual(board[1], PIECE_TYPES.BLACK_PIECE);
+    assertEqual(board[5], PIECE_TYPES.BLACK_PIECE);
   });
 
   it("duidelijke velden krijgen betrouwbaarheid boven de onzeker-drempel", () => {

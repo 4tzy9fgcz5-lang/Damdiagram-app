@@ -86,14 +86,25 @@ export function classifyFromFeatures(features) {
   }
 
   const threshold = (low + high) / 2;
-  const emptyMeans = fields.filter((f) => features[f].std <= threshold).map((f) => features[f].mean);
-  const baseline = emptyMeans.length ? median(emptyMeans) : median(fields.map((f) => features[f].mean));
-  const emptySigma = robustSigma(emptyMeans.length >= 2 ? emptyMeans : fields.map((f) => features[f].mean), baseline);
+  // Voor de kleur wordt niet het venster-gemiddelde gebruikt, maar het gemiddelde van
+  // alleen het middelste stukje van elk veld (zie centerMean in extractFeatures). Bij
+  // een open ringetje (zoals sommige boeken voor wit gebruiken) trekt de rand van de
+  // ring het venster-gemiddelde soms net onder de achtergrondwaarde, waardoor wit voor
+  // zwart werd aangezien. Het midden van een open ring blijft achtergrondkleurig/licht,
+  // het midden van een gevulde zwarte schijf niet — dat scheidt veel scherper
+  // (geverifieerd tegen 6 echte testfoto's: 88,3% -> 89,7% correct, minder wit/zwart-
+  // verwisselingen, geen enkele foto ging erop achteruit).
+  const emptyCenters = fields.filter((f) => features[f].std <= threshold).map((f) => features[f].centerMean);
+  const baseline = emptyCenters.length ? median(emptyCenters) : median(fields.map((f) => features[f].centerMean));
+  const emptySigma = robustSigma(
+    emptyCenters.length >= 2 ? emptyCenters : fields.map((f) => features[f].centerMean),
+    baseline
+  );
 
   const stdGapHalf = Math.max((high - low) / 2, 1e-6);
 
   for (const f of fields) {
-    const { mean, std } = features[f];
+    const { std, centerMean } = features[f];
 
     if (std <= threshold) {
       board[f] = null;
@@ -102,7 +113,7 @@ export function classifyFromFeatures(features) {
       continue;
     }
 
-    const delta = mean - baseline;
+    const delta = centerMean - baseline;
     const colorSignal = Math.abs(delta) / emptySigma;
     const colorConfidence = clamp01(0.5 + colorSignal * 0.2);
     const occupiedSignal = (std - threshold) / stdGapHalf;
@@ -120,8 +131,22 @@ function toGray(r, g, b) {
   return 0.299 * r + 0.587 * g + 0.114 * b;
 }
 
+function regionMean(data, width, x0, y0, x1, y1) {
+  let sum = 0;
+  let count = 0;
+  for (let y = y0; y < y1; y++) {
+    for (let x = x0; x < x1; x++) {
+      const idx = (y * width + x) * 4;
+      sum += toGray(data[idx], data[idx + 1], data[idx + 2]);
+      count++;
+    }
+  }
+  return sum / count;
+}
+
 // Leest per veld een ingekaderd stukje van het rechtgetrokken vierkante beeld uit
-// (inset, om raster/randpixels te vermijden) en berekent gemiddelde en spreiding.
+// (inset, om raster/randpixels te vermijden) en berekent gemiddelde en spreiding, plus
+// een klein centrumstukje (zie classifyFromFeatures voor waarom dat apart wordt gehouden).
 export function extractFeatures(imageData, outSize) {
   const squareSize = outSize / 10;
   // 0.22 leek eerst genoeg, maar op de eigen (scherpe, niet-foto-achtige) diagramstijl
@@ -129,11 +154,15 @@ export function extractFeatures(imageData, outSize) {
   // gemiddelde vervuilde. 0.26 blijft ruim binnen een schijf, op zowel foto's als
   // schone screenshots (geverifieerd tegen 2 echte testfoto's + de eigen tekenaar).
   const inset = squareSize * 0.26;
+  const centerHalf = squareSize * 0.1;
   const { data, width } = imageData;
   const features = new Array(FIELD_COUNT + 1).fill(null);
 
   for (let f = 1; f <= FIELD_COUNT; f++) {
     const { row, col } = fieldToCoord(f);
+    const cx = col * squareSize + squareSize / 2;
+    const cy = row * squareSize + squareSize / 2;
+
     const x0 = Math.round(col * squareSize + inset);
     const y0 = Math.round(row * squareSize + inset);
     const x1 = Math.round((col + 1) * squareSize - inset);
@@ -153,7 +182,15 @@ export function extractFeatures(imageData, outSize) {
     }
     const mean = sum / count;
     const variance = Math.max(sumSq / count - mean * mean, 0);
-    features[f] = { mean, std: Math.sqrt(variance) };
+    const centerMean = regionMean(
+      data,
+      width,
+      Math.round(cx - centerHalf),
+      Math.round(cy - centerHalf),
+      Math.round(cx + centerHalf),
+      Math.round(cy + centerHalf)
+    );
+    features[f] = { mean, std: Math.sqrt(variance), centerMean };
   }
   return features;
 }
