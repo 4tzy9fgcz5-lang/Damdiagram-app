@@ -1,6 +1,6 @@
 import { describe, it, assertEqual, assertTrue } from "./test-runner.js";
 import { classifyFromFeatures, CONFIDENCE_THRESHOLD } from "../src/recognition/classify.js";
-import { PIECE_TYPES } from "../src/core/board.js";
+import { PIECE_TYPES, FIELD_COUNT } from "../src/core/board.js";
 
 function makeFeatures(occupiedMap, noiseScale = 1, rng = Math.random) {
   const features = new Array(51).fill(null);
@@ -29,9 +29,29 @@ describe("fotoherkenning: classificatie", () => {
     for (const f of [2, 3, 4, 6, 7, 20, 40]) assertEqual(board[f], null);
   });
 
-  it("een volledig leeg bord blijft leeg, ook met ruis", () => {
+  it("een volledig leeg bord blijft leeg, ook met ruis (veiligheidsklep bij ontbrekende splitsing)", () => {
     const { board } = classifyFromFeatures(makeFeatures({}, 1.5, mulberry32(7)));
     for (let f = 1; f <= 50; f++) assertEqual(board[f], null);
+  });
+
+  it("een schaarse stand (maar 2 stukken) wordt nog steeds herkend", () => {
+    const occ = { 40: "w", 10: "b" };
+    const { board } = classifyFromFeatures(makeFeatures(occ, 1, mulberry32(5)));
+    assertEqual(board[40], PIECE_TYPES.WHITE_PIECE);
+    assertEqual(board[10], PIECE_TYPES.BLACK_PIECE);
+  });
+
+  it("een drukke stand (44 van de 50 velden bezet) wordt grotendeels correct herkend", () => {
+    const occ = {};
+    for (let f = 1; f <= 22; f++) occ[f] = "b";
+    for (let f = 29; f <= 50; f++) occ[f] = "w";
+    const { board } = classifyFromFeatures(makeFeatures(occ, 1, mulberry32(6)));
+    let correct = 0;
+    for (let f = 1; f <= FIELD_COUNT; f++) {
+      const expected = occ[f] ? (occ[f] === "w" ? PIECE_TYPES.WHITE_PIECE : PIECE_TYPES.BLACK_PIECE) : null;
+      if (board[f] === expected) correct++;
+    }
+    assertTrue(correct >= 45, `slechts ${correct}/50 correct`);
   });
 
   it("geeft dammen een lage betrouwbaarheid (best-effort)", () => {
