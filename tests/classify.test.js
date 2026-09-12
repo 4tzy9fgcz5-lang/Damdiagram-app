@@ -1,32 +1,50 @@
 import { describe, it, assertEqual, assertTrue } from "./test-runner.js";
 import { classifyFromFeatures, CONFIDENCE_THRESHOLD } from "../src/recognition/classify.js";
-import { PIECE_TYPES, FIELD_COUNT } from "../src/core/board.js";
+import { PIECE_TYPES, FIELD_COUNT, fieldToCoord } from "../src/core/board.js";
 
-function makeFeatures(occupiedMap, noiseScale = 1, rng = Math.random) {
+const OUT_SIZE = 500;
+const SQUARE = OUT_SIZE / 10;
+
+function fieldCenter(f) {
+  const { row, col } = fieldToCoord(f);
+  return { cx: col * SQUARE + SQUARE / 2, cy: row * SQUARE + SQUARE / 2 };
+}
+
+// lightingAt(cx, cy) geeft een optionele helderheidsverschuiving voor die positie,
+// zodat we een ongelijk belichte foto (schaduw, scheve bladzijde) kunnen simuleren.
+function makeFeatures(occupiedMap, noiseScale = 1, rng = Math.random, lightingAt = () => 0) {
   const features = new Array(51).fill(null);
   const rand = (a, b) => a + rng() * (b - a);
   for (let f = 1; f <= 50; f++) {
+    const { cx, cy } = fieldCenter(f);
+    const light = lightingAt(cx, cy);
     const kind = occupiedMap[f];
     if (!kind) {
-      const mean = 180 + rand(-6 * noiseScale, 6 * noiseScale);
-      features[f] = { mean, std: 8 + rand(-2 * noiseScale, 2 * noiseScale), centerMean: mean };
+      const mean = 180 + light + rand(-6 * noiseScale, 6 * noiseScale);
+      features[f] = { mean, std: 8 + rand(-2 * noiseScale, 2 * noiseScale), centerMean: mean, cx, cy };
     } else if (kind === "w") {
-      const mean = 235 + rand(-5, 5);
-      features[f] = { mean, std: 34 + rand(-3, 3), centerMean: mean };
+      const mean = 235 + light + rand(-5, 5);
+      features[f] = { mean, std: 34 + rand(-3, 3), centerMean: mean, cx, cy };
     } else if (kind === "b") {
-      const mean = 55 + rand(-5, 5);
-      features[f] = { mean, std: 34 + rand(-3, 3), centerMean: mean };
+      const mean = 55 + light + rand(-5, 5);
+      features[f] = { mean, std: 34 + rand(-3, 3), centerMean: mean, cx, cy };
     } else if (kind === "wk") {
-      const mean = 235 + rand(-5, 5);
-      features[f] = { mean, std: 55 + rand(-4, 4), centerMean: mean };
+      const mean = 235 + light + rand(-5, 5);
+      features[f] = { mean, std: 55 + rand(-4, 4), centerMean: mean, cx, cy };
     } else if (kind === "bk") {
-      const mean = 55 + rand(-5, 5);
-      features[f] = { mean, std: 55 + rand(-4, 4), centerMean: mean };
+      const mean = 55 + light + rand(-5, 5);
+      features[f] = { mean, std: 55 + rand(-4, 4), centerMean: mean, cx, cy };
     } else if (kind === "ring") {
       // Simuleert een open ringetje voor wit (zoals sommige boeken tekenen): het
       // venster-gemiddelde ligt door de rand van de ring net onder de achtergrond,
       // maar het midden van de ring blijft achtergrondkleurig (hol).
-      features[f] = { mean: 178 + rand(-3, 3), std: 30 + rand(-3, 3), centerMean: 182 + rand(-3, 3) };
+      features[f] = {
+        mean: 178 + light + rand(-3, 3),
+        std: 30 + rand(-3, 3),
+        centerMean: 182 + light + rand(-3, 3),
+        cx,
+        cy,
+      };
     }
   }
   return features;
@@ -94,6 +112,23 @@ describe("fotoherkenning: classificatie", () => {
     assertEqual(board[20], PIECE_TYPES.WHITE_PIECE);
     assertEqual(board[1], PIECE_TYPES.BLACK_PIECE);
     assertEqual(board[5], PIECE_TYPES.BLACK_PIECE);
+  });
+
+  it("blijft wit/zwart correct herkennen bij een schuine belichting over het bord", () => {
+    // Regressietest voor de stap-2-reparatie: bij een echte foto is de linkerkant
+    // vaak donkerder dan de rechterkant (schaduw, niet-platliggende bladzijde). Eén
+    // vast gemiddelde voor het hele bord duwde de donkere kant dan ten onrechte naar
+    // "zwart", ook als het daar leeg of wit was. Hier simuleren we een helling van
+    // 40 grijswaarde-punten van links (donker) naar rechts (licht) over het bord.
+    const gradient = (cx) => (cx / OUT_SIZE) * 40 - 20;
+    const occ = { 6: "w", 16: "w", 26: "w", 36: "w", 46: "w", 10: "b", 20: "b", 30: "b", 40: "b", 50: "b" };
+    const { board } = classifyFromFeatures(makeFeatures(occ, 1, mulberry32(17), gradient));
+    // 6,16,26,36,46 zijn de meest linkse (dus donkerste) velden, maar zijn wit.
+    for (const f of [6, 16, 26, 36, 46]) assertEqual(board[f], PIECE_TYPES.WHITE_PIECE);
+    // 10,20,30,40,50 zijn de meest rechtse (dus lichtste) velden, maar zijn zwart.
+    for (const f of [10, 20, 30, 40, 50]) assertEqual(board[f], PIECE_TYPES.BLACK_PIECE);
+    // lege velden aan de donkere linkerkant moeten leeg blijven, niet "ten onrechte zwart".
+    for (const f of [1, 11, 21, 31, 41]) assertEqual(board[f], null);
   });
 
   it("duidelijke velden krijgen betrouwbaarheid boven de onzeker-drempel", () => {

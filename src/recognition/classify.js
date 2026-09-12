@@ -11,7 +11,12 @@ function mad(values, med) {
 }
 
 function robustSigma(values, med) {
-  return Math.max(1.4826 * mad(values, med), 1e-6);
+  // Ondergrens van 1 grijswaarde-eenheid (i.p.v. bijna 0): bij een heel vlak/
+  // ruisloos beeld (bijvoorbeeld een schone screenshot zonder foto-ruis) kan de
+  // spreiding anders bijna nul worden, waardoor de erop gedeelde signalen
+  // (delta, confidence) absurd groot/instabiel worden. Voor echte foto's met normale
+  // ruis verandert deze grens niets.
+  return Math.max(1.4826 * mad(values, med), 1.0);
 }
 
 function clamp01(v) {
@@ -63,7 +68,57 @@ function kmeans1d2(values) {
 // echte foto's met stukken erop gaven in onze tests altijd een kloof > 2.
 const MIN_STD_GAP = 1.2;
 
-// features: array (index 1..50) van { mean, std } (grijswaarde-gemiddelde en textuur per veld)
+// Zelfde soort veiligheidsklep, maar dan voor de kleursplitsing hieronder.
+const MIN_COLOR_GAP = 0.9;
+
+// Lost een 3x3-stelsel op via Cramer's regel — alleen gebruikt voor het lichthelling-
+// vlak hieronder (3 onbekenden: a, b, c). Bij (bijna) samenvallende veldposities
+// (zou hier niet moeten voorkomen, maar voor de zekerheid) valt dit terug op een plat
+// vlak in plaats van te crashen.
+function solve3x3(A, b) {
+  const det3 = (m) =>
+    m[0][0] * (m[1][1] * m[2][2] - m[1][2] * m[2][1]) -
+    m[0][1] * (m[1][0] * m[2][2] - m[1][2] * m[2][0]) +
+    m[0][2] * (m[1][0] * m[2][1] - m[1][1] * m[2][0]);
+  const D = det3(A);
+  if (Math.abs(D) < 1e-9) return [0, 0, b[2] / 3];
+  const withCol = (col, vals) => A.map((row, i) => row.map((v, j) => (j === col ? vals[i] : v)));
+  return [det3(withCol(0, b)) / D, det3(withCol(1, b)) / D, det3(withCol(2, b)) / D];
+}
+
+// Fit een lichthelling z = a*x + b*y + c (kleinste kwadraten) door de opgegeven
+// [x, y, z]-punten, zodat we per veldpositie een verwachte achtergrondhelderheid
+// kunnen voorspellen in plaats van één vast getal voor het hele bord.
+function fitPlane(points) {
+  let Sxx = 0,
+    Sxy = 0,
+    Sx = 0,
+    Syy = 0,
+    Sy = 0,
+    Sn = 0,
+    Sxz = 0,
+    Syz = 0,
+    Sz = 0;
+  for (const [x, y, z] of points) {
+    Sxx += x * x;
+    Sxy += x * y;
+    Sx += x;
+    Syy += y * y;
+    Sy += y;
+    Sn += 1;
+    Sxz += x * z;
+    Syz += y * z;
+    Sz += z;
+  }
+  const A = [
+    [Sxx, Sxy, Sx],
+    [Sxy, Syy, Sy],
+    [Sx, Sy, Sn],
+  ];
+  return solve3x3(A, [Sxz, Syz, Sz]);
+}
+
+// features: array (index 1..50) van { mean, std, centerMean, cx, cy }
 //
 // Let op: er wordt hier NIET geprobeerd een dam te onderscheiden van een gewone schijf.
 // Dat is geprobeerd via een tweede clustering op textuur, maar bleek onbetrouwbaar: op
@@ -79,48 +134,79 @@ export function classifyFromFeatures(features) {
   const board = createEmptyBoard();
   const confidences = new Array(FIELD_COUNT + 1).fill(1);
 
-  const { low, high, lowGroup, highGroup, gap } = kmeans1d2(stds);
+  // Stage 1: bezet/leeg per veld (ongewijzigd — dit bleek bij diagnose niet de bron
+  // van de "ten onrechte zwart"-fout).
+  const { low, high, highGroup, gap } = kmeans1d2(stds);
   if (gap < MIN_STD_GAP || highGroup.length === 0) {
     // Geen betrouwbaar te onderscheiden groep gevonden: waarschijnlijk een leeg bord.
     return { board, confidences };
   }
 
   const threshold = (low + high) / 2;
-  // Voor de kleur wordt niet het venster-gemiddelde gebruikt, maar het gemiddelde van
-  // alleen het middelste stukje van elk veld (zie centerMean in extractFeatures). Bij
-  // een open ringetje (zoals sommige boeken voor wit gebruiken) trekt de rand van de
-  // ring het venster-gemiddelde soms net onder de achtergrondwaarde, waardoor wit voor
-  // zwart werd aangezien. Het midden van een open ring blijft achtergrondkleurig/licht,
-  // het midden van een gevulde zwarte schijf niet — dat scheidt veel scherper
-  // (geverifieerd tegen 6 echte testfoto's: 88,3% -> 89,7% correct, minder wit/zwart-
-  // verwisselingen, geen enkele foto ging erop achteruit).
-  const emptyCenters = fields.filter((f) => features[f].std <= threshold).map((f) => features[f].centerMean);
-  const baseline = emptyCenters.length ? median(emptyCenters) : median(fields.map((f) => features[f].centerMean));
-  const emptySigma = robustSigma(
-    emptyCenters.length >= 2 ? emptyCenters : fields.map((f) => features[f].centerMean),
-    baseline
+  const stdGapHalf = Math.max((high - low) / 2, 1e-6);
+  const emptyFields = fields.filter((f) => features[f].std <= threshold);
+  const occupiedFields = fields.filter((f) => features[f].std > threshold);
+
+  for (const f of emptyFields) {
+    const distance = (threshold - features[f].std) / stdGapHalf;
+    confidences[f] = clamp01(0.6 + distance * 0.3);
+  }
+  if (occupiedFields.length === 0) {
+    return { board, confidences };
+  }
+
+  // Stage 2: kleur. Diagnose (zie ontwikkelnotities) liet zien dat foto's zelden
+  // gelijkmatig belicht zijn (schaduw van een hand, een niet-platliggende bladzijde) —
+  // één vast gemiddelde voor het hele bord duwde de donkerste kant van de foto te vaak
+  // richting "zwart", ook als het veld leeg of wit was. In plaats daarvan fitten we een
+  // lichthelling op de centerMean van alle LEGE velden (typisch 20-40 metingen, over
+  // het hele bord verspreid) en vergelijken elk bezet veld met de verwachte
+  // achtergrondhelderheid op precies die positie, niet met één plat gemiddelde.
+  let a = 0;
+  let b = 0;
+  let c;
+  if (emptyFields.length >= 6) {
+    [a, b, c] = fitPlane(emptyFields.map((f) => [features[f].cx, features[f].cy, features[f].centerMean]));
+  } else {
+    // Te weinig lege velden om een vlak betrouwbaar te fitten: terugvallen op één
+    // vast gemiddelde, zoals voorheen.
+    c = emptyFields.length
+      ? median(emptyFields.map((f) => features[f].centerMean))
+      : median(fields.map((f) => features[f].centerMean));
+  }
+  const predictedAt = (f) => a * features[f].cx + b * features[f].cy + c;
+  const emptyResiduals = emptyFields.map((f) => features[f].centerMean - predictedAt(f));
+  const noiseFloor = robustSigma(
+    emptyResiduals.length >= 2 ? emptyResiduals : fields.map((f) => features[f].centerMean),
+    median(emptyResiduals.length ? emptyResiduals : [0])
   );
 
-  const stdGapHalf = Math.max((high - low) / 2, 1e-6);
+  const deltas = {};
+  for (const f of occupiedFields) {
+    deltas[f] = (features[f].centerMean - predictedAt(f)) / noiseFloor;
+  }
 
-  for (const f of fields) {
-    const { std, centerMean } = features[f];
+  // De grens tussen wit en zwart wordt, net als bij bezet/leeg, per foto bepaald
+  // (i.p.v. vooraf vastgelegd op nul) — met een terugval op een eenvoudige
+  // teken-drempel als er te weinig scheiding is (bijvoorbeeld een bord met maar 1
+  // kleur schijven erop).
+  const colorSplit = kmeans1d2(occupiedFields.map((f) => deltas[f]));
+  let colorThreshold = 0;
+  let colorGapHalf = 1;
+  if (colorSplit.gap >= MIN_COLOR_GAP && colorSplit.lowGroup.length && colorSplit.highGroup.length) {
+    colorThreshold = (colorSplit.low + colorSplit.high) / 2;
+    colorGapHalf = Math.max((colorSplit.high - colorSplit.low) / 2, 1e-6);
+  }
 
-    if (std <= threshold) {
-      board[f] = null;
-      const distance = (threshold - std) / stdGapHalf;
-      confidences[f] = clamp01(0.6 + distance * 0.3);
-      continue;
-    }
-
-    const delta = centerMean - baseline;
-    const colorSignal = Math.abs(delta) / emptySigma;
-    const colorConfidence = clamp01(0.5 + colorSignal * 0.2);
-    const occupiedSignal = (std - threshold) / stdGapHalf;
-    const occupiedConfidence = clamp01(0.5 + occupiedSignal * 0.25);
-    const isWhite = delta > 0;
-
+  for (const f of occupiedFields) {
+    const d = deltas[f];
+    const isWhite = d > colorThreshold;
     board[f] = isWhite ? PIECE_TYPES.WHITE_PIECE : PIECE_TYPES.BLACK_PIECE;
+
+    const occupiedSignal = (features[f].std - threshold) / stdGapHalf;
+    const occupiedConfidence = clamp01(0.5 + occupiedSignal * 0.25);
+    const colorSignal = Math.abs(d - colorThreshold) / colorGapHalf;
+    const colorConfidence = clamp01(0.5 + colorSignal * 0.2);
     confidences[f] = Math.min(occupiedConfidence, colorConfidence);
   }
 
@@ -190,7 +276,7 @@ export function extractFeatures(imageData, outSize) {
       Math.round(cx + centerHalf),
       Math.round(cy + centerHalf)
     );
-    features[f] = { mean, std: Math.sqrt(variance), centerMean };
+    features[f] = { mean, std: Math.sqrt(variance), centerMean, cx, cy };
   }
   return features;
 }
