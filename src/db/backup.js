@@ -1,8 +1,9 @@
 import { openDb, tx, promisify, newId } from "./db.js";
-import { STORE_STANDEN, STORE_LIJSTEN, STORE_STENCILS, SCHEMA_VERSION } from "./schema.js";
+import { STORE_STANDEN, STORE_LIJSTEN, STORE_STENCILS, STORE_HERKENNING_LOG, SCHEMA_VERSION } from "./schema.js";
 import { listStanden, saveStand } from "./standen.js";
 import { getAllLists, addListValue } from "./lijsten.js";
 import { listStencils, saveStencil } from "./stencils.js";
+import { getAllHerkenningCorrecties, putHerkenningCorrectie } from "./herkenningLog.js";
 
 export async function buildShareData(standIds) {
   const selected = [];
@@ -14,10 +15,11 @@ export async function buildShareData(standIds) {
 }
 
 export async function exportAll() {
-  const [standen, lijsten, stencils] = await Promise.all([
+  const [standen, lijsten, stencils, herkenningCorrecties] = await Promise.all([
     listStanden({ sortBy: "createdAt", sortDir: "asc" }),
     getAllLists(),
     listStencils(),
+    getAllHerkenningCorrecties(),
   ]);
   return {
     schemaVersion: SCHEMA_VERSION,
@@ -25,6 +27,7 @@ export async function exportAll() {
     standen,
     lijsten,
     stencils,
+    herkenningCorrecties,
   };
 }
 
@@ -37,6 +40,7 @@ async function replaceImport(data) {
   await clearStore(STORE_STANDEN);
   await clearStore(STORE_LIJSTEN);
   await clearStore(STORE_STENCILS);
+  await clearStore(STORE_HERKENNING_LOG);
   const db = await openDb();
 
   for (const stand of data.standen ?? []) {
@@ -47,6 +51,9 @@ async function replaceImport(data) {
   }
   for (const stencil of data.stencils ?? []) {
     await tx(db, STORE_STENCILS, "readwrite", (store) => promisify(store.put(stencil)));
+  }
+  for (const correctie of data.herkenningCorrecties ?? []) {
+    await putHerkenningCorrectie(correctie);
   }
 }
 
@@ -80,6 +87,11 @@ async function mergeImport(data) {
     const { id: oldId, ...rest } = stencil;
     const saved = await saveStencil({ ...rest, id: newId(), standen: newStanden });
     stencilIdMap.set(oldId, saved.id);
+  }
+
+  // Logboek-items zijn losse, niet-samenvloeiende voorbeelden: gewoon toevoegen.
+  for (const correctie of data.herkenningCorrecties ?? []) {
+    await putHerkenningCorrectie({ ...correctie, id: newId() });
   }
 }
 

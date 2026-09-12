@@ -12,6 +12,7 @@ import {
 import { getList, addListValue, renameListValue, removeListValue } from "../src/db/lijsten.js";
 import { saveStencil, getStencil, listStencils, deleteStencil } from "../src/db/stencils.js";
 import { exportAll, importAll, buildShareData } from "../src/db/backup.js";
+import { logHerkenningCorrectie, getAllHerkenningCorrecties } from "../src/db/herkenningLog.js";
 
 async function freshDb() {
   await resetDatabaseForTests();
@@ -135,6 +136,52 @@ describe("database: stencils", () => {
     await deleteStencil(saved.id);
     const list = await listStencils();
     assertTrue(!list.some((s) => s.id === saved.id));
+  });
+});
+
+describe("database: herkenning-logboek", () => {
+  it("logt een correctie met de juiste velden die veranderd zijn", async () => {
+    await freshDb();
+    const initialBoard = new Array(51).fill(null);
+    initialBoard[1] = "bp";
+    initialBoard[13] = "bp"; // fout: dit moet wit zijn
+    const finalBoard = new Array(51).fill(null);
+    finalBoard[1] = "bp";
+    finalBoard[13] = "wp"; // door de gebruiker gecorrigeerd
+
+    const record = await logHerkenningCorrectie({
+      foto: "data:image/jpeg;base64,xxx",
+      initialBoard,
+      finalBoard,
+      confidences: null,
+    });
+    assertTrue(!!record.id);
+    assertEqual(record.correctedFields.length, 1);
+    assertEqual(record.correctedFields[0], 13);
+
+    const all = await getAllHerkenningCorrecties();
+    assertEqual(all.length, 1);
+  });
+
+  it("logt niets zonder foto of zonder een van beide borden", async () => {
+    await freshDb();
+    await logHerkenningCorrectie({ foto: null, initialBoard: [], finalBoard: [] });
+    const all = await getAllHerkenningCorrecties();
+    assertEqual(all.length, 0);
+  });
+
+  it("neemt het logboek mee in een volledige back-up en bij terugzetten", async () => {
+    await freshDb();
+    const board = new Array(51).fill(null);
+    board[1] = "wp";
+    await logHerkenningCorrectie({ foto: "data:x", initialBoard: board, finalBoard: board });
+    const backup = await exportAll();
+    assertEqual(backup.herkenningCorrecties.length, 1);
+
+    await freshDb();
+    await importAll(backup, { mode: "replace" });
+    const restored = await getAllHerkenningCorrecties();
+    assertEqual(restored.length, 1);
   });
 });
 

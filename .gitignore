@@ -13,3 +13,10 @@
 # Eigen ontwikkel-hulpbestanden
 /tests/compare.html
 /tests/_run*.html
+
+# Training-toolchain voor de fotoherkenning (Python, los van de app zelf)
+/.venv-training/
+/tools/recognizer-training/dataset/
+/tools/recognizer-training/*.npz
+/tools/recognizer-training/samples/
+/tools/recognizer-training/model_weights.json

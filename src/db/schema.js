@@ -1,10 +1,11 @@
 export const DB_NAME = "damstencil_app";
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;
 
 export const STORE_STANDEN = "standen";
 export const STORE_LIJSTEN = "lijsten";
 export const STORE_STENCILS = "stencils";
 export const STORE_META = "meta";
+export const STORE_HERKENNING_LOG = "herkenningCorrecties";
 
 export const DEFAULT_LISTS = {
   speelsysteem: ["klassiek", "flankspel", "Roozenburg", "Keller", "compositie met eindspel"],
@@ -26,5 +27,12 @@ export const MIGRATIONS = {
     db.createObjectStore(STORE_LIJSTEN, { keyPath: "naam" });
     db.createObjectStore(STORE_STENCILS, { keyPath: "id" });
     db.createObjectStore(STORE_META, { keyPath: "key" });
+  },
+  // Nieuw: elke keer dat je een via een foto herkende stand opslaat, wordt hier (foto
+  // + wat de app dacht + wat het uiteindelijk werd) bewaard — puur lokaal, alleen om
+  // de fotoherkenning later mee te kunnen trainen. Zie src/db/herkenningLog.js.
+  2(db) {
+    const log = db.createObjectStore(STORE_HERKENNING_LOG, { keyPath: "id" });
+    log.createIndex("createdAt", "createdAt", { unique: false });
   },
 };

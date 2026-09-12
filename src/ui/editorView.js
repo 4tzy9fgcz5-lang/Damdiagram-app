@@ -5,6 +5,7 @@ import { parseQuickText, QuickTextParseError } from "../core/quicktext.js";
 import { validateBoard } from "../core/validate.js";
 import { saveStand, getStand, findDuplicates } from "../db/standen.js";
 import { getList, addListValue } from "../db/lijsten.js";
+import { logHerkenningCorrectie } from "../db/herkenningLog.js";
 import { CONFIDENCE_THRESHOLD } from "../recognition/classify.js";
 
 const MOEILIJKHEID_MAX = 5;
@@ -286,6 +287,22 @@ export async function renderEditorView(
 
     const saved = await saveStand(input);
     existingStand = saved;
+
+    // Alleen lokaal: bewaar wat de fotoherkenning dacht en wat het uiteindelijk werd,
+    // als toekomstig trainingsmateriaal. Mag de opslag zelf nooit laten mislukken.
+    if (photoDataUrl && initialBoard) {
+      try {
+        await logHerkenningCorrectie({
+          foto: photoDataUrl,
+          initialBoard,
+          finalBoard: boardEditor.getBoard(),
+          confidences,
+        });
+      } catch (err) {
+        console.warn("Kon herkenningscorrectie niet loggen:", err);
+      }
+    }
+
     onSaved?.(saved, { addToStencil });
   }
 
