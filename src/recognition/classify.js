@@ -118,6 +118,19 @@ function fitPlane(points) {
   return solve3x3(A, [Sxz, Syz, Sz]);
 }
 
+// Bepaalt bezet/leeg via hoeveel het MIDDEN van elk veld afwijkt van een over het
+// hele bord gefitte achtergrond (ruwe fit op alle 50 velden — er is op dit punt nog
+// niet bekend welke velden leeg zijn). Terugvalpad voor als de textuur-methode
+// hierboven geen betrouwbare knik vindt: bij een gearceerde achtergrond met een
+// geleidelijke (niet-tweedelige) textuur gaf die methode dan bij Jan "0 schijven
+// herkend", terwijl dit signaal (schijf vs. achtergrond) daar wél op reageert.
+function occupancyByBackgroundFit(features, fields) {
+  const [a, b, c] = fitPlane(fields.map((f) => [features[f].cx, features[f].cy, features[f].centerMean]));
+  const residuals = {};
+  for (const f of fields) residuals[f] = features[f].centerMean - (a * features[f].cx + b * features[f].cy + c);
+  return residuals;
+}
+
 // features: array (index 1..50) van { mean, std, centerMean, cx, cy }
 //
 // Let op: er wordt hier NIET geprobeerd een dam te onderscheiden van een gewone schijf.
@@ -134,23 +147,43 @@ export function classifyFromFeatures(features) {
   const board = createEmptyBoard();
   const confidences = new Array(FIELD_COUNT + 1).fill(1);
 
-  // Stage 1: bezet/leeg per veld (ongewijzigd — dit bleek bij diagnose niet de bron
-  // van de "ten onrechte zwart"-fout).
+  // Stage 1: bezet/leeg per veld. Eerste keus: venster-textuur (bewezen betrouwbaar,
+  // ook bij drukke standen met veel stukken). Alleen als die geen betrouwbare knik
+  // vindt, valt de app terug op het achtergrond-afwijkings-signaal hierboven.
+  let emptyFields;
+  let occupiedFields;
+  let occupiedConfidenceFor;
+
   const { low, high, highGroup, gap } = kmeans1d2(stds);
-  if (gap < MIN_STD_GAP || highGroup.length === 0) {
-    // Geen betrouwbaar te onderscheiden groep gevonden: waarschijnlijk een leeg bord.
-    return { board, confidences };
+  if (gap >= MIN_STD_GAP && highGroup.length > 0) {
+    const threshold = (low + high) / 2;
+    const stdGapHalf = Math.max((high - low) / 2, 1e-6);
+    emptyFields = fields.filter((f) => features[f].std <= threshold);
+    occupiedFields = fields.filter((f) => features[f].std > threshold);
+    for (const f of emptyFields) {
+      const distance = (threshold - features[f].std) / stdGapHalf;
+      confidences[f] = clamp01(0.6 + distance * 0.3);
+    }
+    occupiedConfidenceFor = (f) => clamp01(0.5 + ((features[f].std - threshold) / stdGapHalf) * 0.25);
+  } else {
+    const residuals0 = occupancyByBackgroundFit(features, fields);
+    const abs0 = fields.map((f) => Math.abs(residuals0[f]));
+    const split0 = kmeans1d2(abs0);
+    if (split0.gap < MIN_STD_GAP || split0.highGroup.length === 0) {
+      // Ook hiermee geen betrouwbare knik: waarschijnlijk een leeg bord.
+      return { board, confidences };
+    }
+    const threshold0 = (split0.low + split0.high) / 2;
+    const gapHalf0 = Math.max((split0.high - split0.low) / 2, 1e-6);
+    emptyFields = fields.filter((f) => Math.abs(residuals0[f]) <= threshold0);
+    occupiedFields = fields.filter((f) => Math.abs(residuals0[f]) > threshold0);
+    for (const f of emptyFields) {
+      const distance = (threshold0 - Math.abs(residuals0[f])) / gapHalf0;
+      confidences[f] = clamp01(0.6 + distance * 0.3);
+    }
+    occupiedConfidenceFor = (f) => clamp01(0.5 + ((Math.abs(residuals0[f]) - threshold0) / gapHalf0) * 0.25);
   }
 
-  const threshold = (low + high) / 2;
-  const stdGapHalf = Math.max((high - low) / 2, 1e-6);
-  const emptyFields = fields.filter((f) => features[f].std <= threshold);
-  const occupiedFields = fields.filter((f) => features[f].std > threshold);
-
-  for (const f of emptyFields) {
-    const distance = (threshold - features[f].std) / stdGapHalf;
-    confidences[f] = clamp01(0.6 + distance * 0.3);
-  }
   if (occupiedFields.length === 0) {
     return { board, confidences };
   }
@@ -203,11 +236,9 @@ export function classifyFromFeatures(features) {
     const isWhite = d > colorThreshold;
     board[f] = isWhite ? PIECE_TYPES.WHITE_PIECE : PIECE_TYPES.BLACK_PIECE;
 
-    const occupiedSignal = (features[f].std - threshold) / stdGapHalf;
-    const occupiedConfidence = clamp01(0.5 + occupiedSignal * 0.25);
     const colorSignal = Math.abs(d - colorThreshold) / colorGapHalf;
     const colorConfidence = clamp01(0.5 + colorSignal * 0.2);
-    confidences[f] = Math.min(occupiedConfidence, colorConfidence);
+    confidences[f] = Math.min(occupiedConfidenceFor(f), colorConfidence);
   }
 
   return { board, confidences };

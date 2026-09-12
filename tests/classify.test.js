@@ -131,6 +131,34 @@ describe("fotoherkenning: classificatie", () => {
     for (const f of [1, 11, 21, 31, 41]) assertEqual(board[f], null);
   });
 
+  it("herkent stukken ook als de textuur geen duidelijke knik geeft (terugvalpad)", () => {
+    // Regressietest voor een echt gemelde fout: bij een gearceerde achtergrond met een
+    // geleidelijke (niet-tweedelige) textuurverdeling — geen scherp verschil tussen
+    // "leeg" en "bezet" in venster-spreiding — gaf de oude, puur std-gebaseerde
+    // bezet/leeg-splitsing bij Jan "0 schijven herkend" op meerdere echte foto's.
+    // Hier simuleren we precies dat: std loopt geleidelijk op van veld tot veld (geen
+    // knik), maar het midden van bezette velden wijkt wél duidelijk af van de
+    // (effen) achtergrond — dat moet het terugvalpad opvangen.
+    const rng = mulberry32(99);
+    const occ = { 5: "w", 25: "w", 45: "w", 10: "b", 30: "b", 50: "b" };
+    const features = new Array(51).fill(null);
+    for (let f = 1; f <= 50; f++) {
+      const { cx, cy } = fieldCenter(f);
+      const std = 10 + (f / 50) * 15 + (rng() - 0.5) * 2; // geleidelijk oplopend, geen knik
+      const kind = occ[f];
+      const mean = kind === "w" ? 210 : kind === "b" ? 70 : 140 + (rng() - 0.5) * 4;
+      features[f] = { mean, std, centerMean: mean, cx, cy };
+    }
+    const { board } = classifyFromFeatures(features);
+    for (const f of [5, 25, 45]) assertEqual(board[f], PIECE_TYPES.WHITE_PIECE);
+    for (const f of [10, 30, 50]) assertEqual(board[f], PIECE_TYPES.BLACK_PIECE);
+    let leegCorrect = 0;
+    for (let f = 1; f <= 50; f++) {
+      if (!occ[f] && board[f] === null) leegCorrect++;
+    }
+    assertTrue(leegCorrect >= 40, `slechts ${leegCorrect}/44 lege velden correct`);
+  });
+
   it("duidelijke velden krijgen betrouwbaarheid boven de onzeker-drempel", () => {
     const occ = { 13: "w", 1: "b" };
     const { confidences } = classifyFromFeatures(makeFeatures(occ, 1, mulberry32(11)));
