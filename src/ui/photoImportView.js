@@ -1,6 +1,7 @@
 import { warpToSquareCanvas } from "../recognition/homography.js";
 import { classifyBoard, CONFIDENCE_THRESHOLD } from "../recognition/classify.js";
 import { buildCornersOverlay, buildGridOverlay, buildFieldCrops } from "../recognition/debugRender.js";
+import { detectBoardCorners } from "../recognition/detectBoard.js";
 import { FIELD_COUNT } from "../core/board.js";
 
 const WORKING_MAX_SIDE = 1400;
@@ -175,10 +176,24 @@ export async function renderPhotoImportView(container, { onRecognized } = {}) {
       const scale = Math.min(1, WORKING_MAX_SIDE / Math.max(width, height));
       canvas.width = Math.round(width * scale);
       canvas.height = Math.round(height * scale);
-      corners = defaultCorners(canvas.width, canvas.height);
+
+      // Probeer het bord zelf te vinden (dikke buitenrand); lukt dat niet, dan de
+      // vaste 12%-marge zoals voorheen. In beide gevallen kan de gebruiker de
+      // hoeken nog gewoon verslepen — dit is alleen het startpunt.
+      status.textContent = "Bord zoeken...";
+      let detected = null;
+      try {
+        detected = detectBoardCorners(drawable);
+      } catch {
+        detected = null;
+      }
+      corners = detected
+        ? detected.map((p) => ({ x: p.x * scale, y: p.y * scale }))
+        : defaultCorners(canvas.width, canvas.height);
+
       pickCard.style.display = "none";
       cornersCard.style.display = "block";
-      status.textContent = "";
+      status.textContent = detected ? "Bord automatisch gevonden — controleer en pas zo nodig aan." : "";
       redraw();
     } catch (err) {
       status.textContent = "Kon deze foto niet openen: " + err.message;
