@@ -1,7 +1,7 @@
 import { describe, it, assertTrue, assertEqual } from "./test-runner.js";
-import { renderDiagramSVG } from "../src/diagram/render.js";
+import { renderDiagramSVG, MARGIN, SQUARE } from "../src/diagram/render.js";
 import { parseFen } from "../src/core/fen.js";
-import { createEmptyBoard } from "../src/core/board.js";
+import { createEmptyBoard, fieldToCoord } from "../src/core/board.js";
 
 function countOccurrences(text, sub) {
   return text.split(sub).length - 1;
@@ -27,6 +27,32 @@ describe("SVG-diagramrenderer", () => {
     const svg = renderDiagramSVG(board);
     assertEqual(countOccurrences(svg, "<ellipse"), 2);
   });
+  it("staat een gewone schijf verticaal gecentreerd in het veld (niet te laag)", () => {
+    // Regressietest: de vorm van een schijf loopt van (topY - ry) tot
+    // (topY + rim + ry) — de afgeronde onderrand steekt nóg een keer ry uit onder
+    // de rand. Die extra ry ontbrak eerder in de centrerings-berekening, waardoor
+    // de schijf zichtbaar te laag in het veld stond.
+    const { board } = parseFen("W:W13:B");
+    const svg = renderDiagramSVG(board);
+    const match = svg.match(/<ellipse cx="([\d.]+)" cy="([\d.]+)" rx="([\d.]+)" ry="([\d.]+)"/);
+    assertTrue(match !== null, "geen ellips gevonden in de SVG");
+    const [, , cyStr, , ryStr] = match;
+    const topY = parseFloat(cyStr);
+    const ry = parseFloat(ryStr);
+    const rim = SQUARE * 0.24; // zelfde formule als in render.js (rim hangt af van SQUARE, niet van rx/ry)
+
+    const { row, col } = fieldToCoord(13);
+    const cyCenter = MARGIN + row * SQUARE + SQUARE / 2;
+
+    const top = topY - ry;
+    const bottom = topY + rim + ry;
+    const visualCenter = (top + bottom) / 2;
+    assertTrue(
+      Math.abs(visualCenter - cyCenter) < 0.5,
+      `schijf niet gecentreerd: visueel midden ${visualCenter.toFixed(2)} vs. veldmidden ${cyCenter.toFixed(2)}`
+    );
+  });
+
   it("respecteert de gevraagde uitvoergrootte", () => {
     const svg = renderDiagramSVG(createEmptyBoard(), { size: 1200 });
     assertTrue(svg.includes('width="1200"'));

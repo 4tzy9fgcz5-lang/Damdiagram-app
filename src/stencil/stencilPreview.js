@@ -9,10 +9,9 @@ const PAGE_STYLE = `
   body { font-family: "Segoe UI", Arial, sans-serif; color: #111; margin: 0; }
   .sheet { page-break-after: always; padding-top: 2mm; }
   .sheet:last-child { page-break-after: auto; }
-  .sheet-header { text-align: center; margin-bottom: 6mm; }
+  .sheet-header { text-align: center; margin-bottom: 3mm; }
   .sheet-header h1 { font-size: 16pt; margin: 0 0 1mm; }
-  .sheet-header .club { font-size: 10pt; color: #444; margin: 0 0 1mm; }
-  .sheet-header .opdracht { font-size: 11pt; font-style: italic; margin: 2mm 0 0; }
+  .sheet-header .opdracht { font-size: 11pt; font-style: italic; margin: 1mm 0 0; }
   .grid { display: grid; gap: 4mm; }
   .cell { border: 1px solid #ccc; border-radius: 2mm; padding: 2mm; display: flex; flex-direction: column; align-items: center; }
   .cell .cell-head { width: 100%; font-size: 9pt; margin-bottom: 1mm; }
@@ -26,13 +25,12 @@ const PAGE_STYLE = `
   .oplossingen-list .ontbreekt { color: #a30000; }
 `;
 
+// Club en datum staan niet op het geprinte stencil (alleen relevant voor eigen
+// administratie in de database).
 function headerHTML(stencil, subtitel) {
   return `
     <div class="sheet-header">
       <h1>${escapeHtml(stencil.titel)}${subtitel ? " — " + escapeHtml(subtitel) : ""}</h1>
-      <div class="club">${escapeHtml(stencil.club)}${stencil.club && stencil.datum ? " · " : ""}${escapeHtml(
-    stencil.datum
-  )}</div>
       ${subtitel ? "" : `<div class="opdracht">${escapeHtml(stencil.opdrachtregel)}</div>`}
     </div>
   `;

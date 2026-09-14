@@ -86,7 +86,11 @@ function pieceSVG(field, piece, colors) {
   const rx = SQUARE * 0.36;
   const ry = rx * 0.55;
   const rim = SQUARE * 0.24;
-  const totalHeight = ry + rim;
+  // De vorm loopt van (topY - ry), de bovenkant van de ellips, tot (topY + rim +
+  // ry): de onderkant van de afgeronde rand-boog steekt nóg een keer ry uit onder
+  // de rim (zie discBodyPath). De hoogte was hier alleen ry + rim, dus zonder die
+  // tweede ry — daardoor stond de schijf zichtbaar te laag in het veld.
+  const totalHeight = 2 * ry + rim;
   const topY = cyCenter - totalHeight / 2 + ry;
   return singleDiscSVG(cx, topY, rx, ry, rim, fill, stroke, strokeWidth);
 }
@@ -128,7 +132,7 @@ export function pieceIconSVG(piece, size = 60) {
     const rx = square * 0.36;
     const ry = rx * 0.55;
     const rim = square * 0.24;
-    const totalHeight = ry + rim;
+    const totalHeight = 2 * ry + rim; // zie toelichting bij pieceSVG hierboven
     const topY = cy - totalHeight / 2 + ry;
     body = singleDiscSVG(cx, topY, rx, ry, rim, fill, stroke, strokeWidth);
   }

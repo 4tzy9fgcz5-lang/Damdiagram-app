@@ -22,7 +22,9 @@ const {
 
 const PAGE_MM = { width: 210, height: 297 };
 const MARGIN_MM = 14;
-const HEADER_RESERVED_MM = 26;
+const HEADER_RESERVED_MM = 16;
+const CELL_TEXT_RESERVED_MM = 7; // ruimte voor de opdrachtregel boven de afbeelding
+const CELL_PADDING_MM = 3;
 const PRINT_DPI = 300;
 const DISPLAY_DPI = 96;
 
@@ -71,22 +73,18 @@ function headerParagraphs(stencil, subtitel) {
       ],
     }),
   ];
-  const clubDatum = [stencil.club, stencil.datum].filter(Boolean).join(" · ");
-  if (clubDatum) {
-    paragraphs.push(
-      new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: clubDatum, size: 20, color: "444444" })] })
-    );
-  }
+  // Club en datum staan niet op het geprinte stencil (alleen relevant voor eigen
+  // administratie in de database) — bespaart ruimte, en de opgaven hoeven dat niet
+  // te tonen.
   if (!subtitel) {
     paragraphs.push(
       new Paragraph({
         alignment: AlignmentType.CENTER,
-        spacing: { before: 120 },
+        spacing: { before: 40, after: 40 },
         children: [new TextRun({ text: stencil.opdrachtregel, italics: true, size: 22 })],
       })
     );
   }
-  paragraphs.push(new Paragraph({ text: "" }));
   return paragraphs;
 }
 
@@ -108,7 +106,10 @@ async function buildOpgavenTable(stencil, items) {
   const usableHeightMm = PAGE_MM.height - 2 * MARGIN_MM - HEADER_RESERVED_MM;
   const cellWMm = usableWidthMm / cols;
   const cellHMm = usableHeightMm / rows;
-  const imageSizeMm = Math.max(10, Math.min(cellWMm, cellHMm) - 8);
+  // Ruimte voor de opdrachtregel + celopvulling moet van de hoogte af, anders past
+  // een rij met tekst niet in de berekende celhoogte en schuift alles door naar
+  // een 2e A4'tje.
+  const imageSizeMm = Math.max(10, Math.min(cellWMm - 2 * CELL_PADDING_MM, cellHMm - CELL_TEXT_RESERVED_MM - 2 * CELL_PADDING_MM));
   const imagePxDisplay = mmToPx(imageSizeMm, DISPLAY_DPI);
   const colWidthTwip = mmToTwip(cellWMm);
   const rowHeightTwip = mmToTwip(cellHMm);
@@ -119,6 +120,7 @@ async function buildOpgavenTable(stencil, items) {
     const tekst = item.opdracht || item.stand?.opdracht || "";
     const children = [
       new Paragraph({
+        spacing: { after: 20 },
         children: [
           new TextRun({ text: `${i + 1}. `, bold: true, size: 18 }),
           new TextRun({ text: tekst, size: 18 }),
