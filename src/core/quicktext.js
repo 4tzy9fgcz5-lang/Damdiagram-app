@@ -1,4 +1,4 @@
-import { PIECE_TYPES, createEmptyBoard, isValidField } from "./board.js?v=20260914f";
+import { PIECE_TYPES, createEmptyBoard, isValidField } from "./board.js?v=20260914g";
 
 export class QuickTextParseError extends Error {}
 

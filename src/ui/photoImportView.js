@@ -1,8 +1,9 @@
-import { warpToSquareCanvas } from "../recognition/homography.js?v=20260914f";
-import { classifyBoard, CONFIDENCE_THRESHOLD, RECOGNITION_VERSION } from "../recognition/classify.js?v=20260914f";
-import { buildCornersOverlay, buildGridOverlay, buildFieldCrops } from "../recognition/debugRender.js?v=20260914f";
-import { detectBoardCorners } from "../recognition/detectBoard.js?v=20260914f";
-import { FIELD_COUNT } from "../core/board.js?v=20260914f";
+import { warpToSquareCanvas } from "../recognition/homography.js?v=20260914g";
+import { classifyBoard, CONFIDENCE_THRESHOLD, RECOGNITION_VERSION } from "../recognition/classify.js?v=20260914g";
+import { buildCornersOverlay, buildGridOverlay, buildFieldCrops } from "../recognition/debugRender.js?v=20260914g";
+import { detectBoardCorners } from "../recognition/detectBoard.js?v=20260914g";
+import { FIELD_COUNT } from "../core/board.js?v=20260914g";
+import { buildZip } from "../export/zip.js?v=20260914g";
 
 const WORKING_MAX_SIDE = 1400;
 const WARP_SIZE = 500;
@@ -67,7 +68,9 @@ export async function renderPhotoImportView(container, { onRecognized } = {}) {
       <div class="button-row" style="margin-top:0;">
         <button type="button" class="primary" data-action="goto-editor">Ga naar editor</button>
         <button type="button" class="secondary" data-action="toggle-debug">Toon herkenningsstappen</button>
+        <button type="button" class="secondary" data-action="dump-crops">Dump crops</button>
       </div>
+      <p data-role="dump-status" style="color:#666;font-size:0.85rem;"></p>
       <div data-role="debug" style="display:none;margin-top:1rem;">
         <h3 style="font-size:0.9rem;">1. Aangewezen hoeken op de foto</h3>
         <div data-role="debug-corners"></div>
@@ -301,5 +304,52 @@ export async function renderPhotoImportView(container, { onRecognized } = {}) {
     if (!lastRecognition) return;
     const { board, confidences, photoDataUrl } = lastRecognition;
     onRecognized?.({ board, confidences, photoDataUrl, modelVersion: RECOGNITION_VERSION });
+  });
+
+  function canvasToPngBytes(canvas) {
+    return new Promise((resolve, reject) => {
+      canvas.toBlob((blob) => {
+        if (!blob) {
+          reject(new Error("kon canvas niet naar PNG omzetten"));
+          return;
+        }
+        blob.arrayBuffer().then((buf) => resolve(new Uint8Array(buf)));
+      }, "image/png");
+    });
+  }
+
+  // Voor damscan/OPDRACHT.md stap 1: schrijft de 50 veld-uitsnedes van de huidige
+  // (al rechtgetrokken) foto weg als losse PNG's in één zip-bestand, zodat je die
+  // kunt uitpakken naar crops/<fotonaam>/01.png .. 50.png. Gebruikt dezelfde
+  // uitsnede-functie (buildFieldCrops) als "Toon herkenningsstappen" hierboven —
+  // geen nieuwe rasterlogica.
+  el('[data-action="dump-crops"]').addEventListener("click", async () => {
+    if (!lastRecognition) return;
+    const dumpStatus = el('[data-role="dump-status"]');
+    const naam = prompt("Naam voor deze foto (wordt de mapnaam, bijv. foto01):", "foto01");
+    if (!naam) return;
+    dumpStatus.textContent = "Bezig met crops maken...";
+    await new Promise((r) => setTimeout(r, 0));
+    try {
+      const { board, confidences, warpedCanvas } = lastRecognition;
+      const crops = buildFieldCrops(warpedCanvas, board, confidences);
+      const entries = [];
+      for (const crop of crops) {
+        const data = await canvasToPngBytes(crop.canvas);
+        entries.push({ name: `${String(crop.field).padStart(2, "0")}.png`, data });
+      }
+      const zipBlob = buildZip(entries);
+      const url = URL.createObjectURL(zipBlob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${naam}-crops.zip`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+      dumpStatus.textContent = `${entries.length} crops gedownload als ${naam}-crops.zip — uitpakken naar crops/${naam}/.`;
+    } catch (err) {
+      dumpStatus.textContent = "Crops maken is mislukt: " + err.message;
+    }
   });
 }

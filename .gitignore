@@ -20,3 +20,7 @@
 /tools/recognizer-training/*.npz
 /tools/recognizer-training/samples/
 /tools/recognizer-training/model_weights.json
+
+# Gedumpte veld-crops (damscan/OPDRACHT.md stap 1) bevatten dezelfde auteursrechtelijk
+# gevoelige boekplaatjes als /testdata/ hierboven.
+/crops/
