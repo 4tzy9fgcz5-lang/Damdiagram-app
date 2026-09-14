@@ -159,6 +159,22 @@ describe("fotoherkenning: classificatie", () => {
     assertTrue(leegCorrect >= 40, `slechts ${leegCorrect}/44 lege velden correct`);
   });
 
+  it("markeert een witte schijf op veld 1-5 of zwarte op 46-50 als onzeker (kan geen gewone schijf zijn)", () => {
+    // Uit 22 echte, door Jan gecorrigeerde herkenningen: zo'n veld was daar altijd
+    // fout. De kleur/plaats zelf wordt nooit stilzwijgend aangepast (soms bleek de
+    // aanname toch net niet te kloppen) — alleen de betrouwbaarheid moet omlaag,
+    // zodat dit in de editor opvalt.
+    const occ = { 3: "w", 48: "b", 13: "w", 1: "b" };
+    const { board, confidences } = classifyFromFeatures(makeFeatures(occ, 1, mulberry32(31)));
+    assertEqual(board[3], PIECE_TYPES.WHITE_PIECE);
+    assertEqual(board[48], PIECE_TYPES.BLACK_PIECE);
+    assertTrue(confidences[3] < CONFIDENCE_THRESHOLD, `veld 3 (wit op 1-5) moet onzeker zijn, kreeg ${confidences[3]}`);
+    assertTrue(confidences[48] < CONFIDENCE_THRESHOLD, `veld 48 (zwart op 46-50) moet onzeker zijn, kreeg ${confidences[48]}`);
+    // een normaal, legaal bezet veld blijft gewoon zeker.
+    assertTrue(confidences[13] > CONFIDENCE_THRESHOLD, `veld 13 zou niet onzeker moeten zijn`);
+    assertTrue(confidences[1] > CONFIDENCE_THRESHOLD, `veld 1 (zwart, wel toegestaan) zou niet onzeker moeten zijn`);
+  });
+
   it("duidelijke velden krijgen betrouwbaarheid boven de onzeker-drempel", () => {
     const occ = { 13: "w", 1: "b" };
     const { confidences } = classifyFromFeatures(makeFeatures(occ, 1, mulberry32(11)));

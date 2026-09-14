@@ -241,6 +241,18 @@ export function classifyFromFeatures(features) {
     confidences[f] = Math.min(occupiedConfidenceFor(f), colorConfidence);
   }
 
+  // Spelregel-controle: een witte schijf op veld 1-5 of een zwarte op veld 46-50
+  // kan niet (zou een dam moeten zijn, en de opgaves die hiermee gemaakt worden
+  // bevatten nooit dammen) — dit nooit stilzwijgend aanpassen (in 22 echte
+  // controlegevallen was dit altijd fout, maar 3x bleek een andere aanname niet
+  // te kloppen), maar wel altijd als onzeker markeren zodat het opvalt.
+  for (let f = 1; f <= 5; f++) {
+    if (board[f] === PIECE_TYPES.WHITE_PIECE) confidences[f] = Math.min(confidences[f], 0.2);
+  }
+  for (let f = 46; f <= FIELD_COUNT; f++) {
+    if (board[f] === PIECE_TYPES.BLACK_PIECE) confidences[f] = Math.min(confidences[f], 0.2);
+  }
+
   return { board, confidences };
 }
 
