@@ -1,8 +1,8 @@
-import { warpToSquareCanvas } from "../recognition/homography.js?v=20260914d";
-import { classifyBoard, CONFIDENCE_THRESHOLD, RECOGNITION_VERSION } from "../recognition/classify.js?v=20260914d";
-import { buildCornersOverlay, buildGridOverlay, buildFieldCrops } from "../recognition/debugRender.js?v=20260914d";
-import { detectBoardCorners } from "../recognition/detectBoard.js?v=20260914d";
-import { FIELD_COUNT } from "../core/board.js?v=20260914d";
+import { warpToSquareCanvas } from "../recognition/homography.js?v=20260914e";
+import { classifyBoard, CONFIDENCE_THRESHOLD, RECOGNITION_VERSION } from "../recognition/classify.js?v=20260914e";
+import { buildCornersOverlay, buildGridOverlay, buildFieldCrops } from "../recognition/debugRender.js?v=20260914e";
+import { detectBoardCorners } from "../recognition/detectBoard.js?v=20260914e";
+import { FIELD_COUNT } from "../core/board.js?v=20260914e";
 
 const WORKING_MAX_SIDE = 1400;
 const WARP_SIZE = 500;

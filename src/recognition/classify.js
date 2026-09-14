@@ -1,4 +1,4 @@
-import { FIELD_COUNT, fieldToCoord, PIECE_TYPES, createEmptyBoard } from "../core/board.js?v=20260914d";
+import { FIELD_COUNT, fieldToCoord, PIECE_TYPES, createEmptyBoard } from "../core/board.js?v=20260914e";
 
 function median(values) {
   const sorted = [...values].sort((a, b) => a - b);
@@ -133,7 +133,17 @@ function backgroundResiduals(features, evalFields, fitFields) {
 // strengere grens dan MIN_STD_GAP.
 const MIN_RESCUE_GAP = 1.5;
 
+// Arcering (diagonaal gestreepte donkere velden — een veelvoorkomende boekstijl,
+// zie ontwikkelnotities) heeft overal dezelfde randrichting; een echte schijfrand
+// heeft juist randen RONDOM (alle richtingen). Op Jans eigen arcering-foto's bleek
+// dit onderscheid vrijwel zonder overlap: lege (gearceerde) velden zaten ruim onder
+// 0.2, bezette velden ruim erboven.
+const DIVERSITY_THRESHOLD = 0.2;
+
 // features: array (index 1..50) van { mean, std, centerMean, cx, cy }
+// diversity (optioneel): array (index 1..50) van randrichting-diversiteit per veld,
+// zie computeOrientationDiversity — als dit ontbreekt (bijvoorbeeld in tests die met
+// handgemaakte features werken, zonder echt beeld) wordt er niet op gefilterd.
 //
 // Let op: er wordt hier NIET geprobeerd een dam te onderscheiden van een gewone schijf.
 // Dat is geprobeerd via een tweede clustering op textuur, maar bleek onbetrouwbaar: op
@@ -141,7 +151,7 @@ const MIN_RESCUE_GAP = 1.5;
 // schijf als een echte dam aan (geen enkel verband met de werkelijke dam-status). Beter
 // eerlijk niets gokken dan stelselmatig fout gokken — elk bezet veld wordt dus een
 // gewone schijf; Jan tikt een veld met een dam er zelf nog een keer op om te wisselen.
-export function classifyFromFeatures(features) {
+export function classifyFromFeatures(features, diversity = null) {
   const fields = [];
   for (let f = 1; f <= FIELD_COUNT; f++) fields.push(f);
   const stds = fields.map((f) => features[f].std);
@@ -164,6 +174,15 @@ export function classifyFromFeatures(features) {
     ambiguous = fields.filter((f) => features[f].std <= threshold);
   }
 
+  // Arcering-filter: een "confident occupied" veld met te weinig randrichting-
+  // spreiding is waarschijnlijk arcering, geen schijf — terug naar de ambigue pot,
+  // zodat de lichthelling-redding hieronder er alsnog eerlijk naar kan kijken.
+  if (diversity) {
+    const demoted = confidentOccupied.filter((f) => diversity[f] < DIVERSITY_THRESHOLD);
+    confidentOccupied = confidentOccupied.filter((f) => diversity[f] >= DIVERSITY_THRESHOLD);
+    ambiguous = ambiguous.concat(demoted);
+  }
+
   // Fase 1b: probeer binnen de ambigue rest een kleur met weinig interne textuur
   // te "redden" van leeg (ontdekt met echte foto's van Jan: een effen zwarte
   // schijf kan een veel lagere std hebben dan een wit schijfje met een duidelijke
@@ -182,8 +201,9 @@ export function classifyFromFeatures(features) {
       const splitR = kmeans1d2(absSeed);
       if (splitR.gap >= MIN_RESCUE_GAP && splitR.highGroup.length > 0) {
         const thresholdR = (splitR.low + splitR.high) / 2;
-        rescued = ambiguous.filter((f) => Math.abs(residualsSeed[f]) > thresholdR);
-        trueEmpty = ambiguous.filter((f) => Math.abs(residualsSeed[f]) <= thresholdR);
+        const candidateRescue = ambiguous.filter((f) => Math.abs(residualsSeed[f]) > thresholdR);
+        rescued = diversity ? candidateRescue.filter((f) => diversity[f] >= DIVERSITY_THRESHOLD) : candidateRescue;
+        trueEmpty = ambiguous.filter((f) => !rescued.includes(f));
       }
     }
   }
@@ -335,9 +355,87 @@ export function extractFeatures(imageData, outSize) {
   return features;
 }
 
+// Sobel-gradiënt (x- en y-richting) over het hele rechtgetrokken beeld, één keer
+// berekend als grijswaarden-raster, voor computeOrientationDiversity hieronder.
+function sobelGxy(imageData) {
+  const { data, width, height } = imageData;
+  const gray = new Float32Array(width * height);
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const idx = (y * width + x) * 4;
+      gray[y * width + x] = toGray(data[idx], data[idx + 1], data[idx + 2]);
+    }
+  }
+  const gx = new Float32Array(width * height);
+  const gy = new Float32Array(width * height);
+  for (let y = 1; y < height - 1; y++) {
+    const rowOff = y * width;
+    const rowUp = (y - 1) * width;
+    const rowDn = (y + 1) * width;
+    for (let x = 1; x < width - 1; x++) {
+      gx[rowOff + x] =
+        gray[rowUp + x + 1] + 2 * gray[rowOff + x + 1] + gray[rowDn + x + 1] -
+        (gray[rowUp + x - 1] + 2 * gray[rowOff + x - 1] + gray[rowDn + x - 1]);
+      gy[rowOff + x] =
+        gray[rowDn + x - 1] + 2 * gray[rowDn + x] + gray[rowDn + x + 1] -
+        (gray[rowUp + x - 1] + 2 * gray[rowUp + x] + gray[rowUp + x + 1]);
+    }
+  }
+  return { gx, gy };
+}
+
+// Meet, voor een venster, hoe verspreid de randrichtingen zijn (gewogen naar
+// randsterkte). Richting wordt verdubbeld om de 180°-dubbelzinnigheid van een rand
+// op te heffen (een rand en zijn tegenovergestelde kant zien er voor Sobel gelijk
+// uit). 0 = alle randen wijzen (ongeveer) dezelfde kant op — kenmerkend voor
+// arcering; 1 = randen wijzen alle kanten op — kenmerkend voor een ronde schijfrand.
+function orientationDiversity(gx, gy, width, x0, y0, x1, y1, magThreshold = 8) {
+  let sumCos = 0;
+  let sumSin = 0;
+  let sumW = 0;
+  for (let y = y0; y < y1; y++) {
+    const rowOff = y * width;
+    for (let x = x0; x < x1; x++) {
+      const idx = rowOff + x;
+      const m = Math.hypot(gx[idx], gy[idx]);
+      if (m < magThreshold) continue;
+      const theta = Math.atan2(gy[idx], gx[idx]) * 2;
+      sumCos += m * Math.cos(theta);
+      sumSin += m * Math.sin(theta);
+      sumW += m;
+    }
+  }
+  if (sumW < 1e-6) return 0;
+  const r = Math.hypot(sumCos, sumSin) / sumW;
+  return 1 - r;
+}
+
+// Randrichting-diversiteit per veld (zie classifyFromFeatures voor waarom dit
+// arcering van een echte schijf onderscheidt). Gebruikt een ruimere inset dan
+// extractFeatures: hier gaat het juist om de rand rondom een schijf, dus de rand
+// van het veld zelf mag niet te veel worden weggesneden.
+export function computeOrientationDiversity(imageData, outSize) {
+  const squareSize = outSize / 10;
+  const inset = squareSize * 0.15;
+  const { width } = imageData;
+  const { gx, gy } = sobelGxy(imageData);
+  const diversity = new Array(FIELD_COUNT + 1).fill(0);
+
+  for (let f = 1; f <= FIELD_COUNT; f++) {
+    const { row, col } = fieldToCoord(f);
+    const x0 = Math.round(col * squareSize + inset);
+    const y0 = Math.round(row * squareSize + inset);
+    const x1 = Math.round((col + 1) * squareSize - inset);
+    const y1 = Math.round((row + 1) * squareSize - inset);
+    diversity[f] = orientationDiversity(gx, gy, width, x0, y0, x1, y1);
+  }
+  return diversity;
+}
+
 export function classifyBoard(imageData, outSize) {
   const features = extractFeatures(imageData, outSize);
-  return classifyFromFeatures(features);
+  const diversity = computeOrientationDiversity(imageData, outSize);
+  return classifyFromFeatures(features, diversity);
 }
 
 // Wordt meegelogd bij elke correctie (zie herkenningLog.js), zodat later — als het
