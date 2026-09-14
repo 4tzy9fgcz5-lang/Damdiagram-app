@@ -1,8 +1,8 @@
-import * as docxLib from "../../lib/docx.mjs?v=20260914b";
-import { renderDiagramSVG } from "../diagram/render.js?v=20260914b";
-import { parseFen } from "../core/fen.js?v=20260914b";
-import { getGridLayout } from "../stencil/layout.js?v=20260914b";
-import { svgToPngBytes } from "./rasterize.js?v=20260914b";
+import * as docxLib from "../../lib/docx.mjs?v=20260914c";
+import { renderDiagramSVG } from "../diagram/render.js?v=20260914c";
+import { parseFen } from "../core/fen.js?v=20260914c";
+import { getGridLayout } from "../stencil/layout.js?v=20260914c";
+import { svgToPngBytes } from "./rasterize.js?v=20260914c";
 
 const {
   Document,
@@ -19,6 +19,7 @@ const {
   BorderStyle,
   AlignmentType,
   LineRuleType,
+  TableLayoutType,
   convertMillimetersToTwip,
 } = docxLib;
 
@@ -32,7 +33,11 @@ const HEADER_HEIGHT_MM = 13;
 const HEADER_GAP_MM = 2;
 const TOP_MARGIN_MM = HEADER_DISTANCE_MM + HEADER_HEIGHT_MM + HEADER_GAP_MM;
 const CELL_TEXT_RESERVED_MM = 5; // ruimte voor een eventuele losse opdrachtregel onder de afbeelding
-const CELL_PADDING_MM = 3;
+// Dit is de daadwerkelijke celmarge rond elk diagram (zowel in de breedte- als de
+// hoogteberekening) — de twee moeten gelijk zijn, anders reserveert de hoogte-
+// berekening ruimte die nergens fysiek wordt toegepast, en dat gaf onzichtbare
+// "dode" witruimte onder elk diagram.
+const CELL_PADDING_MM = 1.5;
 const PRINT_DPI = 300;
 const DISPLAY_DPI = 96;
 
@@ -87,7 +92,7 @@ function buildHeader(stencil, subtitel) {
 
   const paragraphs = [
     new Paragraph({
-      alignment: AlignmentType.CENTER,
+      alignment: AlignmentType.LEFT,
       spacing: tightSpacing({ after: subtitel ? 0 : 40 }),
       children: titleChildren,
     }),
@@ -98,7 +103,7 @@ function buildHeader(stencil, subtitel) {
   if (!subtitel) {
     paragraphs.push(
       new Paragraph({
-        alignment: AlignmentType.CENTER,
+        alignment: AlignmentType.LEFT,
         spacing: tightSpacing({ before: 20 }),
         children: [new TextRun({ text: stencil.opdrachtregel, italics: true, size: 22 })],
       })
@@ -123,31 +128,31 @@ async function buildOpgavenTable(stencil, items) {
   const { cols } = getGridLayout(items.length);
   const usableWidthMm = PAGE_MM.width - 2 * MARGIN_MM;
   const cellWMm = usableWidthMm / cols;
+  const cellPaddingTwip = mmToTwip(CELL_PADDING_MM);
+  const cellMargins = { top: cellPaddingTwip, bottom: cellPaddingTwip, left: cellPaddingTwip, right: cellPaddingTwip };
+  const NO_MARGIN = { top: 0, bottom: 0, left: 0, right: 0 };
 
   // Het opgavenummer staat naast het diagram (in een smalle kolom), niet meer op
   // een eigen regel erboven — dat scheelt een hele tekstregel hoogte per rij, en
-  // is nodig om alle 12 opgaven op 1 A4'tje te laten passen.
-  const numberColWMm = 6;
-  const contentColWMm = cellWMm - numberColWMm - 2 * CELL_PADDING_MM;
+  // is nodig om alle 12 opgaven op 1 A4'tje te laten passen. De binnentabel krijgt
+  // een vaste indeling (layout: FIXED), anders bepaalt Word zelf hoe de ruimte
+  // tussen nummer en diagram verdeeld wordt, met te veel lucht tot gevolg.
+  const numberColWMm = 5.5;
+  const innerWidthMm = cellWMm - 2 * CELL_PADDING_MM;
+  const contentColWMm = innerWidthMm - numberColWMm;
   const numberColWidthTwip = mmToTwip(numberColWMm);
   const contentColWidthTwip = mmToTwip(contentColWMm);
+  const innerTableWidthTwip = numberColWidthTwip + contentColWidthTwip;
 
-  // De rijhoogte wordt bepaald door wat het diagram + eventuele opdrachtregel
-  // daadwerkelijk nodig hebben (breedte-gestuurd), NIET door de beschikbare hoogte
-  // gelijk te verdelen over het aantal rijen — dat laatste maakte elke rij groter
-  // dan nodig, met zichtbare witruimte rond elk diagram tot gevolg (bevestigd: Jan
-  // zag het verdwijnen door de rijhoogte in Word zelf te verkleinen).
   const imageSizeMm = Math.max(10, contentColWMm);
-  const cellHMm = imageSizeMm + CELL_TEXT_RESERVED_MM + 2 * CELL_PADDING_MM;
   const imagePxDisplay = mmToPx(imageSizeMm, DISPLAY_DPI);
   const colWidthTwip = mmToTwip(cellWMm);
-  const rowHeightTwip = mmToTwip(cellHMm);
-  const NO_MARGIN = { top: 0, bottom: 0, left: 0, right: 0 };
   // Voor elke aantal-diagrammen-combinatie in GRID_TABLE (1-12, dus max. 4 rijen bij
   // 3 kolommen) past bovenstaande breedte-gestuurde hoogte ruim binnen de
   // beschikbare paginahoogte; een aparte terugval is dus niet nodig.
 
   const cells = [];
+  const cellHeightsMm = [];
   for (let i = 0; i < items.length; i++) {
     const item = items[i];
     const tekst = item.opdracht || item.stand?.opdracht || "";
@@ -170,13 +175,14 @@ async function buildOpgavenTable(stencil, items) {
     // het diagram.
     if (tekst) {
       contentChildren.push(
-        new Paragraph({ alignment: AlignmentType.CENTER, spacing: tightSpacing(), children: [new TextRun({ text: tekst, size: 18 })] })
+        new Paragraph({ alignment: AlignmentType.LEFT, spacing: tightSpacing(), children: [new TextRun({ text: tekst, size: 18 })] })
       );
     }
 
     const innerTable = new Table({
-      width: { size: colWidthTwip, type: WidthType.DXA },
+      width: { size: innerTableWidthTwip, type: WidthType.DXA },
       columnWidths: [numberColWidthTwip, contentColWidthTwip],
+      layout: TableLayoutType.FIXED,
       borders: TABLE_BORDERS,
       rows: [
         new TableRow({
@@ -201,7 +207,7 @@ async function buildOpgavenTable(stencil, items) {
     cells.push(
       new TableCell({
         width: { size: colWidthTwip, type: WidthType.DXA },
-        margins: { top: 80, bottom: 80, left: 80, right: 80 },
+        margins: cellMargins,
         // Een cel moet in het onderliggende bestandsformaat altijd eindigen met een
         // "gewone" alinea, niet met een tabel — de docx-bibliotheek voegt er anders
         // zelf één toe, met de standaard regelafstand van Word (dat was precies de
@@ -211,16 +217,23 @@ async function buildOpgavenTable(stencil, items) {
         children: [innerTable, new Paragraph({ spacing: tightSpacing(), children: [new TextRun({ text: "", size: 2 })] })],
       })
     );
+    // De rijhoogte wordt per rij bepaald door wat de cellen daarin daadwerkelijk
+    // nodig hebben — een cel zonder eigen opdrachttekst reserveert dus geen ruimte
+    // voor een regel die er toch nooit komt (dat was de belangrijkste bron van de
+    // overgebleven witruimte tussen de diagrammen).
+    cellHeightsMm.push(imageSizeMm + (tekst ? CELL_TEXT_RESERVED_MM : 0) + 2 * CELL_PADDING_MM);
   }
   while (cells.length % cols !== 0) {
     cells.push(new TableCell({ width: { size: colWidthTwip, type: WidthType.DXA }, children: [new Paragraph({ text: "" })] }));
+    cellHeightsMm.push(imageSizeMm + 2 * CELL_PADDING_MM);
   }
 
   const tableRows = [];
   for (let r = 0; r < cells.length / cols; r++) {
+    const rowHeightMm = Math.max(...cellHeightsMm.slice(r * cols, (r + 1) * cols));
     tableRows.push(
       new TableRow({
-        height: { value: rowHeightTwip, rule: HeightRule.ATLEAST },
+        height: { value: mmToTwip(rowHeightMm), rule: HeightRule.ATLEAST },
         children: cells.slice(r * cols, (r + 1) * cols),
       })
     );
@@ -229,6 +242,7 @@ async function buildOpgavenTable(stencil, items) {
   return new Table({
     width: { size: mmToTwip(usableWidthMm), type: WidthType.DXA },
     columnWidths: new Array(cols).fill(colWidthTwip),
+    layout: TableLayoutType.FIXED,
     borders: TABLE_BORDERS,
     rows: tableRows,
   });

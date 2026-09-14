@@ -1,7 +1,7 @@
-import { exportAll, importAll } from "../db/backup.js?v=20260914b";
-import { listStanden } from "../db/standen.js?v=20260914b";
-import { buildCsv, buildPdnText } from "../export/portable.js?v=20260914b";
-import { downloadBlob } from "../export/docx.js?v=20260914b";
+import { exportAll, importAll } from "../db/backup.js?v=20260914c";
+import { listStanden } from "../db/standen.js?v=20260914c";
+import { buildCsv, buildPdnText } from "../export/portable.js?v=20260914c";
+import { downloadBlob } from "../export/docx.js?v=20260914c";
 
 const LAST_BACKUP_KEY = "damstencil_lastBackup";
 

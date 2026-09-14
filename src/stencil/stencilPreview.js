@@ -1,7 +1,7 @@
-import { renderDiagramSVG } from "../diagram/render.js?v=20260914b";
-import { parseFen } from "../core/fen.js?v=20260914b";
-import { getGridLayout } from "./layout.js?v=20260914b";
-import { effectiveOpdracht } from "./compose.js?v=20260914b";
+import { renderDiagramSVG } from "../diagram/render.js?v=20260914c";
+import { parseFen } from "../core/fen.js?v=20260914c";
+import { getGridLayout } from "./layout.js?v=20260914c";
+import { effectiveOpdracht } from "./compose.js?v=20260914c";
 
 const PAGE_STYLE = `
   @page { size: A4 portrait; margin: 14mm; }
@@ -9,14 +9,14 @@ const PAGE_STYLE = `
   body { font-family: "Segoe UI", Arial, sans-serif; color: #111; margin: 0; }
   .sheet { page-break-after: always; padding-top: 2mm; }
   .sheet:last-child { page-break-after: auto; }
-  .sheet-header { text-align: center; margin-bottom: 3mm; }
+  .sheet-header { text-align: left; margin-bottom: 3mm; }
   .sheet-header h1 { font-size: 16pt; margin: 0 0 1mm; }
   .sheet-header .opdracht { font-size: 11pt; font-style: italic; margin: 1mm 0 0; }
-  .grid { display: grid; gap: 4mm; }
-  .cell { border: 1px solid #ccc; border-radius: 2mm; padding: 2mm; display: flex; flex-direction: row; align-items: flex-start; gap: 1mm; }
-  .cell .nr { font-weight: 700; font-size: 9pt; flex-shrink: 0; }
+  .grid { display: grid; gap: 2mm; }
+  .cell { border: 1px solid #ccc; border-radius: 2mm; padding: 1.5mm; display: flex; flex-direction: row; align-items: flex-start; gap: 1mm; }
+  .cell .nr { font-weight: 700; font-size: 9pt; flex-shrink: 0; width: 5.5mm; }
   .cell .cell-content { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; }
-  .cell .cell-text { width: 100%; font-size: 9pt; margin-top: 1mm; text-align: center; }
+  .cell .cell-text { width: 100%; font-size: 9pt; margin-top: 1mm; text-align: left; }
   .cell svg { width: 100%; height: auto; max-width: 100%; }
   .missing { color: #a30000; font-size: 9pt; }
   .oplossingen-list { font-size: 10.5pt; }
