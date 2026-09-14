@@ -1,7 +1,7 @@
-import { renderDiagramSVG } from "../diagram/render.js?v=20260914a";
-import { parseFen } from "../core/fen.js?v=20260914a";
-import { getGridLayout } from "./layout.js?v=20260914a";
-import { effectiveOpdracht } from "./compose.js?v=20260914a";
+import { renderDiagramSVG } from "../diagram/render.js?v=20260914b";
+import { parseFen } from "../core/fen.js?v=20260914b";
+import { getGridLayout } from "./layout.js?v=20260914b";
+import { effectiveOpdracht } from "./compose.js?v=20260914b";
 
 const PAGE_STYLE = `
   @page { size: A4 portrait; margin: 14mm; }
@@ -16,7 +16,7 @@ const PAGE_STYLE = `
   .cell { border: 1px solid #ccc; border-radius: 2mm; padding: 2mm; display: flex; flex-direction: row; align-items: flex-start; gap: 1mm; }
   .cell .nr { font-weight: 700; font-size: 9pt; flex-shrink: 0; }
   .cell .cell-content { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; }
-  .cell .cell-text { width: 100%; font-size: 9pt; margin-bottom: 1mm; }
+  .cell .cell-text { width: 100%; font-size: 9pt; margin-top: 1mm; text-align: center; }
   .cell svg { width: 100%; height: auto; max-width: 100%; }
   .missing { color: #a30000; font-size: 9pt; }
   .oplossingen-list { font-size: 10.5pt; }
@@ -50,8 +50,8 @@ function opgavenSheetHTML(stencil, items) {
       return `<div class="cell">
         <span class="nr">${i + 1}.</span>
         <div class="cell-content">
-          ${tekst ? `<div class="cell-text">${escapeHtml(tekst)}</div>` : ""}
           ${svg}
+          ${tekst ? `<div class="cell-text">${escapeHtml(tekst)}</div>` : ""}
         </div>
       </div>`;
     })

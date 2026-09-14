@@ -1,8 +1,8 @@
-import * as docxLib from "../../lib/docx.mjs?v=20260914a";
-import { renderDiagramSVG } from "../diagram/render.js?v=20260914a";
-import { parseFen } from "../core/fen.js?v=20260914a";
-import { getGridLayout } from "../stencil/layout.js?v=20260914a";
-import { svgToPngBytes } from "./rasterize.js?v=20260914a";
+import * as docxLib from "../../lib/docx.mjs?v=20260914b";
+import { renderDiagramSVG } from "../diagram/render.js?v=20260914b";
+import { parseFen } from "../core/fen.js?v=20260914b";
+import { getGridLayout } from "../stencil/layout.js?v=20260914b";
+import { svgToPngBytes } from "./rasterize.js?v=20260914b";
 
 const {
   Document,
@@ -13,20 +13,36 @@ const {
   TableRow,
   TableCell,
   ImageRun,
+  Header,
   WidthType,
   HeightRule,
   BorderStyle,
   AlignmentType,
+  LineRuleType,
   convertMillimetersToTwip,
 } = docxLib;
 
 const PAGE_MM = { width: 210, height: 297 };
 const MARGIN_MM = 14;
-const HEADER_RESERVED_MM = 16;
-const CELL_TEXT_RESERVED_MM = 5; // ruimte voor een eventuele losse opdrachtregel boven de afbeelding
+// Titel en opdrachtregel staan in de Word-koptekst (herhaalt zich, en telt niet mee
+// als gewone tekst in het lichaam van het document). Deze 3 maten samen bepalen de
+// bovenmarge van de pagina: afstand-tot-koptekst + ruimte-voor-koptekst + luchtje.
+const HEADER_DISTANCE_MM = 8;
+const HEADER_HEIGHT_MM = 13;
+const HEADER_GAP_MM = 2;
+const TOP_MARGIN_MM = HEADER_DISTANCE_MM + HEADER_HEIGHT_MM + HEADER_GAP_MM;
+const CELL_TEXT_RESERVED_MM = 5; // ruimte voor een eventuele losse opdrachtregel onder de afbeelding
 const CELL_PADDING_MM = 3;
 const PRINT_DPI = 300;
 const DISPLAY_DPI = 96;
+
+// Zonder expliciete regelafstand valt Word terug op zijn eigen standaard (ca. 1,15
+// regelafstand + ruimte ná elke alinea) — dat was de bron van de te grote
+// "regelafstand" die Jan zag tussen de opgaven. Alle alinea's in de tabel krijgen
+// daarom expliciet enkele regelafstand en geen automatische ruimte erna.
+function tightSpacing(overrides = {}) {
+  return { after: 0, before: 0, line: 240, lineRule: LineRuleType.AUTO, ...overrides };
+}
 
 function mmToTwip(mm) {
   return convertMillimetersToTwip(mm);
@@ -46,31 +62,34 @@ const TABLE_BORDERS = {
   insideVertical: NO_BORDER,
 };
 
-function pageSection(children) {
+function pageSection(children, headerNode) {
   return {
     properties: {
       page: {
         size: { width: mmToTwip(PAGE_MM.width), height: mmToTwip(PAGE_MM.height) },
         margin: {
-          top: mmToTwip(MARGIN_MM),
+          top: mmToTwip(TOP_MARGIN_MM),
           bottom: mmToTwip(MARGIN_MM),
           left: mmToTwip(MARGIN_MM),
           right: mmToTwip(MARGIN_MM),
+          header: mmToTwip(HEADER_DISTANCE_MM),
         },
       },
     },
+    headers: { default: headerNode },
     children,
   };
 }
 
-function headerParagraphs(stencil, subtitel) {
+function buildHeader(stencil, subtitel) {
+  const titleChildren = [new TextRun({ text: stencil.titel, bold: true, size: 32 })];
+  if (subtitel) titleChildren.push(new TextRun({ text: ` — ${subtitel}`, bold: true, size: 32 }));
+
   const paragraphs = [
     new Paragraph({
       alignment: AlignmentType.CENTER,
-      children: [
-        new TextRun({ text: stencil.titel, bold: true, size: 32 }),
-        subtitel ? new TextRun({ text: ` — ${subtitel}`, bold: true, size: 32 }) : new TextRun({ text: "" }),
-      ],
+      spacing: tightSpacing({ after: subtitel ? 0 : 40 }),
+      children: titleChildren,
     }),
   ];
   // Club en datum staan niet op het geprinte stencil (alleen relevant voor eigen
@@ -80,12 +99,12 @@ function headerParagraphs(stencil, subtitel) {
     paragraphs.push(
       new Paragraph({
         alignment: AlignmentType.CENTER,
-        spacing: { before: 40, after: 40 },
+        spacing: tightSpacing({ before: 20 }),
         children: [new TextRun({ text: stencil.opdrachtregel, italics: true, size: 22 })],
       })
     );
   }
-  return paragraphs;
+  return new Header({ children: paragraphs });
 }
 
 async function buildImageRun(fen, imagePxDisplay) {
@@ -133,17 +152,26 @@ async function buildOpgavenTable(stencil, items) {
     const item = items[i];
     const tekst = item.opdracht || item.stand?.opdracht || "";
     const contentChildren = [];
-    if (tekst) {
-      contentChildren.push(
-        new Paragraph({ spacing: { after: 20 }, children: [new TextRun({ text: tekst, size: 18 })] })
-      );
-    }
     if (item.stand) {
       contentChildren.push(
-        new Paragraph({ alignment: AlignmentType.CENTER, children: [await buildImageRun(item.stand.fen, imagePxDisplay)] })
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          spacing: tightSpacing({ after: tekst ? 20 : 0 }),
+          children: [await buildImageRun(item.stand.fen, imagePxDisplay)],
+        })
       );
     } else {
-      contentChildren.push(new Paragraph({ children: [new TextRun({ text: "(stand ontbreekt)", color: "AA0000", size: 18 })] }));
+      contentChildren.push(
+        new Paragraph({ spacing: tightSpacing(), children: [new TextRun({ text: "(stand ontbreekt)", color: "AA0000", size: 18 })] })
+      );
+    }
+    // De opdrachttekst (indien aanwezig) staat onder het diagram, niet erboven —
+    // dat leest natuurlijker en houdt de nummering direct naast de bovenkant van
+    // het diagram.
+    if (tekst) {
+      contentChildren.push(
+        new Paragraph({ alignment: AlignmentType.CENTER, spacing: tightSpacing(), children: [new TextRun({ text: tekst, size: 18 })] })
+      );
     }
 
     const innerTable = new Table({
@@ -156,7 +184,9 @@ async function buildOpgavenTable(stencil, items) {
             new TableCell({
               width: { size: numberColWidthTwip, type: WidthType.DXA },
               margins: NO_MARGIN,
-              children: [new Paragraph({ children: [new TextRun({ text: `${i + 1}.`, bold: true, size: 18 })] })],
+              children: [
+                new Paragraph({ spacing: tightSpacing(), children: [new TextRun({ text: `${i + 1}.`, bold: true, size: 18 })] }),
+              ],
             }),
             new TableCell({
               width: { size: contentColWidthTwip, type: WidthType.DXA },
@@ -178,7 +208,7 @@ async function buildOpgavenTable(stencil, items) {
         // extra witruimte tussen de diagrammen). Door hem hier zelf, zonder
         // regelafstand en met een piepklein lettertype toe te voegen, blijft die
         // ruimte verwaarloosbaar.
-        children: [innerTable, new Paragraph({ spacing: { before: 0, after: 0 }, children: [new TextRun({ text: "", size: 2 })] })],
+        children: [innerTable, new Paragraph({ spacing: tightSpacing(), children: [new TextRun({ text: "", size: 2 })] })],
       })
     );
   }
@@ -238,10 +268,10 @@ export async function buildStencilDocxBlob(stencil, items, mode = "beide") {
 
   if (mode === "opgaven" || mode === "beide") {
     const table = await buildOpgavenTable(stencil, items);
-    sections.push(pageSection([...headerParagraphs(stencil), table]));
+    sections.push(pageSection([table], buildHeader(stencil)));
   }
   if (mode === "oplossingen" || mode === "beide") {
-    sections.push(pageSection([...headerParagraphs(stencil, "Oplossingen"), ...oplossingenParagraphs(items)]));
+    sections.push(pageSection(oplossingenParagraphs(items), buildHeader(stencil, "Oplossingen")));
   }
 
   const doc = new Document({ sections });
