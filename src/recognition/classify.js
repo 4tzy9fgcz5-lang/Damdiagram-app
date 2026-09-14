@@ -118,18 +118,20 @@ function fitPlane(points) {
   return solve3x3(A, [Sxz, Syz, Sz]);
 }
 
-// Bepaalt bezet/leeg via hoeveel het MIDDEN van elk veld afwijkt van een over het
-// hele bord gefitte achtergrond (ruwe fit op alle 50 velden — er is op dit punt nog
-// niet bekend welke velden leeg zijn). Terugvalpad voor als de textuur-methode
-// hierboven geen betrouwbare knik vindt: bij een gearceerde achtergrond met een
-// geleidelijke (niet-tweedelige) textuur gaf die methode dan bij Jan "0 schijven
-// herkend", terwijl dit signaal (schijf vs. achtergrond) daar wél op reageert.
-function occupancyByBackgroundFit(features, fields) {
-  const [a, b, c] = fitPlane(fields.map((f) => [features[f].cx, features[f].cy, features[f].centerMean]));
+// Fit een achtergrond-vlak op `fitFields` en geef de afwijking t.o.v. dat vlak
+// terug voor elk veld in `evalFields` (kunnen dezelfde of verschillende
+// verzamelingen zijn).
+function backgroundResiduals(features, evalFields, fitFields) {
+  const [a, b, c] = fitPlane(fitFields.map((f) => [features[f].cx, features[f].cy, features[f].centerMean]));
   const residuals = {};
-  for (const f of fields) residuals[f] = features[f].centerMean - (a * features[f].cx + b * features[f].cy + c);
+  for (const f of evalFields) residuals[f] = features[f].centerMean - (a * features[f].cx + b * features[f].cy + c);
   return residuals;
 }
+
+// Onder deze kloof vertrouwen we een geredde laag-textuur-kleur niet — dit is een
+// tweede, onzekerdere poging dan de hoofdsplitsing hierboven, dus een iets
+// strengere grens dan MIN_STD_GAP.
+const MIN_RESCUE_GAP = 1.5;
 
 // features: array (index 1..50) van { mean, std, centerMean, cx, cy }
 //
@@ -147,46 +149,55 @@ export function classifyFromFeatures(features) {
   const board = createEmptyBoard();
   const confidences = new Array(FIELD_COUNT + 1).fill(1);
 
-  // Stage 1: bezet/leeg per veld. Eerste keus: venster-textuur (bewezen betrouwbaar,
-  // ook bij drukke standen met veel stukken). Alleen als die geen betrouwbare knik
-  // vindt, valt de app terug op het achtergrond-afwijkings-signaal hierboven.
-  let emptyFields;
-  let occupiedFields;
-  let occupiedConfidenceFor;
-
+  // Stage 1: bezet/leeg per veld, in twee fasen.
+  //
+  // Fase 1a: venster-textuur (std) — bewezen betrouwbaar, ook bij drukke standen
+  // met veel stukken. De HOGE groep (duidelijk texturige velden) staat vast als
+  // "bezet". Vindt dit geen betrouwbare knik (bv. gearceerde achtergrond met een
+  // geleidelijke, niet-tweedelige textuur), dan is de hele foto voorlopig "ambigu".
   const { low, high, highGroup, gap } = kmeans1d2(stds);
+  let confidentOccupied = [];
+  let ambiguous = fields;
   if (gap >= MIN_STD_GAP && highGroup.length > 0) {
     const threshold = (low + high) / 2;
-    const stdGapHalf = Math.max((high - low) / 2, 1e-6);
-    emptyFields = fields.filter((f) => features[f].std <= threshold);
-    occupiedFields = fields.filter((f) => features[f].std > threshold);
-    for (const f of emptyFields) {
-      const distance = (threshold - features[f].std) / stdGapHalf;
-      confidences[f] = clamp01(0.6 + distance * 0.3);
-    }
-    occupiedConfidenceFor = (f) => clamp01(0.5 + ((features[f].std - threshold) / stdGapHalf) * 0.25);
-  } else {
-    const residuals0 = occupancyByBackgroundFit(features, fields);
-    const abs0 = fields.map((f) => Math.abs(residuals0[f]));
-    const split0 = kmeans1d2(abs0);
-    if (split0.gap < MIN_STD_GAP || split0.highGroup.length === 0) {
-      // Ook hiermee geen betrouwbare knik: waarschijnlijk een leeg bord.
-      return { board, confidences };
-    }
-    const threshold0 = (split0.low + split0.high) / 2;
-    const gapHalf0 = Math.max((split0.high - split0.low) / 2, 1e-6);
-    emptyFields = fields.filter((f) => Math.abs(residuals0[f]) <= threshold0);
-    occupiedFields = fields.filter((f) => Math.abs(residuals0[f]) > threshold0);
-    for (const f of emptyFields) {
-      const distance = (threshold0 - Math.abs(residuals0[f])) / gapHalf0;
-      confidences[f] = clamp01(0.6 + distance * 0.3);
-    }
-    occupiedConfidenceFor = (f) => clamp01(0.5 + ((Math.abs(residuals0[f]) - threshold0) / gapHalf0) * 0.25);
+    confidentOccupied = fields.filter((f) => features[f].std > threshold);
+    ambiguous = fields.filter((f) => features[f].std <= threshold);
   }
 
+  // Fase 1b: probeer binnen de ambigue rest een kleur met weinig interne textuur
+  // te "redden" van leeg (ontdekt met echte foto's van Jan: een effen zwarte
+  // schijf kan een veel lagere std hebben dan een wit schijfje met een duidelijke
+  // rand, waardoor fase 1a die kleur helemaal mist). Voorzichtig: fit de
+  // achtergrond alleen op de onderste helft (op std) van de ambigue groep — een
+  // veilige "vrijwel zeker leeg"-deelverzameling — en kijk of de rest daar met een
+  // duidelijke knik van afwijkt in helderheid.
+  let rescued = [];
+  let trueEmpty = ambiguous;
+  if (ambiguous.length >= 12) {
+    const byStd = [...ambiguous].sort((x, y) => features[x].std - features[y].std);
+    const seedEmpty = byStd.slice(0, Math.floor(byStd.length / 2));
+    if (seedEmpty.length >= 6) {
+      const residualsSeed = backgroundResiduals(features, ambiguous, seedEmpty);
+      const absSeed = ambiguous.map((f) => Math.abs(residualsSeed[f]));
+      const splitR = kmeans1d2(absSeed);
+      if (splitR.gap >= MIN_RESCUE_GAP && splitR.highGroup.length > 0) {
+        const thresholdR = (splitR.low + splitR.high) / 2;
+        rescued = ambiguous.filter((f) => Math.abs(residualsSeed[f]) > thresholdR);
+        trueEmpty = ambiguous.filter((f) => Math.abs(residualsSeed[f]) <= thresholdR);
+      }
+    }
+  }
+
+  const occupiedFields = confidentOccupied.concat(rescued);
+  const emptyFields = trueEmpty;
+  const occupiedConfidenceFor = (f) => (confidentOccupied.includes(f) ? 0.75 : 0.6);
+
   if (occupiedFields.length === 0) {
+    // Geen betrouwbare knik gevonden, in geen van beide fasen: waarschijnlijk een
+    // leeg bord.
     return { board, confidences };
   }
+  for (const f of emptyFields) confidences[f] = 0.75;
 
   // Stage 2: kleur. Diagnose (zie ontwikkelnotities) liet zien dat foto's zelden
   // gelijkmatig belicht zijn (schaduw van een hand, een niet-platliggende bladzijde) —

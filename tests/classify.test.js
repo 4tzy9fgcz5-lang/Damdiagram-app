@@ -175,6 +175,32 @@ describe("fotoherkenning: classificatie", () => {
     assertTrue(confidences[1] > CONFIDENCE_THRESHOLD, `veld 1 (zwart, wel toegestaan) zou niet onzeker moeten zijn`);
   });
 
+  it("mist geen hele kleur als die veel minder interne textuur heeft dan de andere (geredde fase)", () => {
+    // Regressietest voor een echt gemeld probleem: bij sommige boekstijlen heeft
+    // een effen zwarte schijf een veel lagere venster-spreiding (std) dan een wit
+    // schijfje met een duidelijke rand. Eén enkele std-splitsing zet zwart dan
+    // helemaal bij "leeg". Hier: wit met hoge std (duidelijk texturig), zwart met
+    // lage std (net als leeg) maar wel een duidelijk andere helderheid dan de
+    // achtergrond — de geredde fase moet dat zwart alsnog vinden.
+    const rng = mulberry32(44);
+    const whiteFields = [23, 24, 27, 28, 32, 37];
+    const blackFields = [2, 4, 6, 8, 12, 13, 15, 19, 21, 25, 36];
+    const features = new Array(51).fill(null);
+    for (let f = 1; f <= 50; f++) {
+      const { cx, cy } = fieldCenter(f);
+      if (whiteFields.includes(f)) {
+        features[f] = { mean: 210 + (rng() - 0.5) * 6, std: 18 + (rng() - 0.5) * 4, centerMean: 210 + (rng() - 0.5) * 6, cx, cy };
+      } else if (blackFields.includes(f)) {
+        features[f] = { mean: 100 + (rng() - 0.5) * 4, std: 5 + (rng() - 0.5) * 2, centerMean: 100 + (rng() - 0.5) * 4, cx, cy };
+      } else {
+        features[f] = { mean: 140 + (rng() - 0.5) * 4, std: 1.5 + (rng() - 0.5) * 1, centerMean: 140 + (rng() - 0.5) * 4, cx, cy };
+      }
+    }
+    const { board } = classifyFromFeatures(features);
+    for (const f of whiteFields) assertEqual(board[f], PIECE_TYPES.WHITE_PIECE, `veld ${f} zou wit moeten zijn`);
+    for (const f of blackFields) assertEqual(board[f], PIECE_TYPES.BLACK_PIECE, `veld ${f} zou zwart moeten zijn (niet gemist)`);
+  });
+
   it("duidelijke velden krijgen betrouwbaarheid boven de onzeker-drempel", () => {
     const occ = { 13: "w", 1: "b" };
     const { confidences } = classifyFromFeatures(makeFeatures(occ, 1, mulberry32(11)));
