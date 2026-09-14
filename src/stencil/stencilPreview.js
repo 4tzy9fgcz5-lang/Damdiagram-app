@@ -13,9 +13,10 @@ const PAGE_STYLE = `
   .sheet-header h1 { font-size: 16pt; margin: 0 0 1mm; }
   .sheet-header .opdracht { font-size: 11pt; font-style: italic; margin: 1mm 0 0; }
   .grid { display: grid; gap: 4mm; }
-  .cell { border: 1px solid #ccc; border-radius: 2mm; padding: 2mm; display: flex; flex-direction: column; align-items: center; }
-  .cell .cell-head { width: 100%; font-size: 9pt; margin-bottom: 1mm; }
-  .cell .cell-head .nr { font-weight: 700; margin-right: 1mm; }
+  .cell { border: 1px solid #ccc; border-radius: 2mm; padding: 2mm; display: flex; flex-direction: row; align-items: flex-start; gap: 1mm; }
+  .cell .nr { font-weight: 700; font-size: 9pt; flex-shrink: 0; }
+  .cell .cell-content { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; }
+  .cell .cell-text { width: 100%; font-size: 9pt; margin-bottom: 1mm; }
   .cell svg { width: 100%; height: auto; max-width: 100%; }
   .missing { color: #a30000; font-size: 9pt; }
   .oplossingen-list { font-size: 10.5pt; }
@@ -41,14 +42,17 @@ function opgavenSheetHTML(stencil, items) {
   const cells = items
     .map((item, i) => {
       if (!item.stand) {
-        return `<div class="cell"><div class="cell-head"><span class="nr">${i + 1}.</span></div><div class="missing">stand niet gevonden</div></div>`;
+        return `<div class="cell"><span class="nr">${i + 1}.</span><div class="cell-content missing">stand niet gevonden</div></div>`;
       }
       const { board } = parseFen(item.stand.fen);
       const svg = renderDiagramSVG(board, { size: 260 });
       const tekst = item.opdracht || item.stand.opdracht || "";
       return `<div class="cell">
-        <div class="cell-head"><span class="nr">${i + 1}.</span>${escapeHtml(tekst)}</div>
-        ${svg}
+        <span class="nr">${i + 1}.</span>
+        <div class="cell-content">
+          ${tekst ? `<div class="cell-text">${escapeHtml(tekst)}</div>` : ""}
+          ${svg}
+        </div>
       </div>`;
     })
     .join("");

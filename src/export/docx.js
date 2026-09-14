@@ -23,7 +23,7 @@ const {
 const PAGE_MM = { width: 210, height: 297 };
 const MARGIN_MM = 14;
 const HEADER_RESERVED_MM = 16;
-const CELL_TEXT_RESERVED_MM = 7; // ruimte voor de opdrachtregel boven de afbeelding
+const CELL_TEXT_RESERVED_MM = 5; // ruimte voor een eventuele losse opdrachtregel boven de afbeelding
 const CELL_PADDING_MM = 3;
 const PRINT_DPI = 300;
 const DISPLAY_DPI = 96;
@@ -106,39 +106,68 @@ async function buildOpgavenTable(stencil, items) {
   const usableHeightMm = PAGE_MM.height - 2 * MARGIN_MM - HEADER_RESERVED_MM;
   const cellWMm = usableWidthMm / cols;
   const cellHMm = usableHeightMm / rows;
-  // Ruimte voor de opdrachtregel + celopvulling moet van de hoogte af, anders past
-  // een rij met tekst niet in de berekende celhoogte en schuift alles door naar
-  // een 2e A4'tje.
-  const imageSizeMm = Math.max(10, Math.min(cellWMm - 2 * CELL_PADDING_MM, cellHMm - CELL_TEXT_RESERVED_MM - 2 * CELL_PADDING_MM));
+
+  // Het opgavenummer staat naast het diagram (in een smalle kolom), niet meer op
+  // een eigen regel erboven — dat scheelt een hele tekstregel hoogte per rij, en
+  // is nodig om alle 12 opgaven op 1 A4'tje te laten passen.
+  const numberColWMm = 6;
+  const contentColWMm = cellWMm - numberColWMm - 2 * CELL_PADDING_MM;
+  const numberColWidthTwip = mmToTwip(numberColWMm);
+  const contentColWidthTwip = mmToTwip(contentColWMm);
+  // Ruimte voor een eventuele losse opdrachtregel per opgave moet van de hoogte af,
+  // anders past een rij met tekst niet in de berekende celhoogte en schuift alles
+  // door naar een 2e A4'tje.
+  const imageSizeMm = Math.max(10, Math.min(contentColWMm, cellHMm - CELL_TEXT_RESERVED_MM - 2 * CELL_PADDING_MM));
   const imagePxDisplay = mmToPx(imageSizeMm, DISPLAY_DPI);
   const colWidthTwip = mmToTwip(cellWMm);
   const rowHeightTwip = mmToTwip(cellHMm);
+  const NO_MARGIN = { top: 0, bottom: 0, left: 0, right: 0 };
 
   const cells = [];
   for (let i = 0; i < items.length; i++) {
     const item = items[i];
     const tekst = item.opdracht || item.stand?.opdracht || "";
-    const children = [
-      new Paragraph({
-        spacing: { after: 20 },
-        children: [
-          new TextRun({ text: `${i + 1}. `, bold: true, size: 18 }),
-          new TextRun({ text: tekst, size: 18 }),
-        ],
-      }),
-    ];
+    const contentChildren = [];
+    if (tekst) {
+      contentChildren.push(
+        new Paragraph({ spacing: { after: 20 }, children: [new TextRun({ text: tekst, size: 18 })] })
+      );
+    }
     if (item.stand) {
-      children.push(
+      contentChildren.push(
         new Paragraph({ alignment: AlignmentType.CENTER, children: [await buildImageRun(item.stand.fen, imagePxDisplay)] })
       );
     } else {
-      children.push(new Paragraph({ children: [new TextRun({ text: "(stand ontbreekt)", color: "AA0000", size: 18 })] }));
+      contentChildren.push(new Paragraph({ children: [new TextRun({ text: "(stand ontbreekt)", color: "AA0000", size: 18 })] }));
     }
+
+    const innerTable = new Table({
+      width: { size: colWidthTwip, type: WidthType.DXA },
+      columnWidths: [numberColWidthTwip, contentColWidthTwip],
+      borders: TABLE_BORDERS,
+      rows: [
+        new TableRow({
+          children: [
+            new TableCell({
+              width: { size: numberColWidthTwip, type: WidthType.DXA },
+              margins: NO_MARGIN,
+              children: [new Paragraph({ children: [new TextRun({ text: `${i + 1}.`, bold: true, size: 18 })] })],
+            }),
+            new TableCell({
+              width: { size: contentColWidthTwip, type: WidthType.DXA },
+              margins: NO_MARGIN,
+              children: contentChildren,
+            }),
+          ],
+        }),
+      ],
+    });
+
     cells.push(
       new TableCell({
         width: { size: colWidthTwip, type: WidthType.DXA },
         margins: { top: 80, bottom: 80, left: 80, right: 80 },
-        children,
+        children: [innerTable],
       })
     );
   }
