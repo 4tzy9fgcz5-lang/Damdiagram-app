@@ -1,4 +1,4 @@
-import { FIELD_COUNT, fieldToCoord, PIECE_TYPES, createEmptyBoard } from "../core/board.js?v=20260914e";
+import { FIELD_COUNT, fieldToCoord, PIECE_TYPES, createEmptyBoard } from "../core/board.js?v=20260914f";
 
 function median(values) {
   const sorted = [...values].sort((a, b) => a - b);
@@ -168,7 +168,9 @@ export function classifyFromFeatures(features, diversity = null) {
   const { low, high, highGroup, gap } = kmeans1d2(stds);
   let confidentOccupied = [];
   let ambiguous = fields;
+  let stdSplitFound = false;
   if (gap >= MIN_STD_GAP && highGroup.length > 0) {
+    stdSplitFound = true;
     const threshold = (low + high) / 2;
     confidentOccupied = fields.filter((f) => features[f].std > threshold);
     ambiguous = fields.filter((f) => features[f].std <= threshold);
@@ -187,14 +189,25 @@ export function classifyFromFeatures(features, diversity = null) {
   // te "redden" van leeg (ontdekt met echte foto's van Jan: een effen zwarte
   // schijf kan een veel lagere std hebben dan een wit schijfje met een duidelijke
   // rand, waardoor fase 1a die kleur helemaal mist). Voorzichtig: fit de
-  // achtergrond alleen op de onderste helft (op std) van de ambigue groep — een
-  // veilige "vrijwel zeker leeg"-deelverzameling — en kijk of de rest daar met een
+  // achtergrond alleen op de onderste helft van de ambigue groep — een veilige
+  // "vrijwel zeker leeg"-deelverzameling — en kijk of de rest daar met een
   // duidelijke knik van afwijkt in helderheid.
+  //
+  // Die "onderste helft" wordt normaal op std gekozen (Fase 1a werkte tenslotte
+  // net op std). Maar als Fase 1a HELEMAAL geen splitsing vond (hele bord bleef
+  // "ambigu"), is dat precies een teken dat std op déze foto onbetrouwbaar is
+  // (bijvoorbeeld een boekstijl waar een effen gevulde schijf minder textuur heeft
+  // dan het arceringspatroon zelf — gezien op een foto van Jan, waarbij dat de hele
+  // lichthelling-schatting liet ontsporen en zwart/leeg stelselmatig verwisselde).
+  // In dat geval op randrichting-diversiteit kiezen: arcering scoort daar laag, een
+  // schijf van elke kleur hoog, ongeacht textuur.
   let rescued = [];
   let trueEmpty = ambiguous;
   if (ambiguous.length >= 12) {
-    const byStd = [...ambiguous].sort((x, y) => features[x].std - features[y].std);
-    const seedEmpty = byStd.slice(0, Math.floor(byStd.length / 2));
+    const byKey = diversity && !stdSplitFound
+      ? [...ambiguous].sort((x, y) => diversity[x] - diversity[y])
+      : [...ambiguous].sort((x, y) => features[x].std - features[y].std);
+    const seedEmpty = byKey.slice(0, Math.floor(byKey.length / 2));
     if (seedEmpty.length >= 6) {
       const residualsSeed = backgroundResiduals(features, ambiguous, seedEmpty);
       const absSeed = ambiguous.map((f) => Math.abs(residualsSeed[f]));
@@ -423,10 +436,12 @@ export function computeOrientationDiversity(imageData, outSize) {
 
   for (let f = 1; f <= FIELD_COUNT; f++) {
     const { row, col } = fieldToCoord(f);
-    const x0 = Math.round(col * squareSize + inset);
-    const y0 = Math.round(row * squareSize + inset);
-    const x1 = Math.round((col + 1) * squareSize - inset);
-    const y1 = Math.round((row + 1) * squareSize - inset);
+    // Math.trunc (afkappen), niet Math.round — moet exact overeenkomen met de
+    // Python-diagnosetooling waarmee de 0.2-drempel hierboven is bepaald.
+    const x0 = Math.trunc(col * squareSize + inset);
+    const y0 = Math.trunc(row * squareSize + inset);
+    const x1 = Math.trunc((col + 1) * squareSize - inset);
+    const y1 = Math.trunc((row + 1) * squareSize - inset);
     diversity[f] = orientationDiversity(gx, gy, width, x0, y0, x1, y1);
   }
   return diversity;

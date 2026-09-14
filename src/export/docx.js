@@ -1,8 +1,8 @@
-import * as docxLib from "../../lib/docx.mjs?v=20260914e";
-import { renderDiagramSVG } from "../diagram/render.js?v=20260914e";
-import { parseFen } from "../core/fen.js?v=20260914e";
-import { getGridLayout } from "../stencil/layout.js?v=20260914e";
-import { svgToPngBytes } from "./rasterize.js?v=20260914e";
+import * as docxLib from "../../lib/docx.mjs?v=20260914f";
+import { renderDiagramSVG } from "../diagram/render.js?v=20260914f";
+import { parseFen } from "../core/fen.js?v=20260914f";
+import { getGridLayout } from "../stencil/layout.js?v=20260914f";
+import { svgToPngBytes } from "./rasterize.js?v=20260914f";
 
 const {
   Document,
