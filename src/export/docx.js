@@ -101,11 +101,9 @@ async function buildImageRun(fen, imagePxDisplay) {
 }
 
 async function buildOpgavenTable(stencil, items) {
-  const { cols, rows } = getGridLayout(items.length);
+  const { cols } = getGridLayout(items.length);
   const usableWidthMm = PAGE_MM.width - 2 * MARGIN_MM;
-  const usableHeightMm = PAGE_MM.height - 2 * MARGIN_MM - HEADER_RESERVED_MM;
   const cellWMm = usableWidthMm / cols;
-  const cellHMm = usableHeightMm / rows;
 
   // Het opgavenummer staat naast het diagram (in een smalle kolom), niet meer op
   // een eigen regel erboven — dat scheelt een hele tekstregel hoogte per rij, en
@@ -114,14 +112,21 @@ async function buildOpgavenTable(stencil, items) {
   const contentColWMm = cellWMm - numberColWMm - 2 * CELL_PADDING_MM;
   const numberColWidthTwip = mmToTwip(numberColWMm);
   const contentColWidthTwip = mmToTwip(contentColWMm);
-  // Ruimte voor een eventuele losse opdrachtregel per opgave moet van de hoogte af,
-  // anders past een rij met tekst niet in de berekende celhoogte en schuift alles
-  // door naar een 2e A4'tje.
-  const imageSizeMm = Math.max(10, Math.min(contentColWMm, cellHMm - CELL_TEXT_RESERVED_MM - 2 * CELL_PADDING_MM));
+
+  // De rijhoogte wordt bepaald door wat het diagram + eventuele opdrachtregel
+  // daadwerkelijk nodig hebben (breedte-gestuurd), NIET door de beschikbare hoogte
+  // gelijk te verdelen over het aantal rijen — dat laatste maakte elke rij groter
+  // dan nodig, met zichtbare witruimte rond elk diagram tot gevolg (bevestigd: Jan
+  // zag het verdwijnen door de rijhoogte in Word zelf te verkleinen).
+  const imageSizeMm = Math.max(10, contentColWMm);
+  const cellHMm = imageSizeMm + CELL_TEXT_RESERVED_MM + 2 * CELL_PADDING_MM;
   const imagePxDisplay = mmToPx(imageSizeMm, DISPLAY_DPI);
   const colWidthTwip = mmToTwip(cellWMm);
   const rowHeightTwip = mmToTwip(cellHMm);
   const NO_MARGIN = { top: 0, bottom: 0, left: 0, right: 0 };
+  // Voor elke aantal-diagrammen-combinatie in GRID_TABLE (1-12, dus max. 4 rijen bij
+  // 3 kolommen) past bovenstaande breedte-gestuurde hoogte ruim binnen de
+  // beschikbare paginahoogte; een aparte terugval is dus niet nodig.
 
   const cells = [];
   for (let i = 0; i < items.length; i++) {
