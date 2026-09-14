@@ -1,6 +1,6 @@
-import { openDb, tx, promisify, newId } from "./db.js?v=20260914c";
-import { STORE_HERKENNING_LOG } from "./schema.js?v=20260914c";
-import { FIELD_COUNT } from "../core/board.js?v=20260914c";
+import { openDb, tx, promisify, newId } from "./db.js?v=20260914d";
+import { STORE_HERKENNING_LOG } from "./schema.js?v=20260914d";
+import { FIELD_COUNT } from "../core/board.js?v=20260914d";
 
 function nowIso() {
   return new Date().toISOString();
@@ -18,7 +18,7 @@ function correctedFields(initialBoard, finalBoard) {
 // uiteindelijke (door jou eventueel gecorrigeerde) stand werd — als toekomstig
 // trainingsmateriaal voor een betere herkenning. Nooit automatisch gedeeld; komt
 // alleen mee in een back-up die je zelf downloadt en verstuurt.
-export async function logHerkenningCorrectie({ foto, initialBoard, finalBoard, confidences }) {
+export async function logHerkenningCorrectie({ foto, initialBoard, finalBoard, confidences, modelVersion }) {
   if (!foto || !initialBoard || !finalBoard) return;
   const db = await openDb();
   const record = {
@@ -27,6 +27,10 @@ export async function logHerkenningCorrectie({ foto, initialBoard, finalBoard, c
     initialBoard,
     finalBoard,
     confidences: confidences ?? null,
+    // Welke versie van de herkenning dit resultaat gaf (zie RECOGNITION_VERSION in
+    // classify.js) — zodat een latere foutanalyse per versie kan filteren, i.p.v.
+    // oude en nieuwe resultaten door elkaar te meten.
+    modelVersion: modelVersion ?? null,
     correctedFields: correctedFields(initialBoard, finalBoard),
     createdAt: nowIso(),
   };

@@ -1,7 +1,7 @@
-import { renderDiagramSVG } from "../diagram/render.js?v=20260914c";
-import { parseFen } from "../core/fen.js?v=20260914c";
-import { getGridLayout } from "./layout.js?v=20260914c";
-import { effectiveOpdracht } from "./compose.js?v=20260914c";
+import { renderDiagramSVG } from "../diagram/render.js?v=20260914d";
+import { parseFen } from "../core/fen.js?v=20260914d";
+import { getGridLayout } from "./layout.js?v=20260914d";
+import { effectiveOpdracht } from "./compose.js?v=20260914d";
 
 const PAGE_STYLE = `
   @page { size: A4 portrait; margin: 14mm; }

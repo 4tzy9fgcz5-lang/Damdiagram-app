@@ -1,4 +1,4 @@
-import { FIELD_COUNT, fieldToCoord, PIECE_TYPES, createEmptyBoard } from "../core/board.js?v=20260914c";
+import { FIELD_COUNT, fieldToCoord, PIECE_TYPES, createEmptyBoard } from "../core/board.js?v=20260914d";
 
 function median(values) {
   const sorted = [...values].sort((a, b) => a - b);
@@ -340,4 +340,16 @@ export function classifyBoard(imageData, outSize) {
   return classifyFromFeatures(features);
 }
 
-export const CONFIDENCE_THRESHOLD = 0.55;
+// Wordt meegelogd bij elke correctie (zie herkenningLog.js), zodat later — als het
+// logboek groter is geworden — precies te zien is welke versie van de herkenning
+// welke resultaten gaf. Ophogen bij een inhoudelijke wijziging aan classifyFromFeatures
+// of extractFeatures.
+export const RECOGNITION_VERSION = "fase11-confidence-2026-09-14";
+
+// Herijkt (Fase 11 uit het instructieplan) op Jans eigen 22 echte foto's: bij de
+// oude drempel van 0.55 bleven velden met 0.55-0.65 confidence ongemarkeerd
+// terwijl die in de praktijk maar ~66% van de tijd klopten (net zo onbetrouwbaar
+// als de al wél gemarkeerde velden eronder). Vanaf 0.65 lag de nauwkeurigheid
+// duidelijk hoger en stabieler (~90%). Naarmate het correctielogboek groeit, kan
+// deze drempel opnieuw tegen het licht gehouden worden.
+export const CONFIDENCE_THRESHOLD = 0.65;

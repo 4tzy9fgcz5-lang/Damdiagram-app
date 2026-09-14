@@ -1,11 +1,11 @@
-import { renderEditorView } from "./editorView.js?v=20260914c";
-import { renderDatabaseView } from "./databaseView.js?v=20260914c";
-import { renderStencilsListView } from "./stencilsListView.js?v=20260914c";
-import { renderStencilView, addStandenToStencil } from "./stencilView.js?v=20260914c";
-import { renderBackupView, getLastBackupDate } from "./backupView.js?v=20260914c";
-import { renderImportView } from "./importView.js?v=20260914c";
-import { renderPhotoImportView } from "./photoImportView.js?v=20260914c";
-import { listStanden } from "../db/standen.js?v=20260914c";
+import { renderEditorView } from "./editorView.js?v=20260914d";
+import { renderDatabaseView } from "./databaseView.js?v=20260914d";
+import { renderStencilsListView } from "./stencilsListView.js?v=20260914d";
+import { renderStencilView, addStandenToStencil } from "./stencilView.js?v=20260914d";
+import { renderBackupView, getLastBackupDate } from "./backupView.js?v=20260914d";
+import { renderImportView } from "./importView.js?v=20260914d";
+import { renderPhotoImportView } from "./photoImportView.js?v=20260914d";
+import { listStanden } from "../db/standen.js?v=20260914d";
 
 const routes = ["nieuw", "foto", "database", "stencils", "stencil", "backup", "import"];
 let pendingRecognition = null;
@@ -116,6 +116,7 @@ async function render() {
       initialBoard: recognition?.board,
       confidences: recognition?.confidences,
       photoDataUrl: recognition?.photoDataUrl,
+      modelVersion: recognition?.modelVersion,
       onSaved: (stand, { addToStencil }) => {
         showToast(addToStencil ? "Opgeslagen. Kies of maak nu een stencil." : "Opgeslagen in de database.");
         if (addToStencil) {

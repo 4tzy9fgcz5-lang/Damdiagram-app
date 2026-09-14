@@ -1,18 +1,18 @@
-import { createBoardEditor, createPalette } from "./boardEditor.js?v=20260914c";
-import { createEmptyBoard, createStartBoard, mirrorBoard } from "../core/board.js?v=20260914c";
-import { parseFen, boardToFen, FenParseError } from "../core/fen.js?v=20260914c";
-import { parseQuickText, QuickTextParseError } from "../core/quicktext.js?v=20260914c";
-import { validateBoard } from "../core/validate.js?v=20260914c";
-import { saveStand, getStand, findDuplicates } from "../db/standen.js?v=20260914c";
-import { getList, addListValue } from "../db/lijsten.js?v=20260914c";
-import { logHerkenningCorrectie } from "../db/herkenningLog.js?v=20260914c";
-import { CONFIDENCE_THRESHOLD } from "../recognition/classify.js?v=20260914c";
+import { createBoardEditor, createPalette } from "./boardEditor.js?v=20260914d";
+import { createEmptyBoard, createStartBoard, mirrorBoard } from "../core/board.js?v=20260914d";
+import { parseFen, boardToFen, FenParseError } from "../core/fen.js?v=20260914d";
+import { parseQuickText, QuickTextParseError } from "../core/quicktext.js?v=20260914d";
+import { validateBoard } from "../core/validate.js?v=20260914d";
+import { saveStand, getStand, findDuplicates } from "../db/standen.js?v=20260914d";
+import { getList, addListValue } from "../db/lijsten.js?v=20260914d";
+import { logHerkenningCorrectie } from "../db/herkenningLog.js?v=20260914d";
+import { CONFIDENCE_THRESHOLD } from "../recognition/classify.js?v=20260914d";
 
 const MOEILIJKHEID_MAX = 5;
 
 export async function renderEditorView(
   container,
-  { standId, onSaved, initialBoard, confidences, photoDataUrl } = {}
+  { standId, onSaved, initialBoard, confidences, photoDataUrl, modelVersion } = {}
 ) {
   container.innerHTML = `
     <h2>Nieuwe stand invoeren</h2>
@@ -297,6 +297,7 @@ export async function renderEditorView(
           initialBoard,
           finalBoard: boardEditor.getBoard(),
           confidences,
+          modelVersion,
         });
       } catch (err) {
         console.warn("Kon herkenningscorrectie niet loggen:", err);
