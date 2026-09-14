@@ -1,11 +1,11 @@
-import { getStencil, saveStencil } from "../db/stencils.js";
-import { saveStand } from "../db/standen.js";
-import { resolveStencilItems } from "../stencil/compose.js";
-import { buildStencilPagesHTML, missingOplossingen } from "../stencil/stencilPreview.js";
-import { buildStencilDocxBlob, downloadBlob } from "../export/docx.js";
-import { renderDiagramSVG } from "../diagram/render.js";
-import { parseFen } from "../core/fen.js";
-import { MAX_DIAGRAMS_PER_STENCIL } from "../stencil/layout.js";
+import { getStencil, saveStencil } from "../db/stencils.js?v=20260914a";
+import { saveStand } from "../db/standen.js?v=20260914a";
+import { resolveStencilItems } from "../stencil/compose.js?v=20260914a";
+import { buildStencilPagesHTML, missingOplossingen } from "../stencil/stencilPreview.js?v=20260914a";
+import { buildStencilDocxBlob, downloadBlob } from "../export/docx.js?v=20260914a";
+import { renderDiagramSVG } from "../diagram/render.js?v=20260914a";
+import { parseFen } from "../core/fen.js?v=20260914a";
+import { MAX_DIAGRAMS_PER_STENCIL } from "../stencil/layout.js?v=20260914a";
 
 export async function renderStencilView(container, { stencilId, onOpenStand, onGotoDatabaseToAdd } = {}) {
   let stencil = await getStencil(stencilId);

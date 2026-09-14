@@ -1,5 +1,5 @@
-import { describe, it, assertEqual, assertTrue } from "./test-runner.js";
-import { resetDatabaseForTests } from "../src/db/db.js";
+import { describe, it, assertEqual, assertTrue } from "./test-runner.js?v=20260914a";
+import { resetDatabaseForTests } from "../src/db/db.js?v=20260914a";
 import {
   saveStand,
   getStand,
@@ -8,11 +8,11 @@ import {
   findDuplicates,
   listStanden,
   markUsedIn,
-} from "../src/db/standen.js";
-import { getList, addListValue, renameListValue, removeListValue } from "../src/db/lijsten.js";
-import { saveStencil, getStencil, listStencils, deleteStencil } from "../src/db/stencils.js";
-import { exportAll, importAll, buildShareData } from "../src/db/backup.js";
-import { logHerkenningCorrectie, getAllHerkenningCorrecties } from "../src/db/herkenningLog.js";
+} from "../src/db/standen.js?v=20260914a";
+import { getList, addListValue, renameListValue, removeListValue } from "../src/db/lijsten.js?v=20260914a";
+import { saveStencil, getStencil, listStencils, deleteStencil } from "../src/db/stencils.js?v=20260914a";
+import { exportAll, importAll, buildShareData } from "../src/db/backup.js?v=20260914a";
+import { logHerkenningCorrectie, getAllHerkenningCorrecties } from "../src/db/herkenningLog.js?v=20260914a";
 
 async function freshDb() {
   await resetDatabaseForTests();

@@ -1,11 +1,11 @@
-import { renderEditorView } from "./editorView.js";
-import { renderDatabaseView } from "./databaseView.js";
-import { renderStencilsListView } from "./stencilsListView.js";
-import { renderStencilView, addStandenToStencil } from "./stencilView.js";
-import { renderBackupView, getLastBackupDate } from "./backupView.js";
-import { renderImportView } from "./importView.js";
-import { renderPhotoImportView } from "./photoImportView.js";
-import { listStanden } from "../db/standen.js";
+import { renderEditorView } from "./editorView.js?v=20260914a";
+import { renderDatabaseView } from "./databaseView.js?v=20260914a";
+import { renderStencilsListView } from "./stencilsListView.js?v=20260914a";
+import { renderStencilView, addStandenToStencil } from "./stencilView.js?v=20260914a";
+import { renderBackupView, getLastBackupDate } from "./backupView.js?v=20260914a";
+import { renderImportView } from "./importView.js?v=20260914a";
+import { renderPhotoImportView } from "./photoImportView.js?v=20260914a";
+import { listStanden } from "../db/standen.js?v=20260914a";
 
 const routes = ["nieuw", "foto", "database", "stencils", "stencil", "backup", "import"];
 let pendingRecognition = null;
