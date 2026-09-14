@@ -167,7 +167,13 @@ async function buildOpgavenTable(stencil, items) {
       new TableCell({
         width: { size: colWidthTwip, type: WidthType.DXA },
         margins: { top: 80, bottom: 80, left: 80, right: 80 },
-        children: [innerTable],
+        // Een cel moet in het onderliggende bestandsformaat altijd eindigen met een
+        // "gewone" alinea, niet met een tabel — de docx-bibliotheek voegt er anders
+        // zelf één toe, met de standaard regelafstand van Word (dat was precies de
+        // extra witruimte tussen de diagrammen). Door hem hier zelf, zonder
+        // regelafstand en met een piepklein lettertype toe te voegen, blijft die
+        // ruimte verwaarloosbaar.
+        children: [innerTable, new Paragraph({ spacing: { before: 0, after: 0 }, children: [new TextRun({ text: "", size: 2 })] })],
       })
     );
   }
