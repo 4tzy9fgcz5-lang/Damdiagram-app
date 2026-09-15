@@ -1,10 +1,10 @@
-import { warpToSquareCanvas } from "../recognition/homography.js?v=20260914h";
-import { classifyBoard, CONFIDENCE_THRESHOLD, RECOGNITION_VERSION } from "../recognition/classify.js?v=20260914h";
-import { buildCornersOverlay, buildGridOverlay, buildFieldCrops, buildLabelCheckImage } from "../recognition/debugRender.js?v=20260914h";
-import { detectBoardCorners } from "../recognition/detectBoard.js?v=20260914h";
-import { FIELD_COUNT } from "../core/board.js?v=20260914h";
-import { buildZip } from "../export/zip.js?v=20260914h";
-import { boardToLabelLine } from "../recognition/labelFormat.js?v=20260914h";
+import { warpToSquareCanvas } from "../recognition/homography.js?v=20260914j";
+import { classifyBoard, CONFIDENCE_THRESHOLD, RECOGNITION_VERSION } from "../recognition/classify.js?v=20260914j";
+import { buildCornersOverlay, buildGridOverlay, buildFieldCrops, buildLabelCheckImage } from "../recognition/debugRender.js?v=20260914j";
+import { detectBoardCorners } from "../recognition/detectBoard.js?v=20260914j";
+import { FIELD_COUNT } from "../core/board.js?v=20260914j";
+import { buildZip } from "../export/zip.js?v=20260914j";
+import { boardToLabelLine } from "../recognition/labelFormat.js?v=20260914j";
 
 const WORKING_MAX_SIDE = 1400;
 const WARP_SIZE = 500;
@@ -70,8 +70,14 @@ export async function renderPhotoImportView(container, { onRecognized } = {}) {
         <button type="button" class="primary" data-action="goto-editor">Ga naar editor</button>
         <button type="button" class="secondary" data-action="toggle-debug">Toon herkenningsstappen</button>
         <button type="button" class="secondary" data-action="dump-crops">Exporteer voor labelen</button>
+        <button type="button" class="secondary" data-action="next-photo">Volgende diagram</button>
       </div>
       <p data-role="dump-status" style="color:#666;font-size:0.85rem;"></p>
+      <div class="button-row" style="margin-top:0;">
+        <button type="button" class="secondary" data-action="download-collection" data-role="download-collection-btn" style="display:none;">
+          Download alles (<span data-role="collection-count">0</span> foto's)
+        </button>
+      </div>
       <div data-role="debug" style="display:none;margin-top:1rem;">
         <h3 style="font-size:0.9rem;">1. Aangewezen hoeken op de foto</h3>
         <div data-role="debug-corners"></div>
@@ -95,6 +101,14 @@ export async function renderPhotoImportView(container, { onRecognized } = {}) {
   let corners = null;
   let dragIndex = -1;
   let lastRecognition = null;
+  let currentFileName = null;
+
+  // Verzamelmodus voor het labelwerk (damscan/OPDRACHT.md): per diagram wordt hier
+  // een export aan toegevoegd i.p.v. meteen gedownload; pas aan het eind bundelt
+  // "Download alles" alles tot 1 zip. Blijft bestaan zolang je op deze pagina
+  // blijft (dus over meerdere "Andere foto"-rondes heen), en wordt na de
+  // verzameldownload weer leeg.
+  const collected = [];
 
   function toCanvasPoint(clientX, clientY) {
     const rect = canvas.getBoundingClientRect();
@@ -173,6 +187,7 @@ export async function renderPhotoImportView(container, { onRecognized } = {}) {
 
   async function handleFile(file) {
     if (!file) return;
+    currentFileName = file.name;
     status.textContent = "Foto wordt geladen...";
     try {
       drawable = await loadDrawable(file);
@@ -209,10 +224,14 @@ export async function renderPhotoImportView(container, { onRecognized } = {}) {
   el('[data-action="camera"]').addEventListener("click", () => el('[data-role="camera-input"]').click());
   el('[data-action="gallery"]').addEventListener("click", () => el('[data-role="gallery-input"]').click());
 
-  el('[data-action="restart"]').addEventListener("click", () => {
+  // Gedeeld door "Andere foto" (in het hoekenscherm) en "Volgende diagram" (in het
+  // resultatenscherm, nodig voor de verzamelmodus): terug naar het beginscherm om
+  // een nieuwe foto te kiezen, zónder de verzameling (`collected`) leeg te maken.
+  function resetToPick() {
     drawable = null;
     corners = null;
     lastRecognition = null;
+    currentFileName = null;
     pickCard.style.display = "block";
     cornersCard.style.display = "none";
     resultsCard.style.display = "none";
@@ -220,7 +239,10 @@ export async function renderPhotoImportView(container, { onRecognized } = {}) {
     el('[data-action="toggle-debug"]').textContent = "Toon herkenningsstappen";
     el('[data-role="camera-input"]').value = "";
     el('[data-role="gallery-input"]').value = "";
-  });
+  }
+
+  el('[data-action="restart"]').addEventListener("click", resetToPick);
+  el('[data-action="next-photo"]').addEventListener("click", resetToPick);
 
   el('[data-action="recognize"]').addEventListener("click", async () => {
     status.textContent = "Bezig met rechttrekken en herkennen...";
@@ -319,20 +341,27 @@ export async function renderPhotoImportView(container, { onRecognized } = {}) {
     });
   }
 
-  // Voor damscan/OPDRACHT.md stap 1 + 2: bundelt in één zip alles wat nodig is om
-  // deze foto te labelen —
+  function updateCollectionButton() {
+    const btn = el('[data-role="download-collection-btn"]');
+    el('[data-role="collection-count"]').textContent = String(collected.length);
+    btn.style.display = collected.length > 0 ? "inline-block" : "none";
+  }
+
+  // Voor damscan/OPDRACHT.md stap 1 + 2, in verzamelmodus: voegt voor déze foto
+  // toe aan `collected` —
   //   crops/<naam>/01.png .. 50.png   (stap 1, ongewijzigd: buildFieldCrops)
-  //   <naam>-label.txt                (stap 2: 1 regel, in het formaat van damscan/labels.js,
+  //   1 labelregel                     (stap 2: in het formaat van damscan/labels.js,
   //                                     op basis van de HUIDIGE herkenning — jij corrigeert
   //                                     daarna zelf de foute velden in labels.txt)
   //   check/<naam>.png                (stap 2: rechtgetrokken beeld met veldnummers + wat de
   //                                     herkenning er nu in ziet, om die correctie zonder
   //                                     telwerk te kunnen doen)
+  // <naam> is de bestandsnaam van de brofoto (zonder extensie). Download gebeurt pas
+  // via "Download alles", als je door alle diagrammen heen bent.
   el('[data-action="dump-crops"]').addEventListener("click", async () => {
     if (!lastRecognition) return;
     const dumpStatus = el('[data-role="dump-status"]');
-    const naam = prompt("Naam voor deze foto (wordt de mapnaam en de regel in labels.txt, bijv. diag01):", "diag01");
-    if (!naam) return;
+    const naam = (currentFileName || "diagram").replace(/\.[^.]+$/, "");
     const stijl = prompt(
       "Uit welk boek of tijdschrift komt dit diagram? (laat leeg als je dat niet weet — vul het dan later zelf in labels.txt aan)",
       ""
@@ -342,34 +371,55 @@ export async function renderPhotoImportView(container, { onRecognized } = {}) {
     try {
       const { board, confidences, warpedCanvas } = lastRecognition;
       const crops = buildFieldCrops(warpedCanvas, board, confidences);
-      const entries = [];
+      const cropEntries = [];
       for (const crop of crops) {
         const data = await canvasToPngBytes(crop.canvas);
-        entries.push({ name: `crops/${naam}/${String(crop.field).padStart(2, "0")}.png`, data });
+        cropEntries.push({ name: `crops/${naam}/${String(crop.field).padStart(2, "0")}.png`, data });
       }
 
       const labelLine = boardToLabelLine(naam, board, stijl ? stijl.trim() : "");
-      entries.push({ name: `${naam}-label.txt`, data: new TextEncoder().encode(labelLine + "\n") });
 
       const checkCanvas = buildLabelCheckImage(warpedCanvas, board);
       const checkData = await canvasToPngBytes(checkCanvas);
-      entries.push({ name: `check/${naam}.png`, data: checkData });
+
+      collected.push({ naam, cropEntries, labelLine, checkEntry: { name: `check/${naam}.png`, data: checkData } });
+      updateCollectionButton();
+      dumpStatus.textContent =
+        `Toegevoegd aan de verzameling (${collected.length} foto's tot nu toe): ${naam}. ` +
+        `Regel: ${labelLine}. Ga door met de volgende foto, of klik op "Download alles" als je klaar bent.`;
+    } catch (err) {
+      dumpStatus.textContent = "Exporteren is mislukt: " + err.message;
+    }
+  });
+
+  // Bundelt de hele verzameling tot 1 zip: alle crops/<naam>/..., 1 gezamenlijke
+  // labels.txt (alle labelregels achter elkaar) en alle check/<naam>.png's.
+  el('[data-action="download-collection"]').addEventListener("click", () => {
+    if (!collected.length) return;
+    const dumpStatus = el('[data-role="dump-status"]');
+    try {
+      const entries = [];
+      const labelLines = [];
+      for (const item of collected) {
+        entries.push(...item.cropEntries, item.checkEntry);
+        labelLines.push(item.labelLine);
+      }
+      entries.push({ name: "labels.txt", data: new TextEncoder().encode(labelLines.join("\n") + "\n") });
 
       const zipBlob = buildZip(entries);
       const url = URL.createObjectURL(zipBlob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `${naam}-export.zip`;
+      a.download = "labels-export.zip";
       document.body.appendChild(a);
       a.click();
       a.remove();
       setTimeout(() => URL.revokeObjectURL(url), 5000);
-      dumpStatus.textContent =
-        `Gedownload als ${naam}-export.zip — pak uit in je damscan-map (crops/${naam}/... en ` +
-        `check/${naam}.png komen dan vanzelf goed te staan) en plak de regel uit ${naam}-label.txt ` +
-        `achteraan in labels.txt. Regel: ${labelLine}`;
+      dumpStatus.textContent = `Gedownload als labels-export.zip (${collected.length} foto's) — pak uit in je damscan-map.`;
+      collected.length = 0;
+      updateCollectionButton();
     } catch (err) {
-      dumpStatus.textContent = "Exporteren is mislukt: " + err.message;
+      dumpStatus.textContent = "Downloaden is mislukt: " + err.message;
     }
   });
 }
