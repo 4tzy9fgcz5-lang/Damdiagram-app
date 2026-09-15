@@ -1,6 +1,6 @@
-import { renderDiagramSVG } from "../diagram/render.js?v=20260915b";
-import { isValidField } from "../core/board.js?v=20260915b";
-import { getLegalMoves, applyMove, formatZetten } from "../core/draughtsMoves.js?v=20260915b";
+import { renderDiagramSVG } from "../diagram/render.js?v=20260915c";
+import { isValidField } from "../core/board.js?v=20260915c";
+import { getLegalMoves, applyMove, formatZetten } from "../core/draughtsMoves.js?v=20260915c";
 
 function opposite(color) {
   return color === "white" ? "black" : "white";
@@ -88,10 +88,9 @@ export function createSolutionInput(container, { board, turn, initialZetten, onC
       marker.setAttribute("pointer-events", "none");
       svg.appendChild(marker);
     };
-    if (partialFrom == null) {
-      for (const field of ownFieldsWithMoves()) mark(field, "#1a5c38");
-    } else {
-      mark(partialFrom, "#1a5c38");
+    // Geen omlijning van alle zetbare stukken vooraf (dat werkte afleidend) — alleen
+    // de doelvelden markeren zodra er bij een slag(keuze) iets te kiezen valt.
+    if (partialFrom != null) {
       const { targets } = nextTargets();
       for (const field of targets) mark(field, "#e0a800");
     }

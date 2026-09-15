@@ -1,5 +1,5 @@
-import { renderDiagramSVG } from "../diagram/render.js?v=20260915b";
-import { applyMove, moveToNotation } from "../core/draughtsMoves.js?v=20260915b";
+import { renderDiagramSVG } from "../diagram/render.js?v=20260915c";
+import { applyMove, moveToNotation } from "../core/draughtsMoves.js?v=20260915c";
 
 function escapeHtml(str) {
   return str.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));

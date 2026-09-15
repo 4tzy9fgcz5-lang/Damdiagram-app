@@ -1,9 +1,9 @@
-import { renderDiagramSVG } from "../diagram/render.js?v=20260915b";
-import { parseFen } from "../core/fen.js?v=20260915b";
-import { listStanden, resolveOplossingTekst } from "../db/standen.js?v=20260915b";
-import { getList } from "../db/lijsten.js?v=20260915b";
-import { svgToPngDataUrl } from "../export/rasterize.js?v=20260915b";
-import { downloadBlob } from "../export/docx.js?v=20260915b";
+import { renderDiagramSVG } from "../diagram/render.js?v=20260915c";
+import { parseFen } from "../core/fen.js?v=20260915c";
+import { listStanden, resolveOplossingTekst } from "../db/standen.js?v=20260915c";
+import { getList } from "../db/lijsten.js?v=20260915c";
+import { svgToPngDataUrl } from "../export/rasterize.js?v=20260915c";
+import { downloadBlob } from "../export/docx.js?v=20260915c";
 
 export async function renderDatabaseView(container, { onOpenStand, onAddSelectionToStencil } = {}) {
   container.innerHTML = `
@@ -102,9 +102,7 @@ export async function renderDatabaseView(container, { onOpenStand, onAddSelectio
         </label>
         ${svg}
         <div class="meta">
-          ${stand.auteur ? escapeHtml(stand.auteur) : "(onbekende auteur)"}${
-        stand.jaartal ? ", " + stand.jaartal : ""
-      }<br>
+          ${stand.jaartal ? `${stand.jaartal}<br>` : ""}
           ${tags ? escapeHtml(tags) : ""}
           ${resolveOplossingTekst(stand) ? "" : '<br><span style="color:#a30000;">geen oplossing</span>'}
         </div>

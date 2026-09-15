@@ -1,6 +1,6 @@
-import { describe, it, assertEqual, assertTrue } from "./test-runner.js?v=20260915b";
-import { coordToField, createEmptyBoard, PIECE_TYPES } from "../src/core/board.js?v=20260915b";
-import { getLegalMoves, applyMove } from "../src/core/draughtsMoves.js?v=20260915b";
+import { describe, it, assertEqual, assertTrue } from "./test-runner.js?v=20260915c";
+import { coordToField, createEmptyBoard, PIECE_TYPES } from "../src/core/board.js?v=20260915c";
+import { getLegalMoves, applyMove } from "../src/core/draughtsMoves.js?v=20260915c";
 
 // Rij0 = bovenkant (zwart start hier, velden 1-20), rij9 = onderkant (wit start hier, velden 31-50).
 // Wit speelt dus "omhoog" (rij neemt af), zwart "omlaag" (rij neemt toe).
@@ -111,17 +111,32 @@ describe("draughtsMoves: dam (vliegende schijf)", () => {
 });
 
 describe("draughtsMoves: promotie", () => {
-  it("een schijf die tijdens het slaan dam wordt, stopt daar — ook als er nog meer te slaan valt", () => {
+  it("stopt normaal op de damrij als er vandaar niets meer te slaan valt", () => {
     const board = createEmptyBoard();
     place(board, 2, 1, PIECE_TYPES.WHITE_PIECE);
     place(board, 1, 2, PIECE_TYPES.BLACK_PIECE); // geslagen, landing is de damrij
-    // Nog een zwarte schijf die in theorie een vervolgslag zou aanbieden vanaf de landingsplek —
-    // die mag NIET meegenomen worden, want de beurt stopt bij het dam worden.
-    place(board, 1, 4, PIECE_TYPES.BLACK_PIECE);
 
     const moves = getLegalMoves(board, "white");
     assertEqual(moves.length, 1);
     assertEqual(moves[0], { van: f(2, 1), pad: [f(0, 3)], geslagen: [f(1, 2)], wordtDam: true });
+  });
+
+  it("een schijf die op de damrij komt, moet doorslaan als dat nog kan (nu als dam)", () => {
+    const board = createEmptyBoard();
+    place(board, 2, 1, PIECE_TYPES.WHITE_PIECE);
+    place(board, 1, 2, PIECE_TYPES.BLACK_PIECE); // eerste slag, landing is de damrij
+    place(board, 1, 4, PIECE_TYPES.BLACK_PIECE); // moet ook geslagen worden, nu als dam
+    // Blokkeert verdere landingsopties voorbij (2,5), voor een eenduidige uitkomst.
+    place(board, 3, 6, PIECE_TYPES.WHITE_PIECE);
+
+    const moves = getLegalMoves(board, "white");
+    assertEqual(moves.length, 1);
+    assertEqual(moves[0], {
+      van: f(2, 1),
+      pad: [f(0, 3), f(2, 5)],
+      geslagen: [f(1, 2), f(1, 4)],
+      wordtDam: true,
+    });
   });
 
   it("een gewone zet naar de laatste rij maakt ook dam", () => {
