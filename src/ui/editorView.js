@@ -1,19 +1,18 @@
-import { createBoardEditor, createPalette } from "./boardEditor.js?v=20260915f";
-import { createSolutionInput } from "./solutionInput.js?v=20260915f";
-import { createEmptyBoard } from "../core/board.js?v=20260915f";
-import { parseFen, boardToFen, FenParseError } from "../core/fen.js?v=20260915f";
-import { parseStandInput, QuickTextParseError } from "../core/quicktext.js?v=20260915f";
-import { validateBoard } from "../core/validate.js?v=20260915f";
-import { saveStand, getStand, findDuplicates } from "../db/standen.js?v=20260915f";
-import { getList, addListValue } from "../db/lijsten.js?v=20260915f";
-import { logHerkenningCorrectie } from "../db/herkenningLog.js?v=20260915f";
-import { CONFIDENCE_THRESHOLD } from "../recognition/classify.js?v=20260915f";
+import { createBoardEditor, createPalette } from "./boardEditor.js?v=20260915h";
+import { createSolutionInput } from "./solutionInput.js?v=20260915h";
+import { createEmptyBoard } from "../core/board.js?v=20260915h";
+import { parseFen, boardToFen, FenParseError } from "../core/fen.js?v=20260915h";
+import { parseStandInput, QuickTextParseError } from "../core/quicktext.js?v=20260915h";
+import { validateBoard } from "../core/validate.js?v=20260915h";
+import { saveStand, getStand, findDuplicates } from "../db/standen.js?v=20260915h";
+import { getList, addListValue } from "../db/lijsten.js?v=20260915h";
+import { logHerkenningCorrectie } from "../db/herkenningLog.js?v=20260915h";
 
 const MOEILIJKHEID_MAX = 5;
 
 export async function renderEditorView(
   container,
-  { standId, onSaved, initialBoard, confidences, photoDataUrl, modelVersion } = {}
+  { standId, onSaved, initialBoard, confidences, uncertainFields: uncertainFieldsProp, photoDataUrl, modelVersion } = {}
 ) {
   container.innerHTML = `
     <h2>Nieuwe stand invoeren</h2>
@@ -144,9 +143,10 @@ export async function renderEditorView(
     }
   }
 
-  const uncertainFields = confidences
-    ? confidences.reduce((acc, c, f) => (f >= 1 && c < CONFIDENCE_THRESHOLD ? [...acc, f] : acc), [])
-    : [];
+  // Welke velden onzeker zijn (gele rand) hangt af van wélke classifier de foto
+  // herkende — dat bepaalt en levert photoImportView al aan, dit scherm hoeft de
+  // drempel van de gebruikte classifier niet te kennen.
+  const uncertainFields = uncertainFieldsProp ?? [];
 
   const boardEditor = createBoardEditor(boardHost, {
     board: existingStand ? parseFen(existingStand.fen).board : initialBoard ?? createEmptyBoard(),

@@ -3,7 +3,7 @@
 // classifier, nog niet de standaard in de app. Zie tests/compare.html voor de
 // vergelijking met de bestaande classifier (src/recognition/classify.js).
 //
-//   import { createClassifier } from "./newClassify.js";
+//   import { createClassifier } from "./newClassify.js?v=20260915h";
 //   const clf = createClassifier(weights); // weights = damscan/weights.json
 //   const result = clf.classifyBoard(crops); // crops[i] = {gray,width,height} of {data,width,height}
 //
@@ -11,13 +11,19 @@
 // kenmerken worden genormaliseerd t.o.v. de andere 49 velden van hetzelfde
 // diagram — dat is precies wat de classifier ongevoelig maakt voor de drukstijl
 // van het boek. Een los veld classificeren kan dus niet meer, en dat is met opzet.
-import { extractFeatures, toGray, boardRelative } from "./newFeatures.js?v=20260915f";
-import { predict } from "./newModel.js?v=20260915f";
+import { extractFeatures, toGray, boardRelative } from "./newFeatures.js?v=20260915h";
+import { predict } from "./newModel.js?v=20260915h";
 
 // Gele rand hieronder; drempel uit de tabel van damscan/train.js (0,90 vangt op de
 // huidige gelabelde set 85% van de fouten bij ongeveer een derde van de velden
 // gemarkeerd — een redelijke middenweg, zie damscan/report.js).
 export const FLAG_BELOW = 0.9;
+
+// Wordt meegelogd bij elke correctie (zie herkenningLog.js), analoog aan
+// RECOGNITION_VERSION in het oude classify.js. Ophogen bij een inhoudelijke
+// wijziging aan newFeatures.js/newModel.js/newClassify.js, of bij een nieuwe
+// damscan/weights.json (train.js meldt de gebruikte variant, die hier ook in kan).
+export const RECOGNITION_VERSION = "nieuw-per-bord-2026-09-15";
 
 export function createClassifier(weights) {
   function classifyBoard(crops) {

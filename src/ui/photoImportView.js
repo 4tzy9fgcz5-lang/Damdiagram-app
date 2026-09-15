@@ -1,10 +1,79 @@
-import { warpToSquareCanvas } from "../recognition/homography.js?v=20260915f";
-import { classifyBoard, CONFIDENCE_THRESHOLD, RECOGNITION_VERSION } from "../recognition/classify.js?v=20260915f";
-import { buildCornersOverlay, buildGridOverlay, buildFieldCrops, buildLabelCheckImage } from "../recognition/debugRender.js?v=20260915f";
-import { detectBoardCorners } from "../recognition/detectBoard.js?v=20260915f";
-import { FIELD_COUNT } from "../core/board.js?v=20260915f";
-import { buildZip } from "../export/zip.js?v=20260915f";
-import { boardToLabelLine } from "../recognition/labelFormat.js?v=20260915f";
+import { warpToSquareCanvas } from "../recognition/homography.js?v=20260915h";
+import { classifyBoard, CONFIDENCE_THRESHOLD, RECOGNITION_VERSION } from "../recognition/classify.js?v=20260915h";
+import {
+  createClassifier as createNewClassifier,
+  FLAG_BELOW as NEW_FLAG_BELOW,
+  RECOGNITION_VERSION as NEW_RECOGNITION_VERSION,
+} from "../recognition/newClassify.js?v=20260915h";
+import {
+  buildCornersOverlay,
+  buildGridOverlay,
+  buildFieldCrops,
+  buildRawFieldCrops,
+  buildLabelCheckImage,
+} from "../recognition/debugRender.js?v=20260915h";
+import { detectBoardCorners } from "../recognition/detectBoard.js?v=20260915h";
+import { FIELD_COUNT, createEmptyBoard, PIECE_TYPES } from "../core/board.js?v=20260915h";
+import { buildZip } from "../export/zip.js?v=20260915h";
+import { boardToLabelLine } from "../recognition/labelFormat.js?v=20260915h";
+
+// Ligt buiten het bereik van het cache-bust-bompscript (dat kijkt alleen naar JS-
+// imports/HTML-tags) — bij het trainen van een nieuw damscan/weights.json dus ook
+// deze versie met de hand ophogen, anders houdt Fastly (GitHub Pages) tot 10
+// minuten de oude gewichten vast.
+const WEIGHTS_VERSION = "20260915h";
+
+let newClassifierPromise = null;
+function getNewClassifier() {
+  if (!newClassifierPromise) {
+    newClassifierPromise = fetch(`damscan/weights.json?v=${WEIGHTS_VERSION}`)
+      .then((r) => {
+        if (!r.ok) throw new Error("kon damscan/weights.json niet laden");
+        return r.json();
+      })
+      .then((weights) => createNewClassifier(weights));
+  }
+  return newClassifierPromise;
+}
+
+// Herkent één rechtgetrokken bord met de gekozen classifier. Geeft altijd hetzelfde
+// vorm terug (board/confidences/uncertainFields/modelVersion), zodat de rest van
+// deze pagina niet hoeft te weten welke classifier er precies draaide.
+async function classifyWith(useNew, warpedCanvas) {
+  if (useNew) {
+    let clf;
+    try {
+      clf = await getNewClassifier();
+    } catch (err) {
+      throw new Error(`nieuwe herkenning kon niet laden (${err.message}) — probeer de oude via de schakelaar`);
+    }
+    const rawCrops = buildRawFieldCrops(warpedCanvas);
+    const cropInputs = rawCrops.map(({ canvas }) => {
+      const d = canvas.getContext("2d").getImageData(0, 0, canvas.width, canvas.height);
+      return { data: d.data, width: d.width, height: d.height };
+    });
+    const { squares } = clf.classifyBoard(cropInputs);
+    const board = createEmptyBoard();
+    const confidences = new Array(FIELD_COUNT + 1).fill(1);
+    const uncertainFields = [];
+    for (const sq of squares) {
+      confidences[sq.square] = sq.confidence;
+      if (sq.label === "white") board[sq.square] = PIECE_TYPES.WHITE_PIECE;
+      else if (sq.label === "black") board[sq.square] = PIECE_TYPES.BLACK_PIECE;
+      if (sq.confidence < NEW_FLAG_BELOW) uncertainFields.push(sq.square);
+    }
+    return { board, confidences, uncertainFields, modelVersion: NEW_RECOGNITION_VERSION };
+  }
+
+  const size = warpedCanvas.width;
+  const imageData = warpedCanvas.getContext("2d").getImageData(0, 0, size, size);
+  const { board, confidences } = classifyBoard(imageData, size);
+  const uncertainFields = [];
+  for (let f = 1; f <= FIELD_COUNT; f++) {
+    if (confidences[f] < CONFIDENCE_THRESHOLD) uncertainFields.push(f);
+  }
+  return { board, confidences, uncertainFields, modelVersion: RECOGNITION_VERSION };
+}
 
 const WORKING_MAX_SIDE = 1400;
 const WARP_SIZE = 500;
@@ -57,6 +126,14 @@ export async function renderPhotoImportView(container, { onRecognized } = {}) {
       <div style="position:relative;display:inline-block;max-width:100%;">
         <canvas data-role="canvas" style="width:100%;max-width:480px;height:auto;display:block;touch-action:none;border-radius:8px;"></canvas>
       </div>
+      <div class="quick-actions" style="justify-content:flex-start;" data-role="classifier-toggle">
+        <label style="display:inline-flex;align-items:center;gap:0.3rem;font-weight:normal;margin:0;">
+          <input type="radio" name="classifier-corners" value="new" checked /> Nieuwe herkenning (aanbevolen)
+        </label>
+        <label style="display:inline-flex;align-items:center;gap:0.3rem;font-weight:normal;margin:0;">
+          <input type="radio" name="classifier-corners" value="old" /> Oude herkenning
+        </label>
+      </div>
       <div class="button-row">
         <button type="button" class="primary" data-action="recognize">Rechttrekken en herkennen</button>
         <button type="button" class="secondary" data-action="restart">Andere foto</button>
@@ -65,6 +142,14 @@ export async function renderPhotoImportView(container, { onRecognized } = {}) {
     </div>
 
     <div class="card" data-role="results" style="display:none;">
+      <div class="quick-actions" style="justify-content:flex-start;" data-role="classifier-toggle">
+        <label style="display:inline-flex;align-items:center;gap:0.3rem;font-weight:normal;margin:0;">
+          <input type="radio" name="classifier-results" value="new" checked /> Nieuwe herkenning (aanbevolen)
+        </label>
+        <label style="display:inline-flex;align-items:center;gap:0.3rem;font-weight:normal;margin:0;">
+          <input type="radio" name="classifier-results" value="old" /> Oude herkenning
+        </label>
+      </div>
       <p data-role="summary"></p>
       <div class="button-row" style="margin-top:0;">
         <button type="button" class="primary" data-action="goto-editor">Ga naar editor</button>
@@ -102,6 +187,28 @@ export async function renderPhotoImportView(container, { onRecognized } = {}) {
   let dragIndex = -1;
   let lastRecognition = null;
   let currentFileName = null;
+  let useNewClassifier = true;
+
+  // Twee losse exemplaren van dezelfde schakelaar (hoeken-scherm en resultaten-
+  // scherm) — eigen `name` per stel (anders vormen ze onbedoeld één radiogroep en
+  // kan er middels twee gelijke waarden techisch geen van beide meer aangevinkt
+  // staan), maar wel steeds met elkaar gesynchroniseerd.
+  const classifierToggles = container.querySelectorAll('[data-role="classifier-toggle"]');
+  function syncClassifierToggles(value) {
+    for (const toggle of classifierToggles) {
+      for (const radio of toggle.querySelectorAll('input[type="radio"]')) {
+        radio.checked = radio.value === value;
+      }
+    }
+  }
+  for (const toggle of classifierToggles) {
+    toggle.addEventListener("change", (e) => {
+      if (e.target.name.indexOf("classifier-") !== 0 || !e.target.checked) return;
+      useNewClassifier = e.target.value === "new";
+      syncClassifierToggles(e.target.value);
+      if (lastRecognition && resultsCard.style.display !== "none") reclassify();
+    });
+  }
 
   // Verzamelmodus voor het labelwerk (damscan/OPDRACHT.md): per diagram wordt hier
   // een export aan toegevoegd i.p.v. meteen gedownload; pas aan het eind bundelt
@@ -256,11 +363,10 @@ export async function renderPhotoImportView(container, { onRecognized } = {}) {
       const scaleUp = fullWidth / canvas.width;
       const fullResCorners = corners.map((p) => ({ x: p.x * scaleUp, y: p.y * scaleUp }));
       const warpedCanvas = warpToSquareCanvas(drawable, fullResCorners, WARP_SIZE);
-      const imageData = warpedCanvas.getContext("2d").getImageData(0, 0, WARP_SIZE, WARP_SIZE);
-      const { board, confidences } = classifyBoard(imageData, WARP_SIZE);
       const photoDataUrl = warpedCanvas.toDataURL("image/jpeg", 0.85);
+      const result = await classifyWith(useNewClassifier, warpedCanvas);
 
-      lastRecognition = { board, confidences, photoDataUrl, warpedCanvas, scaleUp, fullResCorners };
+      lastRecognition = { ...result, photoDataUrl, warpedCanvas, scaleUp, fullResCorners };
       renderResults(lastRecognition);
       status.textContent = "";
       cornersCard.style.display = "none";
@@ -270,18 +376,35 @@ export async function renderPhotoImportView(container, { onRecognized } = {}) {
     }
   });
 
-  function renderResults({ board, confidences }) {
-    let occupied = 0;
-    let uncertain = 0;
-    for (let f = 1; f <= FIELD_COUNT; f++) {
-      if (board[f]) occupied++;
-      if (confidences[f] < CONFIDENCE_THRESHOLD) uncertain++;
+  // Herkent dezelfde, al rechtgetrokken foto opnieuw met de andere classifier —
+  // voor de schakelaar in het resultatenscherm, zodat je oud en nieuw op precies
+  // dezelfde foto kunt vergelijken zonder de hoeken opnieuw aan te wijzen.
+  async function reclassify() {
+    const summary = el('[data-role="summary"]');
+    const prevText = summary.textContent;
+    summary.textContent = "Bezig met herkennen...";
+    try {
+      const { warpedCanvas, photoDataUrl, scaleUp, fullResCorners } = lastRecognition;
+      const result = await classifyWith(useNewClassifier, warpedCanvas);
+      lastRecognition = { ...result, photoDataUrl, warpedCanvas, scaleUp, fullResCorners };
+      renderResults(lastRecognition);
+      if (el('[data-role="debug"]').style.display !== "none") renderDebug(lastRecognition);
+    } catch (err) {
+      summary.textContent = prevText;
+      alert("Herkennen met deze classifier is mislukt: " + err.message);
     }
-    el('[data-role="summary"]').textContent =
-      `${occupied} van de 50 velden herkend als bezet, ${uncertain} veld(en) zijn onzeker (geel gemarkeerd in de editor).`;
   }
 
-  function renderDebug({ board, confidences, warpedCanvas, fullResCorners }) {
+  function renderResults({ board, confidences, uncertainFields }) {
+    let occupied = 0;
+    for (let f = 1; f <= FIELD_COUNT; f++) {
+      if (board[f]) occupied++;
+    }
+    el('[data-role="summary"]').textContent =
+      `${occupied} van de 50 velden herkend als bezet, ${uncertainFields.length} veld(en) zijn onzeker (geel gemarkeerd in de editor).`;
+  }
+
+  function renderDebug({ board, confidences, uncertainFields, warpedCanvas, fullResCorners }) {
     const debugCorners = el('[data-role="debug-corners"]');
     const debugGrid = el('[data-role="debug-grid"]');
     const debugCrops = el('[data-role="debug-crops"]');
@@ -300,7 +423,7 @@ export async function renderPhotoImportView(container, { onRecognized } = {}) {
     gridCanvas.style.borderRadius = "8px";
     debugGrid.appendChild(gridCanvas);
 
-    for (const crop of buildFieldCrops(warpedCanvas, board, confidences)) {
+    for (const crop of buildFieldCrops(warpedCanvas, board, confidences, uncertainFields)) {
       const wrapper = document.createElement("div");
       wrapper.style.textAlign = "center";
       wrapper.style.fontSize = "0.65rem";
@@ -325,8 +448,8 @@ export async function renderPhotoImportView(container, { onRecognized } = {}) {
 
   el('[data-action="goto-editor"]').addEventListener("click", () => {
     if (!lastRecognition) return;
-    const { board, confidences, photoDataUrl } = lastRecognition;
-    onRecognized?.({ board, confidences, photoDataUrl, modelVersion: RECOGNITION_VERSION });
+    const { board, confidences, uncertainFields, photoDataUrl, modelVersion } = lastRecognition;
+    onRecognized?.({ board, confidences, uncertainFields, photoDataUrl, modelVersion });
   });
 
   function canvasToPngBytes(canvas) {
@@ -369,8 +492,8 @@ export async function renderPhotoImportView(container, { onRecognized } = {}) {
     dumpStatus.textContent = "Bezig met crops en controlebeeld maken...";
     await new Promise((r) => setTimeout(r, 0));
     try {
-      const { board, confidences, warpedCanvas } = lastRecognition;
-      const crops = buildFieldCrops(warpedCanvas, board, confidences);
+      const { board, warpedCanvas } = lastRecognition;
+      const crops = buildRawFieldCrops(warpedCanvas);
       const cropEntries = [];
       for (const crop of crops) {
         const data = await canvasToPngBytes(crop.canvas);

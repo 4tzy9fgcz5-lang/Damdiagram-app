@@ -1,6 +1,6 @@
-import { describe, it, assertEqual, assertTrue } from "./test-runner.js?v=20260915f";
-import { buildGridOverlay, buildFieldCrops } from "../src/recognition/debugRender.js?v=20260915f";
-import { createEmptyBoard, PIECE_TYPES } from "../src/core/board.js?v=20260915f";
+import { describe, it, assertEqual, assertTrue } from "./test-runner.js?v=20260915h";
+import { buildGridOverlay, buildFieldCrops, buildRawFieldCrops } from "../src/recognition/debugRender.js?v=20260915h";
+import { createEmptyBoard, PIECE_TYPES } from "../src/core/board.js?v=20260915h";
 
 function makeWarpedCanvas(size = 300) {
   const canvas = document.createElement("canvas");
@@ -28,7 +28,7 @@ describe("fotoherkenning: debug-weergave", () => {
     const confidences = new Array(51).fill(0.9);
     confidences[1] = 0.3;
 
-    const crops = buildFieldCrops(warped, board, confidences);
+    const crops = buildFieldCrops(warped, board, confidences, [1]);
     assertEqual(crops.length, 50);
     const field13 = crops.find((c) => c.field === 13);
     const field1 = crops.find((c) => c.field === 1);
@@ -38,5 +38,21 @@ describe("fotoherkenning: debug-weergave", () => {
     assertEqual(field1.label, "zwarte schijf");
     assertTrue(field1.uncertain);
     assertEqual(field2.label, "leeg");
+  });
+
+  it("zonder opgegeven onzekere velden is niets onzeker", () => {
+    const warped = makeWarpedCanvas(300);
+    const board = createEmptyBoard();
+    const confidences = new Array(51).fill(0.1);
+    const crops = buildFieldCrops(warped, board, confidences);
+    assertTrue(crops.every((c) => !c.uncertain));
+  });
+
+  it("bouwt 50 losse, ongeïnterpreteerde velduitsnedes", () => {
+    const warped = makeWarpedCanvas(300);
+    const crops = buildRawFieldCrops(warped);
+    assertEqual(crops.length, 50);
+    assertEqual(crops[0].canvas.width, 60);
+    assertEqual(crops[0].canvas.height, 60);
   });
 });

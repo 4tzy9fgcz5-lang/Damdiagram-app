@@ -1,5 +1,4 @@
-import { fieldToCoord, FIELD_COUNT } from "../core/board.js?v=20260915f";
-import { CONFIDENCE_THRESHOLD } from "./classify.js?v=20260915f";
+import { fieldToCoord, FIELD_COUNT } from "../core/board.js?v=20260915h";
 
 // Foto met de 4 aangewezen hoeken en verbindingslijnen erover getekend, geschaald naar
 // een handige weergavebreedte.
@@ -65,9 +64,10 @@ const PIECE_LABELS = {
   bk: "zwarte dam",
 };
 
-// Voor elk van de 50 donkere velden: een kleine uitsnede uit het rechtgetrokken beeld,
-// met het herkende resultaat en de betrouwbaarheid als bijschrift.
-export function buildFieldCrops(warpedCanvas, board, confidences) {
+// Voor elk van de 50 donkere velden: een kleine (60x60) uitsnede uit het
+// rechtgetrokken beeld, zonder verdere interpretatie — de grondstof voor zowel
+// buildFieldCrops hieronder als voor het voeden van een classifier per veld.
+export function buildRawFieldCrops(warpedCanvas) {
   const size = warpedCanvas.width;
   const squareSize = size / 10;
   const crops = [];
@@ -90,19 +90,30 @@ export function buildFieldCrops(warpedCanvas, board, confidences) {
       cropSize,
       cropSize
     );
-
-    const piece = board[f];
-    const confidence = confidences[f];
-    const label = piece ? PIECE_LABELS[piece] ?? piece : "leeg";
-    crops.push({
-      field: f,
-      canvas: cropCanvas,
-      label,
-      confidence,
-      uncertain: confidence < CONFIDENCE_THRESHOLD,
-    });
+    crops.push({ field: f, canvas: cropCanvas });
   }
   return crops;
+}
+
+// Voor elk van de 50 donkere velden: dezelfde uitsnede, met het herkende resultaat
+// en de betrouwbaarheid als bijschrift. `uncertainFields` (een Set of array met
+// veldnummers) bepaalt de gele rand — welke drempel daarvoor geldt hangt af van
+// wélke classifier de herkenning deed, dus dat bepaalt de aanroeper, niet dit
+// bestand.
+export function buildFieldCrops(warpedCanvas, board, confidences, uncertainFields = []) {
+  const uncertainSet = uncertainFields instanceof Set ? uncertainFields : new Set(uncertainFields);
+  return buildRawFieldCrops(warpedCanvas).map(({ field, canvas }) => {
+    const piece = board[field];
+    const confidence = confidences[field];
+    const label = piece ? PIECE_LABELS[piece] ?? piece : "leeg";
+    return {
+      field,
+      canvas,
+      label,
+      confidence,
+      uncertain: uncertainSet.has(field),
+    };
+  });
 }
 
 // Voor damscan/OPDRACHT.md stap 2 ("controlebeeld"): het rechtgetrokken diagram
