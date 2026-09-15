@@ -1,9 +1,9 @@
-import { renderDiagramSVG } from "../diagram/render.js?v=20260916b";
-import { parseFen } from "../core/fen.js?v=20260916b";
-import { listStanden, resolveOplossingTekst } from "../db/standen.js?v=20260916b";
-import { getList } from "../db/lijsten.js?v=20260916b";
-import { svgToPngDataUrl } from "../export/rasterize.js?v=20260916b";
-import { downloadBlob } from "../export/docx.js?v=20260916b";
+import { renderDiagramSVG } from "../diagram/render.js?v=20260916d";
+import { parseFen } from "../core/fen.js?v=20260916d";
+import { listStanden, resolveOplossingTekst } from "../db/standen.js?v=20260916d";
+import { getList } from "../db/lijsten.js?v=20260916d";
+import { svgToPngDataUrl } from "../export/rasterize.js?v=20260916d";
+import { downloadBlob } from "../export/docx.js?v=20260916d";
 
 // Onthoudt de filterkeuzes zolang de pagina open staat (niet in IndexedDB),
 // zodat teruggaan vanaf een standdetailpagina niet alle filters wist.
@@ -21,11 +21,6 @@ export async function renderDatabaseView(container, { onOpenStand, onAddSelectio
           <option value="">Alle moeilijkheid</option>
           <option value="1">★</option><option value="2">★★</option><option value="3">★★★</option>
           <option value="4">★★★★</option><option value="5">★★★★★</option>
-        </select>
-        <select data-field="oplossing">
-          <option value="">Met en zonder oplossing</option>
-          <option value="met">Met oplossing</option>
-          <option value="zonder">Zonder oplossing</option>
         </select>
         <select data-field="sort">
           <option value="createdAt-desc">Nieuwste eerst</option>
@@ -68,7 +63,6 @@ export async function renderDatabaseView(container, { onOpenStand, onAddSelectio
     el('[data-field="speelsysteem"]').value = savedFilterState.speelsysteem;
     el('[data-field="type"]').value = savedFilterState.type;
     el('[data-field="moeilijkheid"]').value = savedFilterState.moeilijkheid;
-    el('[data-field="oplossing"]').value = savedFilterState.oplossing;
     el('[data-field="sort"]').value = savedFilterState.sort;
   }
 
@@ -87,7 +81,6 @@ export async function renderDatabaseView(container, { onOpenStand, onAddSelectio
       speelsysteem: el('[data-field="speelsysteem"]').value,
       type: el('[data-field="type"]').value,
       moeilijkheid: el('[data-field="moeilijkheid"]').value,
-      oplossing: el('[data-field="oplossing"]').value,
       sort: el('[data-field="sort"]').value,
     };
   }
@@ -101,7 +94,6 @@ export async function renderDatabaseView(container, { onOpenStand, onAddSelectio
       speelsysteem: raw.speelsysteem || undefined,
       type: raw.type || undefined,
       moeilijkheid: raw.moeilijkheid ? Number.parseInt(raw.moeilijkheid, 10) : undefined,
-      metOplossing: raw.oplossing === "met" ? true : raw.oplossing === "zonder" ? false : undefined,
       sortBy,
       sortDir,
     };
@@ -149,18 +141,27 @@ export async function renderDatabaseView(container, { onOpenStand, onAddSelectio
     }
   }
 
+  const selectAllBtn = el('[data-action="select-all"]');
+
   function updateSelectionBar() {
     selectionBar.style.display = selected.size > 0 ? "block" : "none";
     selectionCount.textContent = `${selected.size} stand(en) geselecteerd. `;
+    const allSelected = lastRendered.length > 0 && lastRendered.every((s) => selected.has(s.id));
+    selectAllBtn.textContent = allSelected ? "Alles deselecteren" : "Alles selecteren";
   }
 
   el('[data-action="add-selection"]').addEventListener("click", () => {
     onAddSelectionToStencil?.([...selected]);
   });
 
-  el('[data-action="select-all"]').addEventListener("click", () => {
-    for (const stand of lastRendered) selected.add(stand.id);
-    refresh();
+  selectAllBtn.addEventListener("click", async () => {
+    const allSelected = lastRendered.length > 0 && lastRendered.every((s) => selected.has(s.id));
+    if (allSelected) {
+      selected.clear();
+    } else {
+      for (const stand of lastRendered) selected.add(stand.id);
+    }
+    await refresh();
     updateSelectionBar();
   });
 
@@ -169,13 +170,12 @@ export async function renderDatabaseView(container, { onOpenStand, onAddSelectio
     el('[data-field="speelsysteem"]').value = "";
     el('[data-field="type"]').value = "";
     el('[data-field="moeilijkheid"]').value = "";
-    el('[data-field="oplossing"]').value = "";
     el('[data-field="sort"]').value = "createdAt-desc";
     refresh();
   });
 
   el('[data-action="share-selection"]').addEventListener("click", async () => {
-    const { buildShareData } = await import("../db/backup.js?v=20260916b");
+    const { buildShareData } = await import("../db/backup.js?v=20260916d");
     const data = await buildShareData([...selected]);
     const json = JSON.stringify(data);
     const encoded = btoa(unescape(encodeURIComponent(json)))

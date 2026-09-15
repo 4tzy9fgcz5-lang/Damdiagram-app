@@ -1,12 +1,12 @@
-import { renderEditorView } from "./editorView.js?v=20260916b";
-import { renderDatabaseView } from "./databaseView.js?v=20260916b";
-import { renderStandDetailView } from "./standDetailView.js?v=20260916b";
-import { renderStencilsListView } from "./stencilsListView.js?v=20260916b";
-import { renderStencilView, addStandenToStencil } from "./stencilView.js?v=20260916b";
-import { renderBackupView, getLastBackupDate } from "./backupView.js?v=20260916b";
-import { renderImportView } from "./importView.js?v=20260916b";
-import { renderPhotoImportView } from "./photoImportView.js?v=20260916b";
-import { listStanden } from "../db/standen.js?v=20260916b";
+import { renderEditorView } from "./editorView.js?v=20260916d";
+import { renderDatabaseView } from "./databaseView.js?v=20260916d";
+import { renderStandDetailView } from "./standDetailView.js?v=20260916d";
+import { renderStencilsListView } from "./stencilsListView.js?v=20260916d";
+import { renderStencilView, addStandenToStencil } from "./stencilView.js?v=20260916d";
+import { renderBackupView, getLastBackupDate } from "./backupView.js?v=20260916d";
+import { renderImportView } from "./importView.js?v=20260916d";
+import { renderPhotoImportView } from "./photoImportView.js?v=20260916d";
+import { listStanden } from "../db/standen.js?v=20260916d";
 
 const routes = ["nieuw", "foto", "database", "stand", "stencils", "stencil", "backup", "import"];
 let pendingRecognition = null;
@@ -151,7 +151,6 @@ async function render() {
 }
 
 window.addEventListener("hashchange", render);
-window.addEventListener("DOMContentLoaded", render);
 
 for (const btn of document.querySelectorAll(".app-nav button")) {
   btn.addEventListener("click", () => {

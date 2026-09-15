@@ -72,6 +72,11 @@ server, geen build-stap.
 
 ## Openstaand / eerstvolgende stappen
 
+0. Jan wil een **instellingen-pagina** (nog te maken) met een subheader
+   "database". Daar moet de aanname "alle standen in de database hebben een
+   oplossing" een plek krijgen — dit verving het filter "Met en zonder
+   oplossing" op de database-pagina (2026-09-16 weggehaald, zie
+   `src/ui/databaseView.js`), dat niet meer zinvol was onder die aanname.
 1. **Klaar (2026-09-16): export van `herkenningLog` naar `labels.txt` + crops.**
    Zit nu op `#/backup`, kaart "Trainingsmateriaal voor de fotoherkenning" —
    `buildTrainingZip()` in `src/export/trainingExport.js` zet het hele logboek om
@@ -91,6 +96,15 @@ server, geen build-stap.
    makkelijker nu de export uit stap 1 er is.
 5. IMG_0976's onscherpte is bevestigd een fotokwaliteitsprobleem, geen bug — hier
    niets aan doen.
+6. **Klaar (2026-09-16): dubbele `render()` bij het laden van de pagina.**
+   `src/ui/app.js` riep bij elke paginalading zowel `render()` direct aan als
+   via een `DOMContentLoaded`-listener — een module-script draait al ná het
+   parsen (zoals `defer`), dus die listener vuurde altijd een tweede keer.
+   Gaf een race tussen twee gelijktijdige `renderDatabaseView`-aanroepen met
+   als zichtbaar gevolg dubbele opties in de filter-dropdowns. De
+   `DOMContentLoaded`-listener is verwijderd; alleen de directe `render()`-
+   aanroep (eerste keer laden) en de `hashchange`-listener (navigatie) blijven
+   over.
 
 ## Testen tijdens ontwikkeling
 
@@ -134,6 +148,7 @@ def bump_file(path):
         return f'{prefix}{path_part.split("?")[0]}?v={VERSION}{suffix}'
     content = re.sub(r'(from\s+")((?:\.\./|\./)[^"]+)(")', repl, content)
     content = re.sub(r'(^import\s+")((?:\.\./|\./)[^"]+)(")', repl, content, flags=re.MULTILINE)
+    content = re.sub(r'(import\(\s*")((?:\.\./|\./)[^"]+)("\s*\))', repl, content)
     if content != original:
         open(path, "w", encoding="utf-8").write(content)
         return True

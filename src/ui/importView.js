@@ -1,6 +1,6 @@
-import { importAll } from "../db/backup.js?v=20260916b";
-import { renderDiagramSVG } from "../diagram/render.js?v=20260916b";
-import { parseFen } from "../core/fen.js?v=20260916b";
+import { importAll } from "../db/backup.js?v=20260916d";
+import { renderDiagramSVG } from "../diagram/render.js?v=20260916d";
+import { parseFen } from "../core/fen.js?v=20260916d";
 
 export async function renderImportView(container, { encoded, onDone } = {}) {
   let data;
