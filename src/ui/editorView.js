@@ -1,12 +1,12 @@
-import { createBoardEditor, createPalette } from "./boardEditor.js?v=20260915k";
-import { createSolutionInput } from "./solutionInput.js?v=20260915k";
-import { createEmptyBoard, countPieces, isWhite, isBlack } from "../core/board.js?v=20260915k";
-import { parseFen, boardToFen, FenParseError } from "../core/fen.js?v=20260915k";
-import { parseStandInput, QuickTextParseError } from "../core/quicktext.js?v=20260915k";
-import { validateBoard } from "../core/validate.js?v=20260915k";
-import { saveStand, getStand, findDuplicates } from "../db/standen.js?v=20260915k";
-import { getList, addListValue } from "../db/lijsten.js?v=20260915k";
-import { logHerkenningCorrectie } from "../db/herkenningLog.js?v=20260915k";
+import { createBoardEditor, createPalette } from "./boardEditor.js?v=20260915l";
+import { createSolutionInput } from "./solutionInput.js?v=20260915l";
+import { createEmptyBoard, countPieces, isWhite, isBlack } from "../core/board.js?v=20260915l";
+import { parseFen, boardToFen, FenParseError } from "../core/fen.js?v=20260915l";
+import { parseStandInput, QuickTextParseError } from "../core/quicktext.js?v=20260915l";
+import { validateBoard } from "../core/validate.js?v=20260915l";
+import { saveStand, getStand, findDuplicates } from "../db/standen.js?v=20260915l";
+import { getList, addListValue } from "../db/lijsten.js?v=20260915l";
+import { logHerkenningCorrectie } from "../db/herkenningLog.js?v=20260915l";
 
 const MOEILIJKHEID_MAX = 5;
 
@@ -18,6 +18,11 @@ export async function renderEditorView(
     <h2>Nieuwe stand invoeren</h2>
     <div class="card editor-layout">
       <div class="editor-board-col">
+        ${
+          photoDataUrl
+            ? `<p style="font-size:0.85rem;color:#666;margin:0 0 0.5rem;text-align:left;">Rechtgetrokken foto — velden met een <span style="color:#e0a800;font-weight:600;">gele rand</span> op het bord zijn onzeker, vergelijk ze even.</p>`
+            : ""
+        }
         <div class="editor-photo-row">
           <div class="editor-board-wrap">
             <div data-role="board"></div>
@@ -27,7 +32,6 @@ export async function renderEditorView(
           ${
             photoDataUrl
               ? `<div data-role="photoBlock" class="editor-photo-block">
-                  <p style="font-size:0.85rem;color:#666;margin:0 0 0.3rem;">Rechtgetrokken foto — velden met een <span style="color:#e0a800;font-weight:600;">gele rand</span> op het bord zijn onzeker, vergelijk ze even.</p>
                   <img src="${photoDataUrl}" style="width:100%;border-radius:8px;border:1px solid #d0d0d0;display:block;" />
                   <label style="margin-top:0.5rem;">Boekstijl (voor training van de fotoherkenning)</label>
                   <div class="tag-list" data-role="boekstijl"></div>

@@ -1,4 +1,4 @@
-import { listStencils, saveStencil, deleteStencil } from "../db/stencils.js?v=20260915k";
+import { listStencils, saveStencil, deleteStencil } from "../db/stencils.js?v=20260915l";
 
 export async function renderStencilsListView(container, { onOpenStencil } = {}) {
   container.innerHTML = `

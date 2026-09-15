@@ -1,6 +1,6 @@
-import { describe, it, assertEqual, assertThrows } from "./test-runner.js?v=20260915k";
-import { getGridLayout, computeCellRects, MAX_DIAGRAMS_PER_STENCIL } from "../src/stencil/layout.js?v=20260915k";
-import { buildStencilPagesHTML, missingOplossingen } from "../src/stencil/stencilPreview.js?v=20260915k";
+import { describe, it, assertEqual, assertThrows } from "./test-runner.js?v=20260915l";
+import { getGridLayout, computeCellRects, MAX_DIAGRAMS_PER_STENCIL } from "../src/stencil/layout.js?v=20260915l";
+import { buildStencilPagesHTML, missingOplossingen } from "../src/stencil/stencilPreview.js?v=20260915l";
 
 describe("stencil: rasterindeling", () => {
   it("gebruikt 3 kolommen x 4 rijen bij 12 diagrammen", () => {
