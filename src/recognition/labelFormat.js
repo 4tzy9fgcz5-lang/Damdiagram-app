@@ -1,4 +1,4 @@
-import { FIELD_COUNT, PIECE_TYPES } from "../core/board.js?v=20260915d";
+import { FIELD_COUNT, PIECE_TYPES } from "../core/board.js?v=20260915e";
 
 // Schrijft één regel in het labels.txt-formaat dat damscan/labels.js verwacht
 // (zie daar `parseLabelFile`/`formatLabelLine` — dit is bewust dezelfde

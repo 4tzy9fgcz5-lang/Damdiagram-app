@@ -1,6 +1,6 @@
-import { renderDiagramSVG } from "../diagram/render.js?v=20260915d";
-import { isValidField } from "../core/board.js?v=20260915d";
-import { getLegalMoves, applyMove, formatZetten } from "../core/draughtsMoves.js?v=20260915d";
+import { renderDiagramSVG } from "../diagram/render.js?v=20260915e";
+import { isValidField } from "../core/board.js?v=20260915e";
+import { getLegalMoves, applyMove, formatZetten } from "../core/draughtsMoves.js?v=20260915e";
 
 function opposite(color) {
   return color === "white" ? "black" : "white";
@@ -151,6 +151,18 @@ export function createSolutionInput(container, { board, turn, initialZetten, onC
       if (ownFieldsWithMoves().has(field)) {
         partialFrom = field;
         partialPath = [];
+        autoCompleteIfForced();
+        render();
+        return;
+      }
+      // Ook een doelveld direct aantikken (zonder eerst het stuk te kiezen) mag,
+      // zolang er maar één stuk is dat daar kan komen — anders is het niet
+      // eenduidig welke zet bedoeld is en gebeurt er niets.
+      const landing = candidates.filter((c) => c.pad[c.pad.length - 1] === field);
+      if (landing.length === 1) {
+        zetten = [...zetten, landing[0]];
+        onChange?.(zetten.map((m) => ({ ...m })));
+        refreshCandidates();
         autoCompleteIfForced();
         render();
       }

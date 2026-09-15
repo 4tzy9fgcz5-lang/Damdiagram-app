@@ -12,6 +12,13 @@
   box-sizing: border-box;
 }
 
+/* Voorkomt dat snel achter elkaar tikken (bv. op de pijltjes bij een oplossing)
+   door de mobiele browser als dubbeltik-om-in-te-zoomen wordt opgevat. */
+button,
+.solution-ply {
+  touch-action: manipulation;
+}
+
 body {
   margin: 0;
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -403,6 +410,13 @@ a.secondary {
     flex-direction: column;
     align-items: center;
     text-align: center;
+  }
+  .solution-notation-col {
+    /* flex-basis werkt op de hoofdas, en die staat hier verticaal (column) — zonder
+       deze override erft-ie de 220px-breedtebasis als hoogte en ontstaat er een
+       kunstmatige lege ruimte onder de oplossingstekst. */
+    flex: 0 1 auto;
+    width: 100%;
   }
   .solution-notation-text {
     text-align: left;
