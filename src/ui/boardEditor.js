@@ -1,5 +1,5 @@
-import { renderDiagramSVG, pieceIconSVG } from "../diagram/render.js?v=20260914g";
-import { cloneBoard, PIECE_TYPES, isValidField } from "../core/board.js?v=20260914g";
+import { renderDiagramSVG, pieceIconSVG } from "../diagram/render.js?v=20260914h";
+import { cloneBoard, PIECE_TYPES, isValidField } from "../core/board.js?v=20260914h";
 
 const CYCLE = [
   null,

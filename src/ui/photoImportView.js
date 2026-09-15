@@ -1,9 +1,10 @@
-import { warpToSquareCanvas } from "../recognition/homography.js?v=20260914g";
-import { classifyBoard, CONFIDENCE_THRESHOLD, RECOGNITION_VERSION } from "../recognition/classify.js?v=20260914g";
-import { buildCornersOverlay, buildGridOverlay, buildFieldCrops } from "../recognition/debugRender.js?v=20260914g";
-import { detectBoardCorners } from "../recognition/detectBoard.js?v=20260914g";
-import { FIELD_COUNT } from "../core/board.js?v=20260914g";
-import { buildZip } from "../export/zip.js?v=20260914g";
+import { warpToSquareCanvas } from "../recognition/homography.js?v=20260914h";
+import { classifyBoard, CONFIDENCE_THRESHOLD, RECOGNITION_VERSION } from "../recognition/classify.js?v=20260914h";
+import { buildCornersOverlay, buildGridOverlay, buildFieldCrops, buildLabelCheckImage } from "../recognition/debugRender.js?v=20260914h";
+import { detectBoardCorners } from "../recognition/detectBoard.js?v=20260914h";
+import { FIELD_COUNT } from "../core/board.js?v=20260914h";
+import { buildZip } from "../export/zip.js?v=20260914h";
+import { boardToLabelLine } from "../recognition/labelFormat.js?v=20260914h";
 
 const WORKING_MAX_SIDE = 1400;
 const WARP_SIZE = 500;
@@ -68,7 +69,7 @@ export async function renderPhotoImportView(container, { onRecognized } = {}) {
       <div class="button-row" style="margin-top:0;">
         <button type="button" class="primary" data-action="goto-editor">Ga naar editor</button>
         <button type="button" class="secondary" data-action="toggle-debug">Toon herkenningsstappen</button>
-        <button type="button" class="secondary" data-action="dump-crops">Dump crops</button>
+        <button type="button" class="secondary" data-action="dump-crops">Exporteer voor labelen</button>
       </div>
       <p data-role="dump-status" style="color:#666;font-size:0.85rem;"></p>
       <div data-role="debug" style="display:none;margin-top:1rem;">
@@ -318,17 +319,25 @@ export async function renderPhotoImportView(container, { onRecognized } = {}) {
     });
   }
 
-  // Voor damscan/OPDRACHT.md stap 1: schrijft de 50 veld-uitsnedes van de huidige
-  // (al rechtgetrokken) foto weg als losse PNG's in één zip-bestand, zodat je die
-  // kunt uitpakken naar crops/<fotonaam>/01.png .. 50.png. Gebruikt dezelfde
-  // uitsnede-functie (buildFieldCrops) als "Toon herkenningsstappen" hierboven —
-  // geen nieuwe rasterlogica.
+  // Voor damscan/OPDRACHT.md stap 1 + 2: bundelt in één zip alles wat nodig is om
+  // deze foto te labelen —
+  //   crops/<naam>/01.png .. 50.png   (stap 1, ongewijzigd: buildFieldCrops)
+  //   <naam>-label.txt                (stap 2: 1 regel, in het formaat van damscan/labels.js,
+  //                                     op basis van de HUIDIGE herkenning — jij corrigeert
+  //                                     daarna zelf de foute velden in labels.txt)
+  //   check/<naam>.png                (stap 2: rechtgetrokken beeld met veldnummers + wat de
+  //                                     herkenning er nu in ziet, om die correctie zonder
+  //                                     telwerk te kunnen doen)
   el('[data-action="dump-crops"]').addEventListener("click", async () => {
     if (!lastRecognition) return;
     const dumpStatus = el('[data-role="dump-status"]');
-    const naam = prompt("Naam voor deze foto (wordt de mapnaam, bijv. foto01):", "foto01");
+    const naam = prompt("Naam voor deze foto (wordt de mapnaam en de regel in labels.txt, bijv. diag01):", "diag01");
     if (!naam) return;
-    dumpStatus.textContent = "Bezig met crops maken...";
+    const stijl = prompt(
+      "Uit welk boek of tijdschrift komt dit diagram? (laat leeg als je dat niet weet — vul het dan later zelf in labels.txt aan)",
+      ""
+    );
+    dumpStatus.textContent = "Bezig met crops en controlebeeld maken...";
     await new Promise((r) => setTimeout(r, 0));
     try {
       const { board, confidences, warpedCanvas } = lastRecognition;
@@ -336,20 +345,31 @@ export async function renderPhotoImportView(container, { onRecognized } = {}) {
       const entries = [];
       for (const crop of crops) {
         const data = await canvasToPngBytes(crop.canvas);
-        entries.push({ name: `${String(crop.field).padStart(2, "0")}.png`, data });
+        entries.push({ name: `crops/${naam}/${String(crop.field).padStart(2, "0")}.png`, data });
       }
+
+      const labelLine = boardToLabelLine(naam, board, stijl ? stijl.trim() : "");
+      entries.push({ name: `${naam}-label.txt`, data: new TextEncoder().encode(labelLine + "\n") });
+
+      const checkCanvas = buildLabelCheckImage(warpedCanvas, board);
+      const checkData = await canvasToPngBytes(checkCanvas);
+      entries.push({ name: `check/${naam}.png`, data: checkData });
+
       const zipBlob = buildZip(entries);
       const url = URL.createObjectURL(zipBlob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `${naam}-crops.zip`;
+      a.download = `${naam}-export.zip`;
       document.body.appendChild(a);
       a.click();
       a.remove();
       setTimeout(() => URL.revokeObjectURL(url), 5000);
-      dumpStatus.textContent = `${entries.length} crops gedownload als ${naam}-crops.zip — uitpakken naar crops/${naam}/.`;
+      dumpStatus.textContent =
+        `Gedownload als ${naam}-export.zip — pak uit in je damscan-map (crops/${naam}/... en ` +
+        `check/${naam}.png komen dan vanzelf goed te staan) en plak de regel uit ${naam}-label.txt ` +
+        `achteraan in labels.txt. Regel: ${labelLine}`;
     } catch (err) {
-      dumpStatus.textContent = "Crops maken is mislukt: " + err.message;
+      dumpStatus.textContent = "Exporteren is mislukt: " + err.message;
     }
   });
 }

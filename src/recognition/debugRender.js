@@ -1,5 +1,5 @@
-import { fieldToCoord, FIELD_COUNT } from "../core/board.js?v=20260914g";
-import { CONFIDENCE_THRESHOLD } from "./classify.js?v=20260914g";
+import { fieldToCoord, FIELD_COUNT } from "../core/board.js?v=20260914h";
+import { CONFIDENCE_THRESHOLD } from "./classify.js?v=20260914h";
 
 // Foto met de 4 aangewezen hoeken en verbindingslijnen erover getekend, geschaald naar
 // een handige weergavebreedte.
@@ -103,4 +103,56 @@ export function buildFieldCrops(warpedCanvas, board, confidences) {
     });
   }
   return crops;
+}
+
+// Voor damscan/OPDRACHT.md stap 2 ("controlebeeld"): het rechtgetrokken diagram
+// met over elk speelveld het veldnummer en een markering van wat de classificatie
+// daar denkt te zien, zodat je labels.txt zonder telwerk kunt controleren — het
+// veldnummer op het beeld is dezelfde nummering als in labels.txt.
+export function buildLabelCheckImage(warpedCanvas, board) {
+  const size = warpedCanvas.width;
+  const squareSize = size / 10;
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext("2d");
+  ctx.drawImage(warpedCanvas, 0, 0);
+
+  ctx.font = `${Math.round(squareSize * 0.22)}px sans-serif`;
+  ctx.textBaseline = "top";
+  ctx.lineWidth = Math.max(2, squareSize * 0.05);
+
+  for (let f = 1; f <= FIELD_COUNT; f++) {
+    const { row, col } = fieldToCoord(f);
+    const x0 = col * squareSize;
+    const y0 = row * squareSize;
+    const cx = x0 + squareSize / 2;
+    const cy = y0 + squareSize / 2;
+
+    const piece = board[f];
+    if (piece === "wp" || piece === "wk") {
+      ctx.beginPath();
+      ctx.arc(cx, cy, squareSize * 0.32, 0, Math.PI * 2);
+      ctx.fillStyle = "#ffffff";
+      ctx.fill();
+      ctx.strokeStyle = "#111111";
+      ctx.stroke();
+    } else if (piece === "bp" || piece === "bk") {
+      ctx.beginPath();
+      ctx.arc(cx, cy, squareSize * 0.32, 0, Math.PI * 2);
+      ctx.fillStyle = "#111111";
+      ctx.fill();
+      ctx.strokeStyle = "#ffffff";
+      ctx.stroke();
+    }
+    // Leeg: geen markering — dat veld toont dan gewoon de kale foto.
+
+    const text = String(f);
+    ctx.lineWidth = Math.max(2, squareSize * 0.045);
+    ctx.strokeStyle = "rgba(255,255,255,0.9)";
+    ctx.strokeText(text, x0 + 2, y0 + 1);
+    ctx.fillStyle = "#c62839";
+    ctx.fillText(text, x0 + 2, y0 + 1);
+  }
+  return canvas;
 }
