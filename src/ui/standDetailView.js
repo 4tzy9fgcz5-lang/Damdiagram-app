@@ -1,6 +1,6 @@
-import { parseFen } from "../core/fen.js?v=20260915l";
-import { getStand, deleteStand } from "../db/standen.js?v=20260915l";
-import { createSolutionPlayer } from "./solutionPlayer.js?v=20260915l";
+import { parseFen } from "../core/fen.js?v=20260915m";
+import { getStand, saveStand, deleteStand } from "../db/standen.js?v=20260915m";
+import { createSolutionPlayer } from "./solutionPlayer.js?v=20260915m";
 
 // Focus-weergave van een opgeslagen stand: opgave, bord, oplossing, auteur. Geen
 // invulvelden — bewerken gaat via de knop onderaan naar de gewone invoerpagina.
@@ -34,14 +34,20 @@ export async function renderStandDetailView(container, { standId, onEdit, onDele
   `;
 
   const playerHost = container.querySelector('[data-role="player"]');
-  createSolutionPlayer(playerHost, { board, zetten: stand.zetten ?? [], turn });
+  createSolutionPlayer(playerHost, {
+    board,
+    zetten: stand.zetten ?? [],
+    turn,
+    onSolutionChange: async (nieuweZetten) => {
+      stand.zetten = nieuweZetten;
+      await saveStand(stand);
+    },
+  });
 
   const legacyHost = container.querySelector('[data-role="legacyOplossing"]');
   const heeftZetten = stand.zetten && stand.zetten.length > 0;
   if (!heeftZetten && stand.oplossing) {
     legacyHost.innerHTML = `<p style="white-space:pre-wrap;text-align:left;">${escapeHtml(stand.oplossing)}</p>`;
-  } else if (!heeftZetten && !stand.oplossing) {
-    legacyHost.innerHTML = `<p style="color:#666;">Nog geen oplossing ingevoerd.</p>`;
   }
 
   container.querySelector('[data-action="back"]').addEventListener("click", () => onBack?.());

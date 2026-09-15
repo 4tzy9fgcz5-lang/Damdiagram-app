@@ -407,6 +407,12 @@ a.secondary {
   color: #666;
 }
 
+.solution-start-entry {
+  color: var(--kleur-accent);
+  cursor: pointer;
+  text-decoration: underline;
+}
+
 .solution-ply {
   padding: 0.1rem 0.25rem;
   border-radius: 4px;
