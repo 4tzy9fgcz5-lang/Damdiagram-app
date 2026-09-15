@@ -1,6 +1,6 @@
-import { parseFen } from "../core/fen.js?v=20260915a";
-import { getStand, deleteStand } from "../db/standen.js?v=20260915a";
-import { createSolutionPlayer } from "./solutionPlayer.js?v=20260915a";
+import { parseFen } from "../core/fen.js?v=20260915b";
+import { getStand, deleteStand } from "../db/standen.js?v=20260915b";
+import { createSolutionPlayer } from "./solutionPlayer.js?v=20260915b";
 
 // Focus-weergave van een opgeslagen stand: opgave, bord, oplossing, auteur. Geen
 // invulvelden — bewerken gaat via de knop onderaan naar de gewone invoerpagina.
@@ -33,7 +33,7 @@ export async function renderStandDetailView(container, { standId, onEdit, onDele
   `;
 
   const playerHost = container.querySelector('[data-role="player"]');
-  createSolutionPlayer(playerHost, { board, zetten: stand.zetten ?? [] });
+  createSolutionPlayer(playerHost, { board, zetten: stand.zetten ?? [], turn });
 
   const legacyHost = container.querySelector('[data-role="legacyOplossing"]');
   const heeftZetten = stand.zetten && stand.zetten.length > 0;

@@ -320,6 +320,71 @@ a.secondary {
   margin-top: 0.5rem;
 }
 
+.solution-layout {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  text-align: left;
+}
+
+.solution-board-col {
+  flex: 0 0 auto;
+  margin: 0 auto;
+}
+
+.solution-nav {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  margin-top: 0.6rem;
+}
+
+.solution-nav-btn {
+  background: white;
+  color: var(--kleur-accent);
+  border: 1px solid var(--kleur-accent);
+  border-radius: 8px;
+  width: 44px;
+  height: 40px;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.solution-nav-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.solution-notation-col {
+  flex: 1 1 220px;
+  min-width: 200px;
+}
+
+.solution-notation-text {
+  font-size: 0.95rem;
+  line-height: 1.9;
+}
+
+.solution-empty {
+  color: #666;
+}
+
+.solution-ply {
+  padding: 0.1rem 0.25rem;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.solution-ply:hover {
+  background: var(--kleur-accent-licht);
+}
+
+.solution-ply.current {
+  background: var(--kleur-accent);
+  color: white;
+  font-weight: 600;
+}
+
 .toast {
   position: fixed;
   bottom: 1rem;
@@ -334,6 +399,14 @@ a.secondary {
 }
 
 @media (max-width: 600px) {
+  .solution-layout {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+  .solution-notation-text {
+    text-align: left;
+  }
   .editor-layout {
     flex-direction: column;
     align-items: center;

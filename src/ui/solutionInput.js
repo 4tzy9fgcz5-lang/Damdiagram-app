@@ -1,6 +1,6 @@
-import { renderDiagramSVG } from "../diagram/render.js?v=20260915a";
-import { isValidField } from "../core/board.js?v=20260915a";
-import { getLegalMoves, applyMove, formatZetten } from "../core/draughtsMoves.js?v=20260915a";
+import { renderDiagramSVG } from "../diagram/render.js?v=20260915b";
+import { isValidField } from "../core/board.js?v=20260915b";
+import { getLegalMoves, applyMove, formatZetten } from "../core/draughtsMoves.js?v=20260915b";
 
 function opposite(color) {
   return color === "white" ? "black" : "white";
@@ -120,16 +120,26 @@ export function createSolutionInput(container, { board, turn, initialZetten, onC
     clearBtn.disabled = zetten.length === 0;
   }
 
-  function finishIfComplete() {
-    const { matching } = nextTargets();
-    const stillOpen = matching.some((c) => c.pad.length > partialPath.length);
-    if (stillOpen) return false;
-    const move = matching.find((c) => c.pad.length === partialPath.length);
-    if (!move) return false;
-    zetten = [...zetten, move];
-    refreshCandidates();
-    onChange?.(zetten.map((m) => ({ ...m })));
-    return true;
+  // Zodra er nog maar één volledige zet mogelijk is — bij het begin van een beurt
+  // (bv. maar één stuk kan spelen) of halverwege een slagketting (de rest van een
+  // verplichte meerslag) — wordt die in één keer afgemaakt. Zo hoef je niet apart
+  // op elk tussenliggend veld van een gedwongen zet te klikken. Cascadeert vanzelf
+  // door naar een volgende beurt als die ook geen keuze biedt.
+  function autoCompleteIfForced() {
+    // Veiligheidsgrens: voorkomt dat een onwaarschijnlijke, kunstmatige stand (twee
+    // dammen die elkaar eeuwig gedwongen heen-en-weer schuiven) de pagina vastzet.
+    for (let guard = 0; guard < 500; guard++) {
+      const relevant =
+        partialFrom == null
+          ? candidates
+          : candidates.filter(
+              (c) => c.van === partialFrom && partialPath.every((v, idx) => c.pad[idx] === v)
+            );
+      if (relevant.length !== 1) return;
+      zetten = [...zetten, relevant[0]];
+      onChange?.(zetten.map((m) => ({ ...m })));
+      refreshCandidates();
+    }
   }
 
   function handleClick(evt) {
@@ -142,6 +152,7 @@ export function createSolutionInput(container, { board, turn, initialZetten, onC
       if (ownFieldsWithMoves().has(field)) {
         partialFrom = field;
         partialPath = [];
+        autoCompleteIfForced();
         render();
       }
       return;
@@ -155,6 +166,7 @@ export function createSolutionInput(container, { board, turn, initialZetten, onC
     if (ownFieldsWithMoves().has(field) && !nextTargets().targets.has(field)) {
       partialFrom = field;
       partialPath = [];
+      autoCompleteIfForced();
       render();
       return;
     }
@@ -162,7 +174,7 @@ export function createSolutionInput(container, { board, turn, initialZetten, onC
     const { targets } = nextTargets();
     if (!targets.has(field)) return;
     partialPath = [...partialPath, field];
-    finishIfComplete();
+    autoCompleteIfForced();
     render();
   }
 
@@ -181,6 +193,7 @@ export function createSolutionInput(container, { board, turn, initialZetten, onC
   });
 
   refreshCandidates();
+  autoCompleteIfForced();
   render();
 
   return {

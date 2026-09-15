@@ -1,40 +1,76 @@
-import { renderDiagramSVG } from "../diagram/render.js?v=20260915a";
-import { applyMove, moveToNotation } from "../core/draughtsMoves.js?v=20260915a";
+import { renderDiagramSVG } from "../diagram/render.js?v=20260915b";
+import { applyMove, moveToNotation } from "../core/draughtsMoves.js?v=20260915b";
 
-// Alleen-lezen stap-voor-stap weergave van een opgeslagen oplossing (klikbare
-// invoer gebeurt in solutionInput.js op de invoerpagina).
-export function createSolutionPlayer(container, { board, zetten = [] } = {}) {
+function escapeHtml(str) {
+  return str.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+// Bouwt de volledige damnotatie als HTML, met één <span data-ply> per zet zodat de
+// huidige stap gemarkeerd (en aangeklikt) kan worden — net als bij toernooibase.
+function buildNotationHTML(zetten, firstTurn, currentStep) {
+  if (!zetten.length) return '<span class="solution-empty">Nog geen oplossing ingevoerd.</span>';
+
+  const ply = (index, text) =>
+    `<span class="solution-ply${index === currentStep ? " current" : ""}" data-ply="${index}">${escapeHtml(
+      text
+    )}</span>`;
+
+  const parts = [];
+  let i = 0;
+  let moveNumber = 1;
+  if (firstTurn === "black") {
+    parts.push(`${moveNumber}. ... ${ply(1, moveToNotation(zetten[0]))}`);
+    i = 1;
+    moveNumber++;
+  }
+  for (; i < zetten.length; i += 2) {
+    const firstPly = i + 1;
+    let part = `${moveNumber}. ${ply(firstPly, moveToNotation(zetten[i]))}`;
+    if (zetten[i + 1]) part += ` ${ply(firstPly + 1, moveToNotation(zetten[i + 1]))}`;
+    parts.push(part);
+    moveNumber++;
+  }
+  return parts.join(" ");
+}
+
+// Alleen-lezen weergave van een opgeslagen oplossing: bord + pijltjes eronder om
+// een zet heen en weer te stappen, met de volledige notatie ernaast (zoals
+// toernooibase) — de huidige zet is daarin gemarkeerd en ook aanklikbaar.
+export function createSolutionPlayer(container, { board, zetten = [], turn = "white" } = {}) {
   const snapshots = [board];
   for (const move of zetten) snapshots.push(applyMove(snapshots[snapshots.length - 1], move));
 
   let step = 0;
 
-  const boardHost = document.createElement("div");
-  const labelHost = document.createElement("div");
-  labelHost.className = "solution-status";
-  const buttonRow = document.createElement("div");
-  buttonRow.className = "button-row";
-  const prevBtn = document.createElement("button");
-  prevBtn.type = "button";
-  prevBtn.className = "secondary";
-  prevBtn.textContent = "◀ Vorige";
-  const nextBtn = document.createElement("button");
-  nextBtn.type = "button";
-  nextBtn.className = "secondary";
-  nextBtn.textContent = "Volgende ▶";
-  buttonRow.append(prevBtn, nextBtn);
+  container.innerHTML = `
+    <div class="solution-layout">
+      <div class="solution-board-col">
+        <div data-role="board"></div>
+        <div class="solution-nav">
+          <button type="button" class="solution-nav-btn" data-action="prev" aria-label="Vorige zet">&#9664;</button>
+          <button type="button" class="solution-nav-btn" data-action="next" aria-label="Volgende zet">&#9654;</button>
+        </div>
+      </div>
+      <div class="solution-notation-col">
+        <div data-role="notation" class="solution-notation-text"></div>
+      </div>
+    </div>
+  `;
 
-  container.innerHTML = "";
-  container.append(boardHost, labelHost, buttonRow);
+  const boardHost = container.querySelector('[data-role="board"]');
+  const notationHost = container.querySelector('[data-role="notation"]');
+  const prevBtn = container.querySelector('[data-action="prev"]');
+  const nextBtn = container.querySelector('[data-action="next"]');
 
   function render() {
     boardHost.innerHTML = renderDiagramSVG(snapshots[step], { size: 320 });
-    labelHost.textContent =
-      step === 0
-        ? zetten.length
-          ? "Beginstand — klik op Volgende om de oplossing te bekijken."
-          : "Beginstand."
-        : `Zet ${step} van ${zetten.length}: ${moveToNotation(zetten[step - 1])}`;
+    notationHost.innerHTML = buildNotationHTML(zetten, turn, step);
+    for (const el of notationHost.querySelectorAll("[data-ply]")) {
+      el.addEventListener("click", () => {
+        step = Number.parseInt(el.dataset.ply, 10);
+        render();
+      });
+    }
     prevBtn.disabled = step === 0;
     nextBtn.disabled = step === zetten.length;
   }
