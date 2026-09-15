@@ -1,12 +1,13 @@
-import { createBoardEditor, createPalette } from "./boardEditor.js?v=20260914j";
-import { createEmptyBoard, createStartBoard, mirrorBoard } from "../core/board.js?v=20260914j";
-import { parseFen, boardToFen, FenParseError } from "../core/fen.js?v=20260914j";
-import { parseQuickText, QuickTextParseError } from "../core/quicktext.js?v=20260914j";
-import { validateBoard } from "../core/validate.js?v=20260914j";
-import { saveStand, getStand, findDuplicates } from "../db/standen.js?v=20260914j";
-import { getList, addListValue } from "../db/lijsten.js?v=20260914j";
-import { logHerkenningCorrectie } from "../db/herkenningLog.js?v=20260914j";
-import { CONFIDENCE_THRESHOLD } from "../recognition/classify.js?v=20260914j";
+import { createBoardEditor, createPalette } from "./boardEditor.js?v=20260915a";
+import { createSolutionInput } from "./solutionInput.js?v=20260915a";
+import { createEmptyBoard } from "../core/board.js?v=20260915a";
+import { parseFen, boardToFen, FenParseError } from "../core/fen.js?v=20260915a";
+import { parseStandInput, QuickTextParseError } from "../core/quicktext.js?v=20260915a";
+import { validateBoard } from "../core/validate.js?v=20260915a";
+import { saveStand, getStand, findDuplicates } from "../db/standen.js?v=20260915a";
+import { getList, addListValue } from "../db/lijsten.js?v=20260915a";
+import { logHerkenningCorrectie } from "../db/herkenningLog.js?v=20260915a";
+import { CONFIDENCE_THRESHOLD } from "../recognition/classify.js?v=20260915a";
 
 const MOEILIJKHEID_MAX = 5;
 
@@ -31,7 +32,6 @@ export async function renderEditorView(
         <div class="quick-actions">
           <a href="#/foto" class="secondary">📷 Foto van diagram</a>
           <button type="button" class="secondary" data-action="leeg">Leeg bord</button>
-          <button type="button" class="secondary" data-action="beginstand">Beginstand</button>
           <label style="display:inline-flex;align-items:center;gap:0.3rem;font-weight:normal;margin:0;">
             <input type="radio" name="turn" value="white" checked /> Wit aan zet
           </label>
@@ -41,16 +41,13 @@ export async function renderEditorView(
         </div>
         <div data-role="warnings"></div>
 
-        <label>FEN plakken</label>
-        <input type="text" data-field="fenInput" placeholder="W:W31,32,33,K45:B1,2,3,K7" />
+        <label>Stand invoeren</label>
+        <textarea
+          data-field="standInput"
+          placeholder="W:W31,32,33,K45:B1,2,3,K7  of  wit 27 28 32 d45 zwart 12 13 19"
+        ></textarea>
         <div class="button-row">
-          <button type="button" class="secondary" data-action="apply-fen">FEN toepassen</button>
-        </div>
-
-        <label>Snelle tekstinvoer</label>
-        <textarea data-field="quickText" placeholder="wit 27 28 32 d45 zwart 12 13 19"></textarea>
-        <div class="button-row">
-          <button type="button" class="secondary" data-action="apply-quicktext">Tekst toepassen</button>
+          <button type="button" class="secondary" data-action="apply-stand">Toepassen</button>
         </div>
       </div>
 
@@ -59,7 +56,12 @@ export async function renderEditorView(
         <input type="text" data-field="opdracht" placeholder="bijv. Wit speelt en wint" />
 
         <label>Oplossing</label>
-        <textarea data-field="oplossing" placeholder="1. 33-28 22x33 2. 38x29 ..."></textarea>
+        <p style="font-size:0.85rem;color:#666;margin:0.25rem 0;">
+          Klik op een eigen stuk en dan op het doelveld om de oplossing in te tikken. Verplichte slagen
+          worden automatisch afgehandeld.
+        </p>
+        <div data-role="legacyOplossingRef"></div>
+        <div data-role="solutionInput"></div>
 
         <div class="field-row">
           <div>
@@ -107,12 +109,15 @@ export async function renderEditorView(
   const starsHost = el('[data-role="stars"]');
   const speelsysteemHost = el('[data-role="speelsysteem"]');
   const typeHost = el('[data-role="type"]');
+  const solutionInputHost = el('[data-role="solutionInput"]');
+  const legacyOplossingRefHost = el('[data-role="legacyOplossingRef"]');
 
   let existingStand = null;
   let turn = "white";
   let selectedSpeelsystemen = [];
   let selectedTypes = [];
   let selectedMoeilijkheid = null;
+  let solutionZetten = [];
 
   if (standId) {
     existingStand = await getStand(standId);
@@ -122,8 +127,13 @@ export async function renderEditorView(
       selectedSpeelsystemen = [...existingStand.speelsystemen];
       selectedTypes = [...existingStand.types];
       selectedMoeilijkheid = existingStand.moeilijkheid;
+      solutionZetten = existingStand.zetten ? existingStand.zetten.map((m) => ({ ...m })) : [];
+      if (solutionZetten.length === 0 && existingStand.oplossing) {
+        legacyOplossingRefHost.innerHTML = `<p style="font-size:0.85rem;color:#666;">Bestaande oplossingstekst (ter referentie): ${escapeHtml(
+          existingStand.oplossing
+        )}</p>`;
+      }
       el('[data-field="opdracht"]').value = existingStand.opdracht;
-      el('[data-field="oplossing"]').value = existingStand.oplossing;
       el('[data-field="auteur"]').value = existingStand.auteur;
       el('[data-field="jaartal"]').value = existingStand.jaartal ?? "";
       el('[data-field="publicatie"]').value = existingStand.publicatie;
@@ -140,7 +150,10 @@ export async function renderEditorView(
 
   const boardEditor = createBoardEditor(boardHost, {
     board: existingStand ? parseFen(existingStand.fen).board : initialBoard ?? createEmptyBoard(),
-    onChange: renderWarnings,
+    onChange: () => {
+      renderWarnings();
+      reinitSolutionInput(true);
+    },
     highlightFields: uncertainFields,
   });
   createPalette(paletteHost, { onSelect: (tool) => boardEditor.setTool(tool) });
@@ -149,6 +162,7 @@ export async function renderEditorView(
     radio.checked = radio.value === turn;
     radio.addEventListener("change", (e) => {
       if (e.target.checked) turn = e.target.value;
+      reinitSolutionInput(true);
     });
   }
 
@@ -163,38 +177,40 @@ export async function renderEditorView(
   }
   renderWarnings();
 
+  function reinitSolutionInput(resetZetten) {
+    if (resetZetten) solutionZetten = [];
+    createSolutionInput(solutionInputHost, {
+      board: boardEditor.getBoard(),
+      turn,
+      initialZetten: solutionZetten,
+      onChange: (zetten) => {
+        solutionZetten = zetten;
+      },
+    });
+  }
+  reinitSolutionInput(false);
+
   el('[data-action="leeg"]').addEventListener("click", () => {
     boardEditor.setBoard(createEmptyBoard());
   });
-  el('[data-action="beginstand"]').addEventListener("click", () => {
-    boardEditor.setBoard(createStartBoard());
-  });
 
-  el('[data-action="apply-fen"]').addEventListener("click", () => {
-    const value = el('[data-field="fenInput"]').value.trim();
+  el('[data-action="apply-stand"]').addEventListener("click", () => {
+    const value = el('[data-field="standInput"]').value.trim();
     if (!value) return;
     try {
-      const parsed = parseFen(value);
+      const parsed = parseStandInput(value, turn);
       boardEditor.setBoard(parsed.board);
       turn = parsed.turn;
       for (const radio of container.querySelectorAll('input[name="turn"]')) {
         radio.checked = radio.value === turn;
       }
+      reinitSolutionInput(true);
     } catch (err) {
-      if (err instanceof FenParseError) alert(`Kon de FEN niet lezen: ${err.message}`);
-      else throw err;
-    }
-  });
-
-  el('[data-action="apply-quicktext"]').addEventListener("click", () => {
-    const value = el('[data-field="quickText"]').value.trim();
-    if (!value) return;
-    try {
-      const parsed = parseQuickText(value, turn);
-      boardEditor.setBoard(parsed.board);
-    } catch (err) {
-      if (err instanceof QuickTextParseError) alert(`Kon de tekst niet lezen: ${err.message}`);
-      else throw err;
+      if (err instanceof FenParseError || err instanceof QuickTextParseError) {
+        alert(`Kon de stand niet lezen: ${err.message}`);
+      } else {
+        throw err;
+      }
     }
   });
 
@@ -254,7 +270,8 @@ export async function renderEditorView(
       id: existingStand?.id,
       fen,
       opdracht: el('[data-field="opdracht"]').value.trim(),
-      oplossing: el('[data-field="oplossing"]').value.trim(),
+      oplossing: existingStand?.oplossing ?? "",
+      zetten: solutionZetten,
       auteur: el('[data-field="auteur"]').value.trim(),
       jaartal: jaartalRaw ? Number.parseInt(jaartalRaw, 10) : null,
       publicatie: el('[data-field="publicatie"]').value.trim(),

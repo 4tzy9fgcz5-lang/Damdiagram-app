@@ -1,4 +1,4 @@
-# Damstencil-app
+# Dam-database
 
 Een eigen, gratis app om damstanden te verzamelen en er opgavestencils (A4, met oplossingenblad) van te maken in Word. Alles werkt in de browser, op je telefoon en op je laptop, zonder kosten en zonder dat er iets naar internet wordt gestuurd.
 
@@ -7,14 +7,14 @@ Een eigen, gratis app om damstanden te verzamelen en er opgavestencils (A4, met 
 ## Wat kan de app nu (Fase 1)?
 
 - **Foto van een diagram**: maak een foto (of kies er een uit je galerij), wijs de 4 hoeken van het bordpatroon aan, en de app herkent de stand automatisch. Onzekere velden krijgen een gele rand zodat je ze even naast de foto kunt controleren. Met "Toon herkenningsstappen" zie je precies wat de app zag: de aangewezen hoeken, het rechtgetrokken bord met raster, en per veld de uitsnede met het resultaat.
-- Een stand invoeren: FEN plakken, snelle tekstinvoer ("wit 27 28 32 zwart 12 13"), of handmatig op een leeg bord/beginstand klikken.
+- Een stand invoeren: één tekstvak voor zowel FEN als snelle tekstinvoer ("wit 27 28 32 zwart 12 13"), of handmatig op een leeg bord klikken.
 - Een klikbaar bord met een palet (schijf, dam, wissen) dat tekent in dezelfde stijl als de Oerterp Diagram Maker van de KNDB.
-- Standen opslaan in je eigen database (in de browser zelf, IndexedDB): met oplossing, auteur, jaartal, publicatie, speelsysteem, type, moeilijkheid en notities.
+- Standen opslaan in je eigen database (in de browser zelf, IndexedDB): met auteur, jaartal, publicatie, speelsysteem, type, moeilijkheid en notities. De oplossing tik je in door op het bord te klikken (verplichte slagen gaan vanzelf) — geen damnotatie typen — en is daarna stap voor stap af te spelen.
 - Zoeken, filteren en sorteren in je verzameling. De app waarschuwt bij dubbele of gespiegelde standen.
 - Stencils samenstellen: 1 tot 12 diagrammen per A4, met een apart oplossingenblad.
 - Downloaden als Word-bestand (.docx) — scherp op elke printer, en de tekst blijft in Word aanpasbaar.
 - Een voorbeeldweergave die je direct via je browser kunt afdrukken of als PDF kunt opslaan.
-- Losse diagrammen downloaden als PNG of SVG, of de FEN kopiëren.
+- Losse diagrammen downloaden als PNG.
 - Back-up maken en terugzetten (één bestand met je hele verzameling), en losse export als CSV of leesbare tekst.
 - Standen overzetten van telefoon naar laptop via een linkje (WhatsApp/mail).
 

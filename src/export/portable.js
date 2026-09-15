@@ -1,3 +1,5 @@
+import { resolveOplossingTekst } from "../db/standen.js?v=20260915a";
+
 function csvEscape(value) {
   const str = String(value ?? "");
   if (/["\n;]/.test(str)) return `"${str.replace(/"/g, '""')}"`;
@@ -25,7 +27,7 @@ export function buildCsv(standen) {
       [
         s.fen,
         s.opdracht,
-        s.oplossing,
+        resolveOplossingTekst(s),
         s.auteur,
         s.jaartal ?? "",
         s.publicatie,
@@ -50,7 +52,8 @@ export function buildPdnText(standen) {
     if (s.opdracht) lines.push(`; Opdracht: ${s.opdracht}`);
     if (s.speelsystemen.length) lines.push(`; Speelsysteem: ${s.speelsystemen.join(", ")}`);
     if (s.types.length) lines.push(`; Type: ${s.types.join(", ")}`);
-    if (s.oplossing) lines.push(`; Oplossing: ${s.oplossing}`);
+    const oplossingTekst = resolveOplossingTekst(s);
+    if (oplossingTekst) lines.push(`; Oplossing: ${oplossingTekst}`);
     return lines.join("\n");
   });
   return blocks.join("\n\n");

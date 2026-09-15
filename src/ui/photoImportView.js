@@ -1,10 +1,10 @@
-import { warpToSquareCanvas } from "../recognition/homography.js?v=20260914j";
-import { classifyBoard, CONFIDENCE_THRESHOLD, RECOGNITION_VERSION } from "../recognition/classify.js?v=20260914j";
-import { buildCornersOverlay, buildGridOverlay, buildFieldCrops, buildLabelCheckImage } from "../recognition/debugRender.js?v=20260914j";
-import { detectBoardCorners } from "../recognition/detectBoard.js?v=20260914j";
-import { FIELD_COUNT } from "../core/board.js?v=20260914j";
-import { buildZip } from "../export/zip.js?v=20260914j";
-import { boardToLabelLine } from "../recognition/labelFormat.js?v=20260914j";
+import { warpToSquareCanvas } from "../recognition/homography.js?v=20260915a";
+import { classifyBoard, CONFIDENCE_THRESHOLD, RECOGNITION_VERSION } from "../recognition/classify.js?v=20260915a";
+import { buildCornersOverlay, buildGridOverlay, buildFieldCrops, buildLabelCheckImage } from "../recognition/debugRender.js?v=20260915a";
+import { detectBoardCorners } from "../recognition/detectBoard.js?v=20260915a";
+import { FIELD_COUNT } from "../core/board.js?v=20260915a";
+import { buildZip } from "../export/zip.js?v=20260915a";
+import { boardToLabelLine } from "../recognition/labelFormat.js?v=20260915a";
 
 const WORKING_MAX_SIDE = 1400;
 const WARP_SIZE = 500;

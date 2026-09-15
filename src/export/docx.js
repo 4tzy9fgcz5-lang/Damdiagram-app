@@ -1,8 +1,9 @@
-import * as docxLib from "../../lib/docx.mjs?v=20260914j";
-import { renderDiagramSVG } from "../diagram/render.js?v=20260914j";
-import { parseFen } from "../core/fen.js?v=20260914j";
-import { getGridLayout } from "../stencil/layout.js?v=20260914j";
-import { svgToPngBytes } from "./rasterize.js?v=20260914j";
+import * as docxLib from "../../lib/docx.mjs?v=20260915a";
+import { renderDiagramSVG } from "../diagram/render.js?v=20260915a";
+import { parseFen } from "../core/fen.js?v=20260915a";
+import { getGridLayout } from "../stencil/layout.js?v=20260915a";
+import { svgToPngBytes } from "./rasterize.js?v=20260915a";
+import { resolveOplossingTekst } from "../db/standen.js?v=20260915a";
 
 const {
   Document,
@@ -257,13 +258,14 @@ function oplossingenParagraphs(items) {
       );
       return;
     }
-    const oplossing = item.stand.oplossing || "geen oplossing ingevoerd";
+    const oplossingTekst = resolveOplossingTekst(item.stand);
+    const oplossing = oplossingTekst || "geen oplossing ingevoerd";
     paragraphs.push(
       new Paragraph({
         spacing: { after: 40 },
         children: [
           new TextRun({ text: `${i + 1}. `, bold: true }),
-          new TextRun({ text: oplossing, color: item.stand.oplossing ? "000000" : "AA0000" }),
+          new TextRun({ text: oplossing, color: oplossingTekst ? "000000" : "AA0000" }),
         ],
       })
     );

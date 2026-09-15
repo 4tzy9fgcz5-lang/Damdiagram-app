@@ -1,13 +1,14 @@
-import { renderEditorView } from "./editorView.js?v=20260914j";
-import { renderDatabaseView } from "./databaseView.js?v=20260914j";
-import { renderStencilsListView } from "./stencilsListView.js?v=20260914j";
-import { renderStencilView, addStandenToStencil } from "./stencilView.js?v=20260914j";
-import { renderBackupView, getLastBackupDate } from "./backupView.js?v=20260914j";
-import { renderImportView } from "./importView.js?v=20260914j";
-import { renderPhotoImportView } from "./photoImportView.js?v=20260914j";
-import { listStanden } from "../db/standen.js?v=20260914j";
+import { renderEditorView } from "./editorView.js?v=20260915a";
+import { renderDatabaseView } from "./databaseView.js?v=20260915a";
+import { renderStandDetailView } from "./standDetailView.js?v=20260915a";
+import { renderStencilsListView } from "./stencilsListView.js?v=20260915a";
+import { renderStencilView, addStandenToStencil } from "./stencilView.js?v=20260915a";
+import { renderBackupView, getLastBackupDate } from "./backupView.js?v=20260915a";
+import { renderImportView } from "./importView.js?v=20260915a";
+import { renderPhotoImportView } from "./photoImportView.js?v=20260915a";
+import { listStanden } from "../db/standen.js?v=20260915a";
 
-const routes = ["nieuw", "foto", "database", "stencils", "stencil", "backup", "import"];
+const routes = ["nieuw", "foto", "database", "stand", "stencils", "stencil", "backup", "import"];
 let pendingRecognition = null;
 
 function showToast(message) {
@@ -29,6 +30,7 @@ const NAV_FOR_ROUTE = {
   nieuw: "nieuw",
   foto: "nieuw",
   database: "database",
+  stand: "database",
   stencils: "stencils",
   stencil: "stencils",
   backup: "backup",
@@ -62,7 +64,7 @@ async function render() {
     const forStencilId = param;
     await renderDatabaseView(app, {
       onOpenStand: (id) => {
-        location.hash = `#/nieuw/${id}`;
+        location.hash = `#/stand/${id}`;
       },
       onAddSelectionToStencil: async (ids) => {
         if (!forStencilId) {
@@ -88,10 +90,21 @@ async function render() {
     await renderStencilView(app, {
       stencilId: param,
       onOpenStand: (id) => {
-        location.hash = `#/nieuw/${id}`;
+        location.hash = `#/stand/${id}`;
       },
       onGotoDatabaseToAdd: (stencilId) => {
         location.hash = `#/database/${stencilId}`;
+      },
+    });
+  } else if (name === "stand") {
+    await renderStandDetailView(app, {
+      standId: param,
+      onEdit: (id) => {
+        location.hash = `#/nieuw/${id}`;
+      },
+      onDeleted: () => {
+        showToast("Verwijderd.");
+        location.hash = "#/database";
       },
     });
   } else if (name === "backup") {
@@ -121,7 +134,9 @@ async function render() {
         showToast(addToStencil ? "Opgeslagen. Kies of maak nu een stencil." : "Opgeslagen in de database.");
         if (addToStencil) {
           location.hash = "#/stencils";
-        } else if (!param) {
+        } else if (param) {
+          location.hash = `#/stand/${param}`;
+        } else {
           location.hash = "#/nieuw";
           render();
         }

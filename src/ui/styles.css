@@ -300,6 +300,26 @@ a.secondary {
   width: auto;
 }
 
+.solution-status {
+  font-size: 0.85rem;
+  color: #555;
+  margin-top: 0.5rem;
+}
+
+.solution-notation {
+  font-family: ui-monospace, monospace;
+  font-size: 0.85rem;
+  color: #333;
+  margin-top: 0.3rem;
+  min-height: 1.2em;
+}
+
+.stand-detail-meta {
+  font-size: 0.85rem;
+  color: #666;
+  margin-top: 0.5rem;
+}
+
 .toast {
   position: fixed;
   bottom: 1rem;

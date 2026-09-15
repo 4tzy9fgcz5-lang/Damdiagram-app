@@ -1,13 +1,27 @@
-import { openDb, tx, promisify, newId } from "./db.js?v=20260914j";
-import { STORE_STANDEN } from "./schema.js?v=20260914j";
-import { parseFen, boardToFen } from "../core/fen.js?v=20260914j";
-import { mirrorBoard } from "../core/board.js?v=20260914j";
+import { openDb, tx, promisify, newId } from "./db.js?v=20260915a";
+import { STORE_STANDEN } from "./schema.js?v=20260915a";
+import { parseFen, boardToFen } from "../core/fen.js?v=20260915a";
+import { mirrorBoard } from "../core/board.js?v=20260915a";
+import { formatZetten } from "../core/draughtsMoves.js?v=20260915a";
 
 function canonicalFens(fenString) {
   const { board, turn } = parseFen(fenString);
   const fen = boardToFen(board, turn);
   const mirrorFen = boardToFen(mirrorBoard(board), turn);
   return { fen, mirrorFen };
+}
+
+// Oude standen hebben een vrij getypte oplossingstekst; nieuwe standen hebben
+// aangeklikte `zetten`. Overal waar de oplossing als tekst getoond of geprint
+// wordt (stencils, Word-export, leesbare export), via deze functie opvragen
+// zodat beide soorten standen gewoon werken.
+export function resolveOplossingTekst(stand) {
+  if (stand.oplossing) return stand.oplossing;
+  if (stand.zetten && stand.zetten.length > 0) {
+    const { turn } = parseFen(stand.fen);
+    return formatZetten(stand.zetten, turn);
+  }
+  return "";
 }
 
 function nowIso() {
@@ -33,6 +47,7 @@ export async function saveStand(input) {
     types: input.types ?? [],
     moeilijkheid: input.moeilijkheid ?? null,
     notities: input.notities ?? "",
+    zetten: input.zetten ?? [],
     foto: input.foto ?? null,
     gebruiktIn: input.gebruiktIn ?? [],
     createdAt: input.createdAt ?? nowIso(),
@@ -58,13 +73,6 @@ export async function deleteStand(id) {
   await tx(db, STORE_STANDEN, "readwrite", (store) => promisify(store.delete(id)));
 }
 
-export async function duplicateStand(id) {
-  const original = await getStand(id);
-  if (!original) throw new Error("Stand niet gevonden.");
-  const { id: _drop, createdAt: _c, updatedAt: _u, gebruiktIn: _g, ...rest } = original;
-  return saveStand(rest);
-}
-
 async function getAllStanden() {
   const db = await openDb();
   return tx(db, STORE_STANDEN, "readonly", (store) => promisify(store.getAll()));
@@ -88,8 +96,8 @@ function matchesFilters(stand, filters) {
   if (filters.type && !stand.types.includes(filters.type)) return false;
   if (filters.moeilijkheid && stand.moeilijkheid !== filters.moeilijkheid) return false;
   if (filters.jaartal && stand.jaartal !== filters.jaartal) return false;
-  if (filters.metOplossing === true && !stand.oplossing) return false;
-  if (filters.metOplossing === false && stand.oplossing) return false;
+  if (filters.metOplossing === true && !resolveOplossingTekst(stand)) return false;
+  if (filters.metOplossing === false && resolveOplossingTekst(stand)) return false;
   if (filters.ongebruikt && stand.gebruiktIn.length > 0) return false;
   return true;
 }

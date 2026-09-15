@@ -1,4 +1,5 @@
-import { PIECE_TYPES, createEmptyBoard, isValidField } from "./board.js?v=20260914j";
+import { PIECE_TYPES, createEmptyBoard, isValidField } from "./board.js?v=20260915a";
+import { parseFen } from "./fen.js?v=20260915a";
 
 export class QuickTextParseError extends Error {}
 
@@ -53,4 +54,14 @@ export function parseQuickText(text, turn = "white") {
   }
 
   return { board, turn };
+}
+
+// Eén tekstvak voor zowel FEN ("W:W31,32,33,K45:B1,2,3,K7") als de snelle tekstinvoer
+// ("wit 27 28 32 d45 zwart 12 13 19") — op basis van het patroon aan het begin.
+export function parseStandInput(text, turn = "white") {
+  const trimmed = typeof text === "string" ? text.trim() : "";
+  if (/^[wb]\s*:/i.test(trimmed)) {
+    return parseFen(trimmed);
+  }
+  return parseQuickText(trimmed, turn);
 }

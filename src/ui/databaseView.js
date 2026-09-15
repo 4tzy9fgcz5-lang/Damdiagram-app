@@ -1,9 +1,9 @@
-import { renderDiagramSVG } from "../diagram/render.js?v=20260914j";
-import { parseFen } from "../core/fen.js?v=20260914j";
-import { listStanden, deleteStand, duplicateStand } from "../db/standen.js?v=20260914j";
-import { getList } from "../db/lijsten.js?v=20260914j";
-import { svgToPngDataUrl } from "../export/rasterize.js?v=20260914j";
-import { downloadBlob } from "../export/docx.js?v=20260914j";
+import { renderDiagramSVG } from "../diagram/render.js?v=20260915a";
+import { parseFen } from "../core/fen.js?v=20260915a";
+import { listStanden, resolveOplossingTekst } from "../db/standen.js?v=20260915a";
+import { getList } from "../db/lijsten.js?v=20260915a";
+import { svgToPngDataUrl } from "../export/rasterize.js?v=20260915a";
+import { downloadBlob } from "../export/docx.js?v=20260915a";
 
 export async function renderDatabaseView(container, { onOpenStand, onAddSelectionToStencil } = {}) {
   container.innerHTML = `
@@ -97,7 +97,7 @@ export async function renderDatabaseView(container, { onOpenStand, onAddSelectio
       const svg = renderDiagramSVG(board, { size: 140 });
       const tags = [...stand.speelsystemen, ...stand.types].join(", ");
       card.innerHTML = `
-        <label style="float:left;">
+        <label style="float:left;" data-role="selectLabel">
           <input type="checkbox" data-role="select" ${selected.has(stand.id) ? "checked" : ""} />
         </label>
         ${svg}
@@ -106,49 +106,24 @@ export async function renderDatabaseView(container, { onOpenStand, onAddSelectio
         stand.jaartal ? ", " + stand.jaartal : ""
       }<br>
           ${tags ? escapeHtml(tags) : ""}
-          ${stand.oplossing ? "" : '<br><span style="color:#a30000;">geen oplossing</span>'}
-        </div>
-        <div class="button-row" style="justify-content:center;">
-          <button type="button" class="secondary" data-role="open">Bewerken</button>
-          <button type="button" class="secondary" data-role="dup">Dupliceren</button>
-          <button type="button" class="secondary" data-role="del">Verwijderen</button>
+          ${resolveOplossingTekst(stand) ? "" : '<br><span style="color:#a30000;">geen oplossing</span>'}
         </div>
         <div class="button-row" style="justify-content:center;">
           <button type="button" class="secondary" data-role="png">PNG</button>
-          <button type="button" class="secondary" data-role="svg">SVG</button>
-          <button type="button" class="secondary" data-role="fen">FEN kopiëren</button>
         </div>
       `;
+      card.querySelector('[data-role="selectLabel"]').addEventListener("click", (e) => e.stopPropagation());
       card.querySelector('[data-role="select"]').addEventListener("change", (e) => {
         if (e.target.checked) selected.add(stand.id);
         else selected.delete(stand.id);
         updateSelectionBar();
       });
-      card.querySelector('[data-role="open"]').addEventListener("click", () => onOpenStand?.(stand.id));
-      card.querySelector('[data-role="dup"]').addEventListener("click", async () => {
-        await duplicateStand(stand.id);
-        await refresh();
-      });
-      card.querySelector('[data-role="del"]').addEventListener("click", async () => {
-        if (!confirm("Deze stand verwijderen? Dit kan niet ongedaan worden gemaakt.")) return;
-        await deleteStand(stand.id);
-        selected.delete(stand.id);
-        await refresh();
-      });
-      card.querySelector('[data-role="png"]').addEventListener("click", async () => {
+      card.querySelector('[data-role="png"]').addEventListener("click", async (e) => {
+        e.stopPropagation();
         const { blob } = await svgToPngDataUrl(svg, 900);
         downloadBlob(blob, `damstand-${stand.id.slice(0, 8)}.png`);
       });
-      card.querySelector('[data-role="svg"]').addEventListener("click", () => {
-        downloadBlob(new Blob([svg], { type: "image/svg+xml" }), `damstand-${stand.id.slice(0, 8)}.svg`);
-      });
-      card.querySelector('[data-role="fen"]').addEventListener("click", async () => {
-        try {
-          await navigator.clipboard.writeText(stand.fen);
-        } catch {
-          prompt("Kopieer de FEN handmatig:", stand.fen);
-        }
-      });
+      card.addEventListener("click", () => onOpenStand?.(stand.id));
       grid.appendChild(card);
     }
   }

@@ -1,5 +1,5 @@
-import { fieldToCoord, FIELD_COUNT } from "../core/board.js?v=20260914j";
-import { CONFIDENCE_THRESHOLD } from "./classify.js?v=20260914j";
+import { fieldToCoord, FIELD_COUNT } from "../core/board.js?v=20260915a";
+import { CONFIDENCE_THRESHOLD } from "./classify.js?v=20260915a";
 
 // Foto met de 4 aangewezen hoeken en verbindingslijnen erover getekend, geschaald naar
 // een handige weergavebreedte.

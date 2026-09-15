@@ -1,7 +1,8 @@
-import { renderDiagramSVG } from "../diagram/render.js?v=20260914j";
-import { parseFen } from "../core/fen.js?v=20260914j";
-import { getGridLayout } from "./layout.js?v=20260914j";
-import { effectiveOpdracht } from "./compose.js?v=20260914j";
+import { renderDiagramSVG } from "../diagram/render.js?v=20260915a";
+import { parseFen } from "../core/fen.js?v=20260915a";
+import { resolveOplossingTekst } from "../db/standen.js?v=20260915a";
+import { getGridLayout } from "./layout.js?v=20260915a";
+import { effectiveOpdracht } from "./compose.js?v=20260915a";
 
 const PAGE_STYLE = `
   @page { size: A4 portrait; margin: 14mm; }
@@ -72,8 +73,9 @@ function oplossingenSheetHTML(stencil, items) {
       }
       const bronParts = [item.stand.auteur, item.stand.jaartal, item.stand.publicatie].filter(Boolean);
       const bron = bronParts.length ? `<div class="bron">${escapeHtml(bronParts.join(", "))}</div>` : "";
-      const oplossing = item.stand.oplossing
-        ? escapeHtml(item.stand.oplossing)
+      const oplossingTekst = resolveOplossingTekst(item.stand);
+      const oplossing = oplossingTekst
+        ? escapeHtml(oplossingTekst)
         : `<span class="ontbreekt">geen oplossing ingevoerd</span>`;
       return `<div class="item"><span class="nr">${i + 1}.</span>${oplossing}${bron}</div>`;
     })
@@ -85,7 +87,7 @@ function oplossingenSheetHTML(stencil, items) {
 }
 
 export function missingOplossingen(items) {
-  return items.filter((item) => item.stand && !item.stand.oplossing).length;
+  return items.filter((item) => item.stand && !resolveOplossingTekst(item.stand)).length;
 }
 
 export function buildStencilPagesHTML(stencil, items, mode = "beide") {

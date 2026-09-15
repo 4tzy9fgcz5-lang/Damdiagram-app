@@ -1,18 +1,17 @@
-import { describe, it, assertEqual, assertTrue } from "./test-runner.js?v=20260914j";
-import { resetDatabaseForTests } from "../src/db/db.js?v=20260914j";
+import { describe, it, assertEqual, assertTrue } from "./test-runner.js?v=20260915a";
+import { resetDatabaseForTests } from "../src/db/db.js?v=20260915a";
 import {
   saveStand,
   getStand,
   deleteStand,
-  duplicateStand,
   findDuplicates,
   listStanden,
   markUsedIn,
-} from "../src/db/standen.js?v=20260914j";
-import { getList, addListValue, renameListValue, removeListValue } from "../src/db/lijsten.js?v=20260914j";
-import { saveStencil, getStencil, listStencils, deleteStencil } from "../src/db/stencils.js?v=20260914j";
-import { exportAll, importAll, buildShareData } from "../src/db/backup.js?v=20260914j";
-import { logHerkenningCorrectie, getAllHerkenningCorrecties } from "../src/db/herkenningLog.js?v=20260914j";
+} from "../src/db/standen.js?v=20260915a";
+import { getList, addListValue, renameListValue, removeListValue } from "../src/db/lijsten.js?v=20260915a";
+import { saveStencil, getStencil, listStencils, deleteStencil } from "../src/db/stencils.js?v=20260915a";
+import { exportAll, importAll, buildShareData } from "../src/db/backup.js?v=20260915a";
+import { logHerkenningCorrectie, getAllHerkenningCorrecties } from "../src/db/herkenningLog.js?v=20260915a";
 
 async function freshDb() {
   await resetDatabaseForTests();
@@ -56,14 +55,6 @@ describe("database: standen", () => {
     const { mirrored, exact } = await findDuplicates("W:W11,13,33:B1,5,26");
     assertEqual(exact.length, 0);
     assertEqual(mirrored.length, 1);
-  });
-
-  it("dupliceert een stand als nieuw record", async () => {
-    await freshDb();
-    const original = await saveStand({ fen: "W:W13:B1", auteur: "A" });
-    const copy = await duplicateStand(original.id);
-    assertTrue(copy.id !== original.id);
-    assertEqual(copy.auteur, "A");
   });
 
   it("verwijdert een stand", async () => {
