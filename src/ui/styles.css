@@ -104,13 +104,19 @@ h2:first-child {
 }
 
 .editor-photo-block {
-  width: 220px;
+  width: 320px;
   flex: 0 0 auto;
   text-align: left;
 }
 
 .editor-board-wrap {
   flex: 0 0 auto;
+}
+
+.piece-count {
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin: 0.5rem 0 0;
 }
 
 .editor-form-col {

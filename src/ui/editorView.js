@@ -1,12 +1,12 @@
-import { createBoardEditor, createPalette } from "./boardEditor.js?v=20260915j";
-import { createSolutionInput } from "./solutionInput.js?v=20260915j";
-import { createEmptyBoard } from "../core/board.js?v=20260915j";
-import { parseFen, boardToFen, FenParseError } from "../core/fen.js?v=20260915j";
-import { parseStandInput, QuickTextParseError } from "../core/quicktext.js?v=20260915j";
-import { validateBoard } from "../core/validate.js?v=20260915j";
-import { saveStand, getStand, findDuplicates } from "../db/standen.js?v=20260915j";
-import { getList, addListValue } from "../db/lijsten.js?v=20260915j";
-import { logHerkenningCorrectie } from "../db/herkenningLog.js?v=20260915j";
+import { createBoardEditor, createPalette } from "./boardEditor.js?v=20260915k";
+import { createSolutionInput } from "./solutionInput.js?v=20260915k";
+import { createEmptyBoard, countPieces, isWhite, isBlack } from "../core/board.js?v=20260915k";
+import { parseFen, boardToFen, FenParseError } from "../core/fen.js?v=20260915k";
+import { parseStandInput, QuickTextParseError } from "../core/quicktext.js?v=20260915k";
+import { validateBoard } from "../core/validate.js?v=20260915k";
+import { saveStand, getStand, findDuplicates } from "../db/standen.js?v=20260915k";
+import { getList, addListValue } from "../db/lijsten.js?v=20260915k";
+import { logHerkenningCorrectie } from "../db/herkenningLog.js?v=20260915k";
 
 const MOEILIJKHEID_MAX = 5;
 
@@ -19,6 +19,11 @@ export async function renderEditorView(
     <div class="card editor-layout">
       <div class="editor-board-col">
         <div class="editor-photo-row">
+          <div class="editor-board-wrap">
+            <div data-role="board"></div>
+            <div data-role="palette"></div>
+            <p data-role="pieceCount" class="piece-count"></p>
+          </div>
           ${
             photoDataUrl
               ? `<div data-role="photoBlock" class="editor-photo-block">
@@ -29,10 +34,6 @@ export async function renderEditorView(
                 </div>`
               : ""
           }
-          <div class="editor-board-wrap">
-            <div data-role="board"></div>
-            <div data-role="palette"></div>
-          </div>
         </div>
         <div class="quick-actions">
           <a href="#/foto" class="secondary">📷 Foto van diagram</a>
@@ -108,6 +109,7 @@ export async function renderEditorView(
   const el = (sel) => container.querySelector(sel);
   const boardHost = el('[data-role="board"]');
   const paletteHost = el('[data-role="palette"]');
+  const pieceCountHost = el('[data-role="pieceCount"]');
   const warningsHost = el('[data-role="warnings"]');
   const dupWarningHost = el('[data-role="duplicateWarning"]');
   const gebruiktInHost = el('[data-role="gebruiktIn"]');
@@ -161,11 +163,20 @@ export async function renderEditorView(
     board: existingStand ? parseFen(existingStand.fen).board : initialBoard ?? createEmptyBoard(),
     onChange: () => {
       renderWarnings();
+      renderPieceCount();
       reinitSolutionInput(true);
     },
     highlightFields: uncertainFields,
   });
   createPalette(paletteHost, { onSelect: (tool) => boardEditor.setTool(tool) });
+
+  function renderPieceCount() {
+    const board = boardEditor.getBoard();
+    const white = countPieces(board, isWhite);
+    const black = countPieces(board, isBlack);
+    pieceCountHost.textContent = `Wit: ${white} · Zwart: ${black}`;
+  }
+  renderPieceCount();
 
   for (const radio of container.querySelectorAll('input[name="turn"]')) {
     radio.checked = radio.value === turn;

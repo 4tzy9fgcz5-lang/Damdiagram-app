@@ -1,24 +1,24 @@
-import { warpToSquareCanvas } from "../recognition/homography.js?v=20260915j";
-import { classifyBoard, CONFIDENCE_THRESHOLD, RECOGNITION_VERSION } from "../recognition/classify.js?v=20260915j";
+import { warpToSquareCanvas } from "../recognition/homography.js?v=20260915k";
+import { classifyBoard, CONFIDENCE_THRESHOLD, RECOGNITION_VERSION } from "../recognition/classify.js?v=20260915k";
 import {
   createClassifier as createNewClassifier,
   FLAG_BELOW as NEW_FLAG_BELOW,
   RECOGNITION_VERSION as NEW_RECOGNITION_VERSION,
-} from "../recognition/newClassify.js?v=20260915j";
+} from "../recognition/newClassify.js?v=20260915k";
 import {
   buildCornersOverlay,
   buildGridOverlay,
   buildFieldCrops,
   buildRawFieldCrops,
-} from "../recognition/debugRender.js?v=20260915j";
-import { detectBoardCorners } from "../recognition/detectBoard.js?v=20260915j";
-import { FIELD_COUNT, createEmptyBoard, PIECE_TYPES } from "../core/board.js?v=20260915j";
+} from "../recognition/debugRender.js?v=20260915k";
+import { detectBoardCorners } from "../recognition/detectBoard.js?v=20260915k";
+import { FIELD_COUNT, createEmptyBoard, PIECE_TYPES } from "../core/board.js?v=20260915k";
 
 // Ligt buiten het bereik van het cache-bust-bompscript (dat kijkt alleen naar JS-
 // imports/HTML-tags) — bij het trainen van een nieuw damscan/weights.json dus ook
 // deze versie met de hand ophogen, anders houdt Fastly (GitHub Pages) tot 10
 // minuten de oude gewichten vast.
-const WEIGHTS_VERSION = "20260915j";
+const WEIGHTS_VERSION = "20260915k";
 
 let newClassifierPromise = null;
 function getNewClassifier() {

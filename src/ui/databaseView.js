@@ -1,9 +1,9 @@
-import { renderDiagramSVG } from "../diagram/render.js?v=20260915j";
-import { parseFen } from "../core/fen.js?v=20260915j";
-import { listStanden, resolveOplossingTekst } from "../db/standen.js?v=20260915j";
-import { getList } from "../db/lijsten.js?v=20260915j";
-import { svgToPngDataUrl } from "../export/rasterize.js?v=20260915j";
-import { downloadBlob } from "../export/docx.js?v=20260915j";
+import { renderDiagramSVG } from "../diagram/render.js?v=20260915k";
+import { parseFen } from "../core/fen.js?v=20260915k";
+import { listStanden, resolveOplossingTekst } from "../db/standen.js?v=20260915k";
+import { getList } from "../db/lijsten.js?v=20260915k";
+import { svgToPngDataUrl } from "../export/rasterize.js?v=20260915k";
+import { downloadBlob } from "../export/docx.js?v=20260915k";
 
 export async function renderDatabaseView(container, { onOpenStand, onAddSelectionToStencil } = {}) {
   container.innerHTML = `
