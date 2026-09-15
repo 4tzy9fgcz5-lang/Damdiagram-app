@@ -85,7 +85,7 @@ function report({ y, predicted, confidence, meta, photos }) {
         `${pad(meta[i].photo, 14)} veld ${padL(meta[i].square, 2)}  ` +
         `waar=${pad(CLASSES[y[i]], 6)} voorspeld=${pad(CLASSES[predicted[i]], 6)} ` +
         `p=${confidence[i].toFixed(2)}  ` +
-        `rel=${f(n.relBright)} z=${f(n.contrastZ)} tex=${f(n.textureRatio)} div=${f(n.diversity)} ring=${f(n.ringCoverage)}`
+        `rel=${f(n.relBright)} tex=${f(n.textureRatio)} ring=${f(n.ringScore)} straal=${f(n.ringRadius)} dTex=${f(n.discTexture)} dHel=${f(n.discBright)}`
       );
     }
     if (errors.length > 40) console.log(`... en nog ${errors.length - 40}`);

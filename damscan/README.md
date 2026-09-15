@@ -11,11 +11,25 @@ Rasterdetectie en perspectiefcorrectie blijven zoals ze zijn.
 | globaal lichtvlak op "alle lege velden" | midden vergeleken met de rand van hetzelfde veld |
 | bezetting eerst, dan kleur | leeg/wit/zwart in één keer |
 | 6 handmatige constanten | drempels uit je data |
+| vaste drempel over alle boeken | elk veld afgezet tegen het eigen diagram |
 | betrouwbaarheid 0.75/0.6 | kans uit het model |
 
-Het belangrijkste verschil: een verkeerd als leeg geclassificeerd veld kan de
+Twee dingen tegelijk:
+
+**Geen foutpropagatie.** Een verkeerd als leeg geclassificeerd veld kan de
 kleurbepaling van andere velden niet meer verpesten, want er is geen gedeelde
 lichtfit meer.
+
+**Wel stijlaanpassing.** Elk kenmerk wordt uitgedrukt ten opzichte van de andere
+49 velden van hetzelfde diagram. "Is dit veld donker vergeleken met dit bord"
+betekent in elk boek hetzelfde; "is dit veld donker" niet, want het ene boek
+drukt het speelveld licht en het andere donker. Dat is hetzelfde voordeel dat de
+oude k-means had, maar zonder dat één fout veld de rest meesleept.
+
+`train.js` zet drie varianten tegen elkaar — alleen absoluut, alleen relatief, of
+beide — en kiest degene die het beste scoort op een stijl die het model nooit
+heeft gezien. Welke dat is hangt van je diagrammen af, dus dat wordt gemeten en
+niet geraden.
 
 ## Stap 1 — crops dumpen
 

@@ -22,6 +22,12 @@ const STYLES = [
   { name: 'arcering-grof', hatchAngle: -1, hatchPeriod: 6, hatchDepth: 70, paper: 245, discOutline: 4, whiteFill: 252, blackFill: 20 },
   { name: 'grijsvlak', hatchAngle: 0, hatchPeriod: 0, hatchDepth: 0, paper: 190, discOutline: 2, whiteFill: 250, blackFill: 45 },
   { name: 'zwart-wit', hatchAngle: 1, hatchPeriod: 4, hatchDepth: 100, paper: 255, discOutline: 5, whiteFill: 255, blackFill: 10 },
+  // Donker speelveld: een leeg veld is hier DONKERDER dan een witte schijf, precies
+  // omgekeerd aan de stijlen hierboven. Dit breekt elke vaste drempel.
+  { name: 'donkervlak', hatchAngle: 0, hatchPeriod: 0, hatchDepth: 0, paper: 85, discOutline: 2, whiteFill: 245, blackFill: 25 },
+  // Open ring: de witte schijf is alleen een cirkellijn, de binnenkant is het
+  // speelveld zelf. Midden van wit en midden van leeg zijn dus identiek.
+  { name: 'open-ring', hatchAngle: 0, hatchPeriod: 0, hatchDepth: 0, paper: 100, discOutline: 4, whiteOpen: true, whiteFill: 245, blackFill: 20 },
 ];
 
 const lines = [];
@@ -53,7 +59,10 @@ for (const style of STYLES) {
           if (label !== 'empty') {
             const R = 0.38;
             const outline = style.discOutline / N;
-            if (rad < R - outline) v = label === 'white' ? style.whiteFill : style.blackFill;
+            const openWhite = style.whiteOpen && label === 'white';
+            if (rad < R - outline) {
+              if (!openWhite) v = label === 'white' ? style.whiteFill : style.blackFill;
+            }
             else if (rad < R) v = 15; // getekende cirkelrand
           }
           v = v * exposure + (rnd() - 0.5) * 10;

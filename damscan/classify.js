@@ -10,38 +10,52 @@
  * Eén beslissing per veld, uitsluitend op basis van dat veld zelf.
  */
 
-const { extractFeatures, toGray } = require('./features');
+const { extractFeatures, toGray, boardRelative } = require('./features');
 const { predict } = require('./model');
 
 const FLAG_BELOW = 0.9; // gele rand hieronder; stel in op wat train.js adviseert
 
 function createClassifier(weights) {
-  function classifySquare(gray, width, height) {
-    const { vector, named } = extractFeatures(gray, width, height);
-    const { label, probs, confidence } = predict(weights, vector);
-    return {
-      label, // 'empty' | 'white' | 'black'
-      confidence, // gekalibreerde kans, niet een verzonnen 0.75
-      probs: { empty: probs[0], white: probs[1], black: probs[2] },
-      features: named,
-    };
-  }
-
   /**
+   * Classificeert een heel diagram in één keer.
+   *
+   * Dit MOET per bord, niet per veld: de kenmerken worden genormaliseerd ten
+   * opzichte van de andere 49 velden, en dat is precies wat de classifier
+   * ongevoelig maakt voor de drukstijl van het boek. Een los veld classificeren
+   * kan dus niet meer, en dat is met opzet.
+   *
    * @param {Array} crops 50 crops, index 0 = veld 1. Accepteert {gray,width,height}
    *                      of {data,width,height} met RGBA-pixels.
    */
   function classifyBoard(crops) {
     if (crops.length !== 50) throw new Error(`Verwacht 50 velden, kreeg ${crops.length}`);
-    const squares = crops.map((c, i) => {
+
+    const raw = [];
+    const named = [];
+    for (const c of crops) {
       const gray = c.gray || toGray(c.data, c.width, c.height, c.channels || 4);
-      const r = classifySquare(gray, c.width, c.height);
-      return { square: i + 1, ...r, flagged: r.confidence < FLAG_BELOW };
+      const f = extractFeatures(gray, c.width, c.height);
+      raw.push(f.vector);
+      named.push(f.named);
+    }
+    const full = boardRelative(raw);
+
+    const squares = full.map((vector, i) => {
+      const { label, probs, confidence } = predict(weights, vector);
+      return {
+        square: i + 1,
+        label, // 'empty' | 'white' | 'black'
+        confidence, // gekalibreerde kans, niet een verzonnen 0.75
+        probs: { empty: probs[0], white: probs[1], black: probs[2] },
+        features: named[i],
+        flagged: confidence < FLAG_BELOW,
+      };
     });
+
     return { squares, warnings: sanityCheck(squares) };
   }
 
-  return { classifySquare, classifyBoard };
+  return { classifyBoard };
 }
 
 /**

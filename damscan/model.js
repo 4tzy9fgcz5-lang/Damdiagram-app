@@ -23,7 +23,8 @@ function softmax(scores) {
 
 /** @returns {{probs:number[], label:string, confidence:number}} */
 function predict(model, vector) {
-  const z = standardize(vector, model.mu, model.sigma);
+  const v = model.columns ? model.columns.map((c) => vector[c]) : vector;
+  const z = standardize(v, model.mu, model.sigma);
   const scores = model.W.map((w) => {
     let s = w[w.length - 1]; // bias
     for (let i = 0; i < z.length; i++) s += w[i] * z[i];

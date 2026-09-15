@@ -4,7 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const { PNG } = require('pngjs');
 const { parseLabelFile } = require('./labels');
-const { extractFeatures, toGray } = require('./features');
+const { extractFeatures, toGray, boardRelative } = require('./features');
 
 /**
  * Verwachte indeling op schijf:
@@ -46,14 +46,24 @@ function buildDataset(labelFile, cropsDir) {
   const CLASSES = ['empty', 'white', 'black'];
 
   for (const { photo, style, labels } of photos) {
+    // Eerst alle 50 velden van dit diagram, dan pas normaliseren: de schaal komt
+    // uit het diagram zelf, zodat de drukstijl er niet meer toe doet.
+    const raw = [];
+    const named = [];
     for (let sq = 1; sq <= 50; sq++) {
       const { gray, width, height } = loadCrop(cropPath(cropsDir, photo, sq));
-      const { vector, named } = extractFeatures(gray, width, height);
-      X.push(vector);
+      const f = extractFeatures(gray, width, height);
+      raw.push(f.vector);
+      named.push(f.named);
+    }
+    const full = boardRelative(raw);
+    for (let sq = 1; sq <= 50; sq++) {
+      X.push(full[sq - 1]);
       y.push(CLASSES.indexOf(labels[sq - 1]));
-      meta.push({ photo, style, square: sq, named });
+      meta.push({ photo, style, square: sq, named: named[sq - 1] });
     }
   }
+
   return {
     X, y, meta,
     photos: photos.map((p) => p.photo),
