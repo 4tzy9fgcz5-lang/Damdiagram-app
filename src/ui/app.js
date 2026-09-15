@@ -1,14 +1,15 @@
-import { renderEditorView } from "./editorView.js?v=20260916d";
-import { renderDatabaseView } from "./databaseView.js?v=20260916d";
-import { renderStandDetailView } from "./standDetailView.js?v=20260916d";
-import { renderStencilsListView } from "./stencilsListView.js?v=20260916d";
-import { renderStencilView, addStandenToStencil } from "./stencilView.js?v=20260916d";
-import { renderBackupView, getLastBackupDate } from "./backupView.js?v=20260916d";
-import { renderImportView } from "./importView.js?v=20260916d";
-import { renderPhotoImportView } from "./photoImportView.js?v=20260916d";
-import { listStanden } from "../db/standen.js?v=20260916d";
+import { renderEditorView } from "./editorView.js?v=20260916e";
+import { renderDatabaseView } from "./databaseView.js?v=20260916e";
+import { renderStandDetailView } from "./standDetailView.js?v=20260916e";
+import { renderStencilsListView } from "./stencilsListView.js?v=20260916e";
+import { renderStencilView, addStandenToStencil } from "./stencilView.js?v=20260916e";
+import { renderBackupView, getLastBackupDate } from "./backupView.js?v=20260916e";
+import { renderImportView } from "./importView.js?v=20260916e";
+import { renderPhotoImportView } from "./photoImportView.js?v=20260916e";
+import { renderBulkImportView } from "./bulkImportView.js?v=20260916e";
+import { listStanden } from "../db/standen.js?v=20260916e";
 
-const routes = ["nieuw", "foto", "database", "stand", "stencils", "stencil", "backup", "import"];
+const routes = ["nieuw", "foto", "bulk", "database", "stand", "stencils", "stencil", "backup", "import"];
 let pendingRecognition = null;
 
 function showToast(message) {
@@ -29,6 +30,7 @@ function currentRoute() {
 const NAV_FOR_ROUTE = {
   nieuw: "nieuw",
   foto: "nieuw",
+  bulk: "nieuw",
   database: "database",
   stand: "database",
   stencils: "stencils",
@@ -122,6 +124,15 @@ async function render() {
       onRecognized: (result) => {
         pendingRecognition = result;
         location.hash = "#/nieuw";
+      },
+    });
+  } else if (name === "bulk") {
+    await renderBulkImportView(app, {
+      onConfirmed: ({ diagrams }) => {
+        // Het stap-voor-stap doorlopen per diagram (hoeken fijn afstellen ->
+        // herkennen -> oplossing invoeren) is de volgende stap; voor nu bevestigt
+        // dit alleen dat de gevonden/aangepaste diagrammen goed doorkomen.
+        showToast(`${diagrams.length} diagram(men) bevestigd. De rij-door-diagrammen-stap volgt nog.`);
       },
     });
   } else {

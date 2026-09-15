@@ -1,18 +1,18 @@
-import { warpToSquareCanvas } from "../recognition/homography.js?v=20260916d";
-import { classifyBoard, CONFIDENCE_THRESHOLD, RECOGNITION_VERSION } from "../recognition/classify.js?v=20260916d";
+import { warpToSquareCanvas } from "../recognition/homography.js?v=20260916e";
+import { classifyBoard, CONFIDENCE_THRESHOLD, RECOGNITION_VERSION } from "../recognition/classify.js?v=20260916e";
 import {
   createClassifier as createNewClassifier,
   FLAG_BELOW as NEW_FLAG_BELOW,
   RECOGNITION_VERSION as NEW_RECOGNITION_VERSION,
-} from "../recognition/newClassify.js?v=20260916d";
+} from "../recognition/newClassify.js?v=20260916e";
 import {
   buildCornersOverlay,
   buildGridOverlay,
   buildFieldCrops,
   buildRawFieldCrops,
-} from "../recognition/debugRender.js?v=20260916d";
-import { detectBoardCorners } from "../recognition/detectBoard.js?v=20260916d";
-import { FIELD_COUNT, createEmptyBoard, PIECE_TYPES } from "../core/board.js?v=20260916d";
+} from "../recognition/debugRender.js?v=20260916e";
+import { detectBoardCorners } from "../recognition/detectBoard.js?v=20260916e";
+import { FIELD_COUNT, createEmptyBoard, PIECE_TYPES } from "../core/board.js?v=20260916e";
 
 // Ligt buiten het bereik van het cache-bust-bompscript (dat kijkt alleen naar JS-
 // imports/HTML-tags) — bij het trainen van een nieuw damscan/weights.json dus ook
@@ -99,12 +99,12 @@ async function classifyWithComparison(useNew, warpedCanvas) {
   return { ...result, uncertainFields, disagreementFields };
 }
 
-const WORKING_MAX_SIDE = 1400;
+export const WORKING_MAX_SIDE = 1400;
 const WARP_SIZE = 500;
 const HANDLE_RADIUS = 14;
 const HANDLE_HIT_RADIUS = 28;
 
-async function loadDrawable(file) {
+export async function loadDrawable(file) {
   try {
     return await createImageBitmap(file);
   } catch {
@@ -117,7 +117,7 @@ async function loadDrawable(file) {
   }
 }
 
-function drawableSize(drawable) {
+export function drawableSize(drawable) {
   return { width: drawable.width ?? drawable.naturalWidth, height: drawable.height ?? drawable.naturalHeight };
 }
 
@@ -143,6 +143,9 @@ export async function renderPhotoImportView(container, { onRecognized } = {}) {
       </div>
       <input type="file" accept="image/*" capture="environment" data-role="camera-input" style="display:none" />
       <input type="file" accept="image/*" data-role="gallery-input" style="display:none" />
+      <p style="margin-top:0.75rem;font-size:0.85rem;">
+        Staan er meerdere diagrammen op één pagina? <a href="#/bulk">Gebruik bulk-import</a>.
+      </p>
     </div>
 
     <div class="card" data-role="corners" style="display:none;">
