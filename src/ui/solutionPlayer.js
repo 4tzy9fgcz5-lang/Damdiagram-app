@@ -1,5 +1,5 @@
-import { renderDiagramSVG } from "../diagram/render.js?v=20260915e";
-import { applyMove, moveToNotation } from "../core/draughtsMoves.js?v=20260915e";
+import { renderDiagramSVG } from "../diagram/render.js?v=20260915f";
+import { applyMove, moveToNotation } from "../core/draughtsMoves.js?v=20260915f";
 
 function escapeHtml(str) {
   return str.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -51,9 +51,9 @@ export function createSolutionPlayer(container, { board, zetten = [], turn = "wh
       <div class="solution-board-col">
         <div data-role="board"></div>
         <div class="solution-nav">
-          <button type="button" class="solution-nav-btn" data-action="prev" aria-label="Vorige zet">&#9664;</button>
-          <button type="button" class="solution-nav-btn" data-action="play" aria-label="Automatisch afspelen">&#9654;&#9654;</button>
-          <button type="button" class="solution-nav-btn" data-action="next" aria-label="Volgende zet">&#9654;</button>
+          <button type="button" class="solution-nav-btn" data-action="prev" aria-label="Vorige zet">&#9664;&#9664;</button>
+          <button type="button" class="solution-nav-btn" data-action="play" aria-label="Automatisch afspelen">&#9654;</button>
+          <button type="button" class="solution-nav-btn" data-action="next" aria-label="Volgende zet">&#9654;&#9654;</button>
         </div>
       </div>
       <div class="solution-notation-col">
@@ -88,7 +88,7 @@ export function createSolutionPlayer(container, { board, zetten = [], turn = "wh
     prevBtn.disabled = step === 0;
     nextBtn.disabled = step === zetten.length;
     playBtn.disabled = zetten.length === 0;
-    playBtn.innerHTML = playTimer ? "&#9208;" : "&#9654;&#9654;";
+    playBtn.innerHTML = playTimer ? "&#9208;" : "&#9654;";
     playBtn.setAttribute("aria-label", playTimer ? "Pauzeren" : "Automatisch afspelen");
   }
 

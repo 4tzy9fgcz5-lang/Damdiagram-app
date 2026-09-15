@@ -1,13 +1,13 @@
-import { createBoardEditor, createPalette } from "./boardEditor.js?v=20260915e";
-import { createSolutionInput } from "./solutionInput.js?v=20260915e";
-import { createEmptyBoard } from "../core/board.js?v=20260915e";
-import { parseFen, boardToFen, FenParseError } from "../core/fen.js?v=20260915e";
-import { parseStandInput, QuickTextParseError } from "../core/quicktext.js?v=20260915e";
-import { validateBoard } from "../core/validate.js?v=20260915e";
-import { saveStand, getStand, findDuplicates } from "../db/standen.js?v=20260915e";
-import { getList, addListValue } from "../db/lijsten.js?v=20260915e";
-import { logHerkenningCorrectie } from "../db/herkenningLog.js?v=20260915e";
-import { CONFIDENCE_THRESHOLD } from "../recognition/classify.js?v=20260915e";
+import { createBoardEditor, createPalette } from "./boardEditor.js?v=20260915f";
+import { createSolutionInput } from "./solutionInput.js?v=20260915f";
+import { createEmptyBoard } from "../core/board.js?v=20260915f";
+import { parseFen, boardToFen, FenParseError } from "../core/fen.js?v=20260915f";
+import { parseStandInput, QuickTextParseError } from "../core/quicktext.js?v=20260915f";
+import { validateBoard } from "../core/validate.js?v=20260915f";
+import { saveStand, getStand, findDuplicates } from "../db/standen.js?v=20260915f";
+import { getList, addListValue } from "../db/lijsten.js?v=20260915f";
+import { logHerkenningCorrectie } from "../db/herkenningLog.js?v=20260915f";
+import { CONFIDENCE_THRESHOLD } from "../recognition/classify.js?v=20260915f";
 
 const MOEILIJKHEID_MAX = 5;
 

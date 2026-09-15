@@ -1,6 +1,6 @@
-import { describe, it, assertEqual } from "./test-runner.js?v=20260915e";
-import { boardToLabelLine } from "../src/recognition/labelFormat.js?v=20260915e";
-import { createEmptyBoard } from "../src/core/board.js?v=20260915e";
+import { describe, it, assertEqual } from "./test-runner.js?v=20260915f";
+import { boardToLabelLine } from "../src/recognition/labelFormat.js?v=20260915f";
+import { createEmptyBoard } from "../src/core/board.js?v=20260915f";
 
 function boardFrom(whiteFields, blackFields) {
   const board = createEmptyBoard();
