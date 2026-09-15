@@ -1,4 +1,4 @@
-import { FIELD_COUNT, PIECE_TYPES, fieldToCoord, coordToField, isKing, cloneBoard } from "./board.js?v=20260915c";
+import { FIELD_COUNT, PIECE_TYPES, fieldToCoord, coordToField, isKing, cloneBoard } from "./board.js?v=20260915d";
 
 const ALL_DIRS = [
   { dr: -1, dc: -1 },
@@ -25,11 +25,12 @@ function isCrownhead(color, row) {
   return color === "white" ? row === 0 : row === 9;
 }
 
-// Zoekt alle maximale slagreeksen vanaf `field`, als lijst van paden. Elk pad is
-// { steps: [{land, captured}, ...], promoted } — `promoted` is waar zodra de schijf
-// ergens onderweg de damrij bereikte. Een schijf die op de damrij komt, gaat daar
-// dam; kan hij vandaar (nu als dam, dus vliegend) nog verder slaan, dan moet dat —
-// de slag stopt dus niet automatisch bij het dam worden (internationale regel).
+// Zoekt alle maximale slagreeksen vanaf `field`, als lijst van paden.
+// Elk pad is een lijst van stappen {land, captured}, in volgorde.
+// Een schijf die tijdens het slaan over de damrij komt maar nog verder kan slaan,
+// blijft daarbij een schijf (slaat dus verder met schijf-geometrie, niet vliegend
+// als dam) — pas als de hele slagreeks daadwerkelijk op de damrij eindigt, wordt
+// hij dam. Zie buildCaptureMoves, dat naar het láátste veld van het pad kijkt.
 function captureSequencesFromField(board, field, color, kingPiece, capturedSoFar) {
   const { row, col } = fieldToCoord(field);
   const results = [];
@@ -59,13 +60,8 @@ function captureSequencesFromField(board, field, color, kingPiece, capturedSoFar
         const newCaptured = new Set(capturedSoFar);
         newCaptured.add(sawEnemyField);
         const sub = captureSequencesFromField(board, f, color, true, newCaptured);
-        if (sub.length === 0) {
-          results.push({ steps: [{ land: f, captured: sawEnemyField }], promoted: false });
-        } else {
-          for (const s of sub) {
-            results.push({ steps: [{ land: f, captured: sawEnemyField }, ...s.steps], promoted: s.promoted });
-          }
-        }
+        if (sub.length === 0) results.push([{ land: f, captured: sawEnemyField }]);
+        else for (const s of sub) results.push([{ land: f, captured: sawEnemyField }, ...s]);
         r += dr;
         c += dc;
       }
@@ -85,26 +81,11 @@ function captureSequencesFromField(board, field, color, kingPiece, capturedSoFar
 
       const newCaptured = new Set(capturedSoFar);
       newCaptured.add(overField);
-      const landCoord = fieldToCoord(landField);
-      if (isCrownhead(color, landCoord.row)) {
-        const subAsKing = captureSequencesFromField(board, landField, color, true, newCaptured);
-        if (subAsKing.length === 0) {
-          results.push({ steps: [{ land: landField, captured: overField }], promoted: true });
-        } else {
-          for (const s of subAsKing) {
-            results.push({ steps: [{ land: landField, captured: overField }, ...s.steps], promoted: true });
-          }
-        }
-        continue;
-      }
+      // Nog als schijf verder zoeken, ook als landField op de damrij ligt — die
+      // rij is alleen bijzonder als de slagreeks daar écht eindigt.
       const sub = captureSequencesFromField(board, landField, color, false, newCaptured);
-      if (sub.length === 0) {
-        results.push({ steps: [{ land: landField, captured: overField }], promoted: false });
-      } else {
-        for (const s of sub) {
-          results.push({ steps: [{ land: landField, captured: overField }, ...s.steps], promoted: s.promoted });
-        }
-      }
+      if (sub.length === 0) results.push([{ land: landField, captured: overField }]);
+      else for (const s of sub) results.push([{ land: landField, captured: overField }, ...s]);
     }
   }
   return results;
@@ -118,9 +99,10 @@ function buildCaptureMoves(board, turn) {
     const kingPiece = isKing(piece);
     const paths = captureSequencesFromField(board, f, turn, kingPiece, new Set());
     for (const path of paths) {
-      const pad = path.steps.map((s) => s.land);
-      const geslagen = path.steps.map((s) => s.captured);
-      const wordtDam = !kingPiece && path.promoted;
+      const pad = path.map((s) => s.land);
+      const geslagen = path.map((s) => s.captured);
+      const finalCoord = fieldToCoord(pad[pad.length - 1]);
+      const wordtDam = !kingPiece && isCrownhead(turn, finalCoord.row);
       moves.push({ van: f, pad, geslagen, wordtDam });
     }
   }

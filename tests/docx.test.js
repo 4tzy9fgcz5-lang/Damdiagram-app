@@ -1,5 +1,5 @@
-import { describe, it, assertTrue, assertEqual } from "./test-runner.js?v=20260915c";
-import { buildStencilDocxBlob } from "../src/export/docx.js?v=20260915c";
+import { describe, it, assertTrue, assertEqual } from "./test-runner.js?v=20260915d";
+import { buildStencilDocxBlob } from "../src/export/docx.js?v=20260915d";
 
 const stencil = {
   titel: "Testblad",

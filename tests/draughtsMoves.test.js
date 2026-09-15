@@ -1,6 +1,6 @@
-import { describe, it, assertEqual, assertTrue } from "./test-runner.js?v=20260915c";
-import { coordToField, createEmptyBoard, PIECE_TYPES } from "../src/core/board.js?v=20260915c";
-import { getLegalMoves, applyMove } from "../src/core/draughtsMoves.js?v=20260915c";
+import { describe, it, assertEqual, assertTrue } from "./test-runner.js?v=20260915d";
+import { coordToField, createEmptyBoard, PIECE_TYPES } from "../src/core/board.js?v=20260915d";
+import { getLegalMoves, applyMove } from "../src/core/draughtsMoves.js?v=20260915d";
 
 // Rij0 = bovenkant (zwart start hier, velden 1-20), rij9 = onderkant (wit start hier, velden 31-50).
 // Wit speelt dus "omhoog" (rij neemt af), zwart "omlaag" (rij neemt toe).
@@ -121,11 +121,11 @@ describe("draughtsMoves: promotie", () => {
     assertEqual(moves[0], { van: f(2, 1), pad: [f(0, 3)], geslagen: [f(1, 2)], wordtDam: true });
   });
 
-  it("een schijf die op de damrij komt, moet doorslaan als dat nog kan (nu als dam)", () => {
+  it("blijft een schijf als de slagreeks over de damrij heen doorgaat en er verderop eindigt", () => {
     const board = createEmptyBoard();
     place(board, 2, 1, PIECE_TYPES.WHITE_PIECE);
     place(board, 1, 2, PIECE_TYPES.BLACK_PIECE); // eerste slag, landing is de damrij
-    place(board, 1, 4, PIECE_TYPES.BLACK_PIECE); // moet ook geslagen worden, nu als dam
+    place(board, 1, 4, PIECE_TYPES.BLACK_PIECE); // moet ook geslagen worden, nog als schijf
     // Blokkeert verdere landingsopties voorbij (2,5), voor een eenduidige uitkomst.
     place(board, 3, 6, PIECE_TYPES.WHITE_PIECE);
 
@@ -135,8 +135,21 @@ describe("draughtsMoves: promotie", () => {
       van: f(2, 1),
       pad: [f(0, 3), f(2, 5)],
       geslagen: [f(1, 2), f(1, 4)],
-      wordtDam: true,
+      wordtDam: false,
     });
+  });
+
+  it("slaat na de damrij nog steeds als schijf, niet vliegend als dam", () => {
+    const board = createEmptyBoard();
+    place(board, 2, 1, PIECE_TYPES.WHITE_PIECE);
+    place(board, 1, 2, PIECE_TYPES.BLACK_PIECE); // eerste slag, landing is de damrij
+    // Op 2 velden afstand (met een leeg veld ertussen) — voor een dam wel te slaan,
+    // voor een schijf niet (die kan alleen een aangrenzend stuk slaan).
+    place(board, 2, 5, PIECE_TYPES.BLACK_PIECE);
+
+    const moves = getLegalMoves(board, "white");
+    assertEqual(moves.length, 1);
+    assertEqual(moves[0], { van: f(2, 1), pad: [f(0, 3)], geslagen: [f(1, 2)], wordtDam: true });
   });
 
   it("een gewone zet naar de laatste rij maakt ook dam", () => {
