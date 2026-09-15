@@ -21,6 +21,10 @@
 /tools/recognizer-training/samples/
 /tools/recognizer-training/model_weights.json
 
-# Gedumpte veld-crops (damscan/OPDRACHT.md stap 1) bevatten dezelfde auteursrechtelijk
-# gevoelige boekplaatjes als /testdata/ hierboven.
+# Gedumpte veld-crops + controlebeelden (damscan/OPDRACHT.md stap 1-2) bevatten
+# dezelfde auteursrechtelijk gevoelige boekplaatjes als /testdata/ hierboven.
+# labels.txt zelf is geen foto, maar verwijst er wel naar (bronnaam per regel) en
+# hoort inhoudelijk bij dezelfde lokale trainingsdata.
 /crops/
+/check/
+/labels.txt
