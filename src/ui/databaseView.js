@@ -1,9 +1,13 @@
-import { renderDiagramSVG } from "../diagram/render.js?v=20260916a";
-import { parseFen } from "../core/fen.js?v=20260916a";
-import { listStanden, resolveOplossingTekst } from "../db/standen.js?v=20260916a";
-import { getList } from "../db/lijsten.js?v=20260916a";
-import { svgToPngDataUrl } from "../export/rasterize.js?v=20260916a";
-import { downloadBlob } from "../export/docx.js?v=20260916a";
+import { renderDiagramSVG } from "../diagram/render.js?v=20260916b";
+import { parseFen } from "../core/fen.js?v=20260916b";
+import { listStanden, resolveOplossingTekst } from "../db/standen.js?v=20260916b";
+import { getList } from "../db/lijsten.js?v=20260916b";
+import { svgToPngDataUrl } from "../export/rasterize.js?v=20260916b";
+import { downloadBlob } from "../export/docx.js?v=20260916b";
+
+// Onthoudt de filterkeuzes zolang de pagina open staat (niet in IndexedDB),
+// zodat teruggaan vanaf een standdetailpagina niet alle filters wist.
+let savedFilterState = null;
 
 export async function renderDatabaseView(container, { onOpenStand, onAddSelectionToStencil } = {}) {
   container.innerHTML = `
@@ -23,9 +27,6 @@ export async function renderDatabaseView(container, { onOpenStand, onAddSelectio
           <option value="met">Met oplossing</option>
           <option value="zonder">Zonder oplossing</option>
         </select>
-        <label style="display:inline-flex;align-items:center;gap:0.3rem;font-weight:normal;margin:0;">
-          <input type="checkbox" data-field="ongebruikt" /> Nog nooit gebruikt
-        </label>
         <select data-field="sort">
           <option value="createdAt-desc">Nieuwste eerst</option>
           <option value="createdAt-asc">Oudste eerst</option>
@@ -33,11 +34,13 @@ export async function renderDatabaseView(container, { onOpenStand, onAddSelectio
           <option value="jaartal-asc">Jaartal (laag-hoog)</option>
           <option value="auteur-asc">Auteur (A-Z)</option>
         </select>
+        <button type="button" class="secondary" data-action="reset-filters">Filters resetten</button>
       </div>
       <div data-role="selectionBar" style="display:none;margin-bottom:0.75rem;">
         <span data-role="selectionCount"></span>
         <button type="button" class="primary" data-action="add-selection">Toevoegen aan stencil</button>
         <button type="button" class="secondary" data-action="share-selection">Stuur naar ander apparaat</button>
+        <button type="button" class="secondary" data-action="select-all">Alles selecteren</button>
       </div>
       <div data-role="shareLink" style="display:none;margin-bottom:0.75rem;"></div>
       <div data-role="grid" class="stand-grid"></div>
@@ -54,10 +57,20 @@ export async function renderDatabaseView(container, { onOpenStand, onAddSelectio
   const selectionCount = el('[data-role="selectionCount"]');
 
   const selected = new Set();
+  let lastRendered = [];
 
   const [speelsystemen, types] = await Promise.all([getList("speelsysteem"), getList("type")]);
   fillOptions(el('[data-field="speelsysteem"]'), speelsystemen);
   fillOptions(el('[data-field="type"]'), types);
+
+  if (savedFilterState) {
+    el('[data-field="search"]').value = savedFilterState.search;
+    el('[data-field="speelsysteem"]').value = savedFilterState.speelsysteem;
+    el('[data-field="type"]').value = savedFilterState.type;
+    el('[data-field="moeilijkheid"]').value = savedFilterState.moeilijkheid;
+    el('[data-field="oplossing"]').value = savedFilterState.oplossing;
+    el('[data-field="sort"]').value = savedFilterState.sort;
+  }
 
   function fillOptions(select, values) {
     for (const v of values) {
@@ -68,18 +81,27 @@ export async function renderDatabaseView(container, { onOpenStand, onAddSelectio
     }
   }
 
-  function currentFilters() {
-    const [sortBy, sortDir] = el('[data-field="sort"]').value.split("-");
-    const oplossing = el('[data-field="oplossing"]').value;
+  function rawFieldValues() {
     return {
-      search: el('[data-field="search"]').value.trim(),
-      speelsysteem: el('[data-field="speelsysteem"]').value || undefined,
-      type: el('[data-field="type"]').value || undefined,
-      moeilijkheid: el('[data-field="moeilijkheid"]').value
-        ? Number.parseInt(el('[data-field="moeilijkheid"]').value, 10)
-        : undefined,
-      metOplossing: oplossing === "met" ? true : oplossing === "zonder" ? false : undefined,
-      ongebruikt: el('[data-field="ongebruikt"]').checked || undefined,
+      search: el('[data-field="search"]').value,
+      speelsysteem: el('[data-field="speelsysteem"]').value,
+      type: el('[data-field="type"]').value,
+      moeilijkheid: el('[data-field="moeilijkheid"]').value,
+      oplossing: el('[data-field="oplossing"]').value,
+      sort: el('[data-field="sort"]').value,
+    };
+  }
+
+  function currentFilters() {
+    const raw = rawFieldValues();
+    savedFilterState = raw;
+    const [sortBy, sortDir] = raw.sort.split("-");
+    return {
+      search: raw.search.trim(),
+      speelsysteem: raw.speelsysteem || undefined,
+      type: raw.type || undefined,
+      moeilijkheid: raw.moeilijkheid ? Number.parseInt(raw.moeilijkheid, 10) : undefined,
+      metOplossing: raw.oplossing === "met" ? true : raw.oplossing === "zonder" ? false : undefined,
       sortBy,
       sortDir,
     };
@@ -87,6 +109,7 @@ export async function renderDatabaseView(container, { onOpenStand, onAddSelectio
 
   async function refresh() {
     const standen = await listStanden(currentFilters());
+    lastRendered = standen;
     grid.innerHTML = "";
     emptyMsg.style.display = standen.length ? "none" : "block";
 
@@ -135,8 +158,24 @@ export async function renderDatabaseView(container, { onOpenStand, onAddSelectio
     onAddSelectionToStencil?.([...selected]);
   });
 
+  el('[data-action="select-all"]').addEventListener("click", () => {
+    for (const stand of lastRendered) selected.add(stand.id);
+    refresh();
+    updateSelectionBar();
+  });
+
+  el('[data-action="reset-filters"]').addEventListener("click", () => {
+    el('[data-field="search"]').value = "";
+    el('[data-field="speelsysteem"]').value = "";
+    el('[data-field="type"]').value = "";
+    el('[data-field="moeilijkheid"]').value = "";
+    el('[data-field="oplossing"]').value = "";
+    el('[data-field="sort"]').value = "createdAt-desc";
+    refresh();
+  });
+
   el('[data-action="share-selection"]').addEventListener("click", async () => {
-    const { buildShareData } = await import("../db/backup.js");
+    const { buildShareData } = await import("../db/backup.js?v=20260916b");
     const data = await buildShareData([...selected]);
     const json = JSON.stringify(data);
     const encoded = btoa(unescape(encodeURIComponent(json)))

@@ -1,15 +1,22 @@
-import { openDb, tx, promisify, newId } from "./db.js?v=20260916a";
-import { STORE_STANDEN, STORE_LIJSTEN, STORE_STENCILS, STORE_HERKENNING_LOG, SCHEMA_VERSION } from "./schema.js?v=20260916a";
-import { listStanden, saveStand } from "./standen.js?v=20260916a";
-import { getAllLists, addListValue } from "./lijsten.js?v=20260916a";
-import { listStencils, saveStencil } from "./stencils.js?v=20260916a";
-import { getAllHerkenningCorrecties, putHerkenningCorrectie } from "./herkenningLog.js?v=20260916a";
+import { openDb, tx, promisify, newId } from "./db.js?v=20260916b";
+import { STORE_STANDEN, STORE_LIJSTEN, STORE_STENCILS, STORE_HERKENNING_LOG, SCHEMA_VERSION } from "./schema.js?v=20260916b";
+import { listStanden, saveStand } from "./standen.js?v=20260916b";
+import { getAllLists, addListValue } from "./lijsten.js?v=20260916b";
+import { listStencils, saveStencil } from "./stencils.js?v=20260916b";
+import { getAllHerkenningCorrecties, putHerkenningCorrectie } from "./herkenningLog.js?v=20260916b";
 
 export async function buildShareData(standIds) {
   const selected = [];
   for (const id of standIds) {
     const stand = await tx(await openDb(), STORE_STANDEN, "readonly", (store) => promisify(store.get(id)));
-    if (stand) selected.push(stand);
+    // `foto` (de rechtgetrokken scan, als data-URL) en `gebruiktIn` (lokale
+    // stencil-koppeling) horen niet in de deel-link: foto maakt 'm enorm lang
+    // (dit was de oorzaak van de kapotte, kilometerslange links), en gebruiktIn
+    // is toch alleen relevant op het apparaat waar de stand vandaan komt.
+    if (stand) {
+      const { foto, gebruiktIn, ...rest } = stand;
+      selected.push(rest);
+    }
   }
   return { schemaVersion: SCHEMA_VERSION, exportedAt: new Date().toISOString(), standen: selected, lijsten: {}, stencils: [] };
 }
