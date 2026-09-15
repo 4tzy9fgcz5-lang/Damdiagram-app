@@ -1,6 +1,6 @@
-import { parseFen } from "../core/fen.js?v=20260915m";
-import { getStand, saveStand, deleteStand } from "../db/standen.js?v=20260915m";
-import { createSolutionPlayer } from "./solutionPlayer.js?v=20260915m";
+import { parseFen } from "../core/fen.js?v=20260916a";
+import { getStand, saveStand, deleteStand } from "../db/standen.js?v=20260916a";
+import { createSolutionPlayer } from "./solutionPlayer.js?v=20260916a";
 
 // Focus-weergave van een opgeslagen stand: opgave, bord, oplossing, auteur. Geen
 // invulvelden — bewerken gaat via de knop onderaan naar de gewone invoerpagina.

@@ -1,7 +1,8 @@
-import { exportAll, importAll } from "../db/backup.js?v=20260915m";
-import { listStanden } from "../db/standen.js?v=20260915m";
-import { buildCsv, buildPdnText } from "../export/portable.js?v=20260915m";
-import { downloadBlob } from "../export/docx.js?v=20260915m";
+import { exportAll, importAll } from "../db/backup.js?v=20260916a";
+import { listStanden } from "../db/standen.js?v=20260916a";
+import { buildCsv, buildPdnText } from "../export/portable.js?v=20260916a";
+import { downloadBlob } from "../export/docx.js?v=20260916a";
+import { buildTrainingZip, countTrainingRecords } from "../export/trainingExport.js?v=20260916a";
 
 const LAST_BACKUP_KEY = "damstencil_lastBackup";
 
@@ -52,6 +53,14 @@ export async function renderBackupView(container) {
         <button type="button" class="secondary" data-action="csv">Exporteer als CSV</button>
         <button type="button" class="secondary" data-action="pdn">Exporteer als leesbare tekst</button>
       </div>
+    </div>
+
+    <div class="card">
+      <h2 style="margin-top:0;">Trainingsmateriaal voor de fotoherkenning</h2>
+      <p>Elke keer dat je een stand invoert via een foto, wordt automatisch bewaard wat de herkenning dacht en wat de uiteindelijke stand werd — dat is bruikbaar materiaal om de fotoherkenning opnieuw te trainen. Deze knop zet het om naar het bestand dat het trainingsprogramma nodig heeft (uitpakken op de laptop en daarna opnieuw trainen).</p>
+      <p data-role="training-count" style="color:#666;font-size:0.85rem;"></p>
+      <button type="button" class="secondary" data-action="training-export">Exporteer voor trainen (ZIP)</button>
+      <p data-role="training-status" style="color:#666;font-size:0.85rem;margin-top:0.5rem;"></p>
     </div>
 
     <div class="card">
@@ -107,5 +116,33 @@ export async function renderBackupView(container) {
   el('[data-action="pdn"]').addEventListener("click", async () => {
     const standen = await listStanden();
     downloadBlob(new Blob([buildPdnText(standen)], { type: "text/plain" }), `damstencil-standen-${todayStamp()}.pdn`);
+  });
+
+  const trainingCount = el('[data-role="training-count"]');
+  countTrainingRecords()
+    .then((n) => {
+      trainingCount.textContent =
+        n === 0
+          ? "Nog geen fotostanden gelogd — scan eerst een paar diagrammen via de normale invoer."
+          : `${n} gescande diagram(men) beschikbaar.`;
+    })
+    .catch(() => {
+      trainingCount.textContent = "";
+    });
+
+  el('[data-action="training-export"]').addEventListener("click", async () => {
+    const status = el('[data-role="training-status"]');
+    status.textContent = "Bezig met exporteren...";
+    try {
+      const result = await buildTrainingZip();
+      if (!result) {
+        status.textContent = "Nog geen fotostanden gelogd — er is niets om te exporteren.";
+        return;
+      }
+      downloadBlob(result.blob, `damscan-trainingsmateriaal-${todayStamp()}.zip`);
+      status.textContent = `${result.count} diagram(men) geëxporteerd. Pak de ZIP uit in de project-map (crops/ en labels.txt worden vervangen) en train daarna opnieuw.`;
+    } catch (err) {
+      status.textContent = "Exporteren mislukt: " + err.message;
+    }
   });
 }

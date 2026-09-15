@@ -1,18 +1,18 @@
-import { warpToSquareCanvas } from "../recognition/homography.js?v=20260915m";
-import { classifyBoard, CONFIDENCE_THRESHOLD, RECOGNITION_VERSION } from "../recognition/classify.js?v=20260915m";
+import { warpToSquareCanvas } from "../recognition/homography.js?v=20260916a";
+import { classifyBoard, CONFIDENCE_THRESHOLD, RECOGNITION_VERSION } from "../recognition/classify.js?v=20260916a";
 import {
   createClassifier as createNewClassifier,
   FLAG_BELOW as NEW_FLAG_BELOW,
   RECOGNITION_VERSION as NEW_RECOGNITION_VERSION,
-} from "../recognition/newClassify.js?v=20260915m";
+} from "../recognition/newClassify.js?v=20260916a";
 import {
   buildCornersOverlay,
   buildGridOverlay,
   buildFieldCrops,
   buildRawFieldCrops,
-} from "../recognition/debugRender.js?v=20260915m";
-import { detectBoardCorners } from "../recognition/detectBoard.js?v=20260915m";
-import { FIELD_COUNT, createEmptyBoard, PIECE_TYPES } from "../core/board.js?v=20260915m";
+} from "../recognition/debugRender.js?v=20260916a";
+import { detectBoardCorners } from "../recognition/detectBoard.js?v=20260916a";
+import { FIELD_COUNT, createEmptyBoard, PIECE_TYPES } from "../core/board.js?v=20260916a";
 
 // Ligt buiten het bereik van het cache-bust-bompscript (dat kijkt alleen naar JS-
 // imports/HTML-tags) — bij het trainen van een nieuw damscan/weights.json dus ook
@@ -70,6 +70,33 @@ async function classifyWith(useNew, warpedCanvas) {
     if (confidences[f] < CONFIDENCE_THRESHOLD) uncertainFields.push(f);
   }
   return { board, confidences, uncertainFields, modelVersion: RECOGNITION_VERSION };
+}
+
+// Herkent met de gekozen classifier (die de weergegeven stand levert), en laat op
+// de achtergrond ook de ándere classifier meekijken — puur om per veld te
+// vergelijken. Velden waar oud en nieuw een ander stuk zien, komen in
+// `disagreementFields` en worden net als "onzeker" gemarkeerd: uit de vergelijking
+// tussen beide methoden bleek onenigheid de grootste resterende foutenbron, groter
+// dan wat elke methode voor zichzelf al als onzeker herkent. Als de andere
+// classifier om wat voor reden dan ook niet laadt, gaat de herkenning gewoon door
+// zonder die extra vergelijking.
+async function classifyWithComparison(useNew, warpedCanvas) {
+  const [primary, secondary] = await Promise.allSettled([
+    classifyWith(useNew, warpedCanvas),
+    classifyWith(!useNew, warpedCanvas),
+  ]);
+  if (primary.status === "rejected") throw primary.reason;
+  const result = primary.value;
+
+  const disagreementFields = [];
+  if (secondary.status === "fulfilled") {
+    const other = secondary.value;
+    for (let f = 1; f <= FIELD_COUNT; f++) {
+      if (result.board[f] !== other.board[f]) disagreementFields.push(f);
+    }
+  }
+  const uncertainFields = [...new Set([...result.uncertainFields, ...disagreementFields])].sort((a, b) => a - b);
+  return { ...result, uncertainFields, disagreementFields };
 }
 
 const WORKING_MAX_SIDE = 1400;
@@ -341,7 +368,7 @@ export async function renderPhotoImportView(container, { onRecognized } = {}) {
       const fullResCorners = corners.map((p) => ({ x: p.x * scaleUp, y: p.y * scaleUp }));
       const warpedCanvas = warpToSquareCanvas(drawable, fullResCorners, WARP_SIZE);
       const photoDataUrl = warpedCanvas.toDataURL("image/jpeg", 0.85);
-      const result = await classifyWith(useNewClassifier, warpedCanvas);
+      const result = await classifyWithComparison(useNewClassifier, warpedCanvas);
 
       lastRecognition = { ...result, photoDataUrl, warpedCanvas, scaleUp, fullResCorners };
       renderResults(lastRecognition);
@@ -362,7 +389,7 @@ export async function renderPhotoImportView(container, { onRecognized } = {}) {
     summary.textContent = "Bezig met herkennen...";
     try {
       const { warpedCanvas, photoDataUrl, scaleUp, fullResCorners } = lastRecognition;
-      const result = await classifyWith(useNewClassifier, warpedCanvas);
+      const result = await classifyWithComparison(useNewClassifier, warpedCanvas);
       lastRecognition = { ...result, photoDataUrl, warpedCanvas, scaleUp, fullResCorners };
       renderResults(lastRecognition);
       if (el('[data-role="debug"]').style.display !== "none") renderDebug(lastRecognition);
@@ -372,13 +399,16 @@ export async function renderPhotoImportView(container, { onRecognized } = {}) {
     }
   }
 
-  function renderResults({ board, confidences, uncertainFields }) {
+  function renderResults({ board, confidences, uncertainFields, disagreementFields }) {
     let occupied = 0;
     for (let f = 1; f <= FIELD_COUNT; f++) {
       if (board[f]) occupied++;
     }
-    el('[data-role="summary"]').textContent =
-      `${occupied} van de 50 velden herkend als bezet, ${uncertainFields.length} veld(en) zijn onzeker (geel gemarkeerd in de editor).`;
+    let text = `${occupied} van de 50 velden herkend als bezet, ${uncertainFields.length} veld(en) zijn onzeker (geel gemarkeerd in de editor).`;
+    if (disagreementFields?.length) {
+      text += ` Daarvan ${disagreementFields.length} omdat de oude en nieuwe herkenning het niet met elkaar eens zijn.`;
+    }
+    el('[data-role="summary"]').textContent = text;
   }
 
   function renderDebug({ board, confidences, uncertainFields, warpedCanvas, fullResCorners }) {

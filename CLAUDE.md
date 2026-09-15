@@ -9,7 +9,7 @@
   daadwerkelijk in de browser (zie "Testen tijdens ontwikkeling" hieronder) voor je
   meldt dat iets werkt.
 
-# Status en vervolgstappen (bijgewerkt 2026-09-15)
+# Status en vervolgstappen (bijgewerkt 2026-09-16)
 
 Dit is een groeiende Nederlandse dam-app (werknaam "Dam-database", eerder
 "Damstencil"): standen verzamelen (handmatig, of via een foto van een boekdiagram),
@@ -52,6 +52,14 @@ server, geen build-stap.
 - Schakelaar zit in `src/ui/photoImportView.js` (hoeken-scherm én resultaten-
   scherm, altijd gesynchroniseerd). Wisselen op het resultatenscherm herclassificeert
   dezelfde, al rechtgetrokken foto opnieuw — geen hoeken opnieuw nodig.
+- **Sinds 2026-09-16: automatische vergelijking, ongeacht welke classifier
+  gekozen is.** `classifyWithComparison()` in `photoImportView.js` laat bij elke
+  herkenning ook de andere classifier op de achtergrond meekijken (puur ter
+  vergelijking, de gekozen classifier blijft bepalend voor de getoonde stand) en
+  markeert velden waar ze een ander stuk zien als onzeker (`disagreementFields`,
+  samengevoegd met de eigen onzeker-velden van de gekozen classifier) — dit bleek
+  uit de vergelijking veruit de grootste resterende foutenbron te dekken, groter
+  dan wat elke classifier voor zichzelf al als onzeker herkent.
 - `damscan/` is een los Node/CommonJS-trainingspijplijn (inmiddels in git
   getrackt). Vanuit de project-root: `node damscan/train.js labels.txt crops
   damscan/weights.json`. `labels.txt`, `crops/`, `check/` zijn gitignored
@@ -64,20 +72,23 @@ server, geen build-stap.
 
 ## Openstaand / eerstvolgende stappen
 
-1. **Nog te bouwen: een export van `herkenningLog` naar `labels.txt` + crops.**
-   Jan scant nu foto's via de normale app-flow (met boekstijl-keuze op het
-   invoerscherm); dat logt automatisch bruikbaar trainingsmateriaal, maar er is
-   nog géén knop die dat omzet naar het formaat dat `damscan/train.js` verwacht.
-   Bouw die zodra Jan een stel foto's heeft gescand en opnieuw wil trainen. (De
-   oude aparte "Exporteer voor labelen"-flow in `photoImportView.js` is bewust
-   verwijderd — niet opnieuw toevoegen, dit moet via het logboek.)
-2. Na elke nieuwe `damscan/weights.json`: `WEIGHTS_VERSION` in
+1. **Klaar (2026-09-16): export van `herkenningLog` naar `labels.txt` + crops.**
+   Zit nu op `#/backup`, kaart "Trainingsmateriaal voor de fotoherkenning" —
+   `buildTrainingZip()` in `src/export/trainingExport.js` zet het hele logboek om
+   naar een ZIP (`labels.txt` + `crops/diagNN/01.png..50.png`) in precies het
+   formaat dat `damscan/train.js` verwacht. Uitpakken in de project-root
+   (overschrijft `crops/`+`labels.txt`) en daarna opnieuw trainen. (De oude, losse
+   "Exporteer voor labelen"-flow blijft bewust verwijderd — dit loopt nu via het
+   logboek.)
+2. **Klaar (2026-09-16): geel randje bij onenigheid tussen oud en nieuw.** Zie
+   hierboven bij "Veldherkenning". Eerstvolgende logische vervolgstap zou zijn om
+   in de praktijk te zien hoeveel dit daadwerkelijk scheelt zodra Jan er een tijd
+   mee gescand heeft.
+3. Na elke nieuwe `damscan/weights.json`: `WEIGHTS_VERSION` in
    `src/ui/photoImportView.js` met de hand ophogen.
-3. Idee, nog niet gebouwd: bij onenigheid tussen oud en nieuw een geel randje
-   tonen in plaats van te kiezen ("combineren") — uit de vergelijking bleek dit
-   verreweg de grootste resterende foutenbron te dekken.
 4. Zwakke stijlen uit de laatste training (Kovrizkin, Koeperman) zouden het meest
-   baat hebben bij een paar extra gescande diagrammen uit precies die boeken.
+   baat hebben bij een paar extra gescande diagrammen uit precies die boeken —
+   makkelijker nu de export uit stap 1 er is.
 5. IMG_0976's onscherpte is bevestigd een fotokwaliteitsprobleem, geen bug — hier
    niets aan doen.
 

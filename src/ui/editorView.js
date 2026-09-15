@@ -1,12 +1,12 @@
-import { createBoardEditor, createPalette } from "./boardEditor.js?v=20260915m";
-import { createSolutionInput } from "./solutionInput.js?v=20260915m";
-import { createEmptyBoard, countPieces, isWhite, isBlack } from "../core/board.js?v=20260915m";
-import { parseFen, boardToFen, FenParseError } from "../core/fen.js?v=20260915m";
-import { parseStandInput, QuickTextParseError } from "../core/quicktext.js?v=20260915m";
-import { validateBoard } from "../core/validate.js?v=20260915m";
-import { saveStand, getStand, findDuplicates } from "../db/standen.js?v=20260915m";
-import { getList, addListValue } from "../db/lijsten.js?v=20260915m";
-import { logHerkenningCorrectie } from "../db/herkenningLog.js?v=20260915m";
+import { createBoardEditor, createPalette } from "./boardEditor.js?v=20260916a";
+import { createSolutionInput } from "./solutionInput.js?v=20260916a";
+import { createEmptyBoard, countPieces, isWhite, isBlack } from "../core/board.js?v=20260916a";
+import { parseFen, boardToFen, FenParseError } from "../core/fen.js?v=20260916a";
+import { parseStandInput, QuickTextParseError } from "../core/quicktext.js?v=20260916a";
+import { validateBoard } from "../core/validate.js?v=20260916a";
+import { saveStand, getStand, findDuplicates } from "../db/standen.js?v=20260916a";
+import { getList, addListValue } from "../db/lijsten.js?v=20260916a";
+import { logHerkenningCorrectie } from "../db/herkenningLog.js?v=20260916a";
 
 const MOEILIJKHEID_MAX = 5;
 
@@ -20,7 +20,7 @@ export async function renderEditorView(
       <div class="editor-board-col">
         ${
           photoDataUrl
-            ? `<p style="font-size:0.85rem;color:#666;margin:0 0 0.5rem;text-align:left;">Rechtgetrokken foto — velden met een <span style="color:#e0a800;font-weight:600;">gele rand</span> op het bord zijn onzeker, vergelijk ze even.</p>`
+            ? `<p style="font-size:0.85rem;color:#666;margin:0 0 0.5rem;text-align:left;">Rechtgetrokken foto — velden met een <span style="color:#e0a800;font-weight:600;">gele rand</span> op het bord zijn onzeker (of de oude en nieuwe herkenning zijn het er niet over eens), vergelijk ze even.</p>`
             : ""
         }
         <div class="editor-photo-row">
