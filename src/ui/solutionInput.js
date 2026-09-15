@@ -1,6 +1,6 @@
-import { renderDiagramSVG } from "../diagram/render.js?v=20260915h";
-import { isValidField } from "../core/board.js?v=20260915h";
-import { getLegalMoves, applyMove, formatZetten } from "../core/draughtsMoves.js?v=20260915h";
+import { renderDiagramSVG } from "../diagram/render.js?v=20260915i";
+import { isValidField } from "../core/board.js?v=20260915i";
+import { getLegalMoves, applyMove, formatZetten } from "../core/draughtsMoves.js?v=20260915i";
 
 function opposite(color) {
   return color === "white" ? "black" : "white";

@@ -1,13 +1,9 @@
-import { renderDiagramSVG, pieceIconSVG } from "../diagram/render.js?v=20260915h";
-import { cloneBoard, PIECE_TYPES, isValidField } from "../core/board.js?v=20260915h";
+import { renderDiagramSVG, pieceIconSVG } from "../diagram/render.js?v=20260915i";
+import { cloneBoard, PIECE_TYPES, isValidField } from "../core/board.js?v=20260915i";
 
-const CYCLE = [
-  null,
-  PIECE_TYPES.WHITE_PIECE,
-  PIECE_TYPES.BLACK_PIECE,
-  PIECE_TYPES.WHITE_KING,
-  PIECE_TYPES.BLACK_KING,
-];
+// Dammen komen zelden voor en hebben hun eigen palet-knop; "tikken wisselt" hoeft
+// dus alleen langs leeg/wit/zwart te lopen, niet ook nog langs beide dammen.
+const CYCLE = [null, PIECE_TYPES.WHITE_PIECE, PIECE_TYPES.BLACK_PIECE];
 
 export function createBoardEditor(container, { board, onChange, highlightFields } = {}) {
   let current = board ? cloneBoard(board) : cloneBoard(board);

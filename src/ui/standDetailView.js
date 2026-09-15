@@ -1,10 +1,10 @@
-import { parseFen } from "../core/fen.js?v=20260915h";
-import { getStand, deleteStand } from "../db/standen.js?v=20260915h";
-import { createSolutionPlayer } from "./solutionPlayer.js?v=20260915h";
+import { parseFen } from "../core/fen.js?v=20260915i";
+import { getStand, deleteStand } from "../db/standen.js?v=20260915i";
+import { createSolutionPlayer } from "./solutionPlayer.js?v=20260915i";
 
 // Focus-weergave van een opgeslagen stand: opgave, bord, oplossing, auteur. Geen
 // invulvelden — bewerken gaat via de knop onderaan naar de gewone invoerpagina.
-export async function renderStandDetailView(container, { standId, onEdit, onDeleted } = {}) {
+export async function renderStandDetailView(container, { standId, onEdit, onDeleted, onBack } = {}) {
   const stand = await getStand(standId);
   if (!stand) {
     container.innerHTML = `<p>Deze stand bestaat niet (meer).</p>`;
@@ -20,6 +20,7 @@ export async function renderStandDetailView(container, { standId, onEdit, onDele
   if (stand.publicatie) bijschrift.push(escapeHtml(stand.publicatie));
 
   container.innerHTML = `
+    <button type="button" class="secondary" data-action="back" style="margin-bottom:0.75rem;">&#8592; Terug naar overzicht</button>
     <h2>${escapeHtml(opgave)}</h2>
     <div class="card" style="text-align:center;">
       <div data-role="player"></div>
@@ -43,6 +44,7 @@ export async function renderStandDetailView(container, { standId, onEdit, onDele
     legacyHost.innerHTML = `<p style="color:#666;">Nog geen oplossing ingevoerd.</p>`;
   }
 
+  container.querySelector('[data-action="back"]').addEventListener("click", () => onBack?.());
   container.querySelector('[data-action="edit"]').addEventListener("click", () => onEdit?.(stand.id));
   container.querySelector('[data-action="delete"]').addEventListener("click", async () => {
     if (!confirm("Deze stand verwijderen? Dit kan niet ongedaan worden gemaakt.")) return;
