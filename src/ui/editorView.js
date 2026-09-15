@@ -1,12 +1,12 @@
-import { createBoardEditor, createPalette } from "./boardEditor.js?v=20260915i";
-import { createSolutionInput } from "./solutionInput.js?v=20260915i";
-import { createEmptyBoard } from "../core/board.js?v=20260915i";
-import { parseFen, boardToFen, FenParseError } from "../core/fen.js?v=20260915i";
-import { parseStandInput, QuickTextParseError } from "../core/quicktext.js?v=20260915i";
-import { validateBoard } from "../core/validate.js?v=20260915i";
-import { saveStand, getStand, findDuplicates } from "../db/standen.js?v=20260915i";
-import { getList, addListValue } from "../db/lijsten.js?v=20260915i";
-import { logHerkenningCorrectie } from "../db/herkenningLog.js?v=20260915i";
+import { createBoardEditor, createPalette } from "./boardEditor.js?v=20260915j";
+import { createSolutionInput } from "./solutionInput.js?v=20260915j";
+import { createEmptyBoard } from "../core/board.js?v=20260915j";
+import { parseFen, boardToFen, FenParseError } from "../core/fen.js?v=20260915j";
+import { parseStandInput, QuickTextParseError } from "../core/quicktext.js?v=20260915j";
+import { validateBoard } from "../core/validate.js?v=20260915j";
+import { saveStand, getStand, findDuplicates } from "../db/standen.js?v=20260915j";
+import { getList, addListValue } from "../db/lijsten.js?v=20260915j";
+import { logHerkenningCorrectie } from "../db/herkenningLog.js?v=20260915j";
 
 const MOEILIJKHEID_MAX = 5;
 
@@ -18,16 +18,22 @@ export async function renderEditorView(
     <h2>Nieuwe stand invoeren</h2>
     <div class="card editor-layout">
       <div class="editor-board-col">
-        ${
-          photoDataUrl
-            ? `<div data-role="photoBlock" style="margin-bottom:0.75rem;">
-                <p style="font-size:0.85rem;color:#666;margin:0 0 0.3rem;">Rechtgetrokken foto — velden met een <span style="color:#e0a800;font-weight:600;">gele rand</span> op het bord zijn onzeker, vergelijk ze even.</p>
-                <img src="${photoDataUrl}" style="width:100%;max-width:320px;border-radius:8px;border:1px solid #d0d0d0;display:block;" />
-              </div>`
-            : ""
-        }
-        <div data-role="board"></div>
-        <div data-role="palette"></div>
+        <div class="editor-photo-row">
+          ${
+            photoDataUrl
+              ? `<div data-role="photoBlock" class="editor-photo-block">
+                  <p style="font-size:0.85rem;color:#666;margin:0 0 0.3rem;">Rechtgetrokken foto — velden met een <span style="color:#e0a800;font-weight:600;">gele rand</span> op het bord zijn onzeker, vergelijk ze even.</p>
+                  <img src="${photoDataUrl}" style="width:100%;border-radius:8px;border:1px solid #d0d0d0;display:block;" />
+                  <label style="margin-top:0.5rem;">Boekstijl (voor training van de fotoherkenning)</label>
+                  <div class="tag-list" data-role="boekstijl"></div>
+                </div>`
+              : ""
+          }
+          <div class="editor-board-wrap">
+            <div data-role="board"></div>
+            <div data-role="palette"></div>
+          </div>
+        </div>
         <div class="quick-actions">
           <a href="#/foto" class="secondary">📷 Foto van diagram</a>
           <button type="button" class="secondary" data-action="leeg">Leeg bord</button>
@@ -110,6 +116,7 @@ export async function renderEditorView(
   const typeHost = el('[data-role="type"]');
   const solutionInputHost = el('[data-role="solutionInput"]');
   const legacyOplossingRefHost = el('[data-role="legacyOplossingRef"]');
+  const boekstijlHost = el('[data-role="boekstijl"]');
 
   let existingStand = null;
   let turn = "white";
@@ -117,6 +124,7 @@ export async function renderEditorView(
   let selectedTypes = [];
   let selectedMoeilijkheid = null;
   let solutionZetten = [];
+  let selectedBoekstijl = "";
 
   if (standId) {
     existingStand = await getStand(standId);
@@ -126,6 +134,7 @@ export async function renderEditorView(
       selectedSpeelsystemen = [...existingStand.speelsystemen];
       selectedTypes = [...existingStand.types];
       selectedMoeilijkheid = existingStand.moeilijkheid;
+      selectedBoekstijl = existingStand.boekstijl || "";
       solutionZetten = existingStand.zetten ? existingStand.zetten.map((m) => ({ ...m })) : [];
       if (solutionZetten.length === 0 && existingStand.oplossing) {
         legacyOplossingRefHost.innerHTML = `<p style="font-size:0.85rem;color:#666;">Bestaande oplossingstekst (ter referentie): ${escapeHtml(
@@ -248,6 +257,40 @@ export async function renderEditorView(
     btn.classList.toggle("selected");
   });
 
+  // Alleen bij een via-foto herkende stand: uit welk boek dit diagram komt, als
+  // trainingsmateriaal voor de fotoherkenning (zie herkenningLog.js). Eén keuze per
+  // stand — geen los tekstveld, zodat dezelfde boeknaam altijd hetzelfde gespeld is.
+  async function renderBoekstijlPicker() {
+    if (!boekstijlHost) return;
+    const values = await getList("boekstijl");
+    boekstijlHost.innerHTML = "";
+    for (const value of values) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "tag";
+      btn.textContent = value;
+      if (selectedBoekstijl === value) btn.classList.add("selected");
+      btn.addEventListener("click", () => {
+        selectedBoekstijl = selectedBoekstijl === value ? "" : value;
+        renderBoekstijlPicker();
+      });
+      boekstijlHost.appendChild(btn);
+    }
+    const addBtn = document.createElement("button");
+    addBtn.type = "button";
+    addBtn.className = "tag";
+    addBtn.textContent = "+ nieuw";
+    addBtn.addEventListener("click", async () => {
+      const naam = prompt("Uit welk boek of tijdschrift komt dit diagram?");
+      if (!naam || !naam.trim()) return;
+      await addListValue("boekstijl", naam.trim());
+      selectedBoekstijl = naam.trim();
+      renderBoekstijlPicker();
+    });
+    boekstijlHost.appendChild(addBtn);
+  }
+  await renderBoekstijlPicker();
+
   function renderStars() {
     starsHost.innerHTML = "";
     for (let i = 1; i <= MOEILIJKHEID_MAX; i++) {
@@ -280,6 +323,7 @@ export async function renderEditorView(
       moeilijkheid: selectedMoeilijkheid,
       notities: el('[data-field="notities"]').value.trim(),
       foto: photoDataUrl ?? existingStand?.foto ?? null,
+      boekstijl: selectedBoekstijl || existingStand?.boekstijl || "",
       gebruiktIn: existingStand?.gebruiktIn ?? [],
     };
   }
@@ -315,6 +359,7 @@ export async function renderEditorView(
           finalBoard: boardEditor.getBoard(),
           confidences,
           modelVersion,
+          boekstijl: selectedBoekstijl || null,
         });
       } catch (err) {
         console.warn("Kon herkenningscorrectie niet loggen:", err);

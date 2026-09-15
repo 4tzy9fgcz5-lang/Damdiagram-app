@@ -96,6 +96,23 @@ h2:first-child {
   text-align: center;
 }
 
+.editor-photo-row {
+  display: flex;
+  gap: 1.25rem;
+  align-items: flex-start;
+  justify-content: center;
+}
+
+.editor-photo-block {
+  width: 220px;
+  flex: 0 0 auto;
+  text-align: left;
+}
+
+.editor-board-wrap {
+  flex: 0 0 auto;
+}
+
 .editor-form-col {
   flex: 1 1 320px;
   min-width: 280px;
@@ -226,6 +243,14 @@ textarea {
   padding: 0.6rem 0.8rem;
   margin-top: 0.75rem;
   font-size: 0.9rem;
+}
+
+.editor-board-col .warnings {
+  /* Zonder dit trekt een lange melding (bv. "wit op veld 1-5") de hele kolom
+     ernaast mee breder — die is een flex-item dat zich anders aan zijn breedste
+     kind aanpast, en dan verspringt de pagina zodra de melding verschijnt/verdwijnt.
+     320px = de vaste breedte van het bord zelf, dus nooit breder dan dat al was. */
+  max-width: 320px;
 }
 
 .warnings ul {
@@ -406,6 +431,15 @@ a.secondary {
 }
 
 @media (max-width: 600px) {
+  .editor-photo-row {
+    flex-direction: column;
+    align-items: center;
+  }
+  .editor-photo-block {
+    width: 100%;
+    max-width: 320px;
+    text-align: center;
+  }
   .solution-layout {
     flex-direction: column;
     align-items: center;
