@@ -1,17 +1,19 @@
-import { renderDiagramSVG } from "../diagram/render.js?v=20260916f";
-import { parseFen } from "../core/fen.js?v=20260916f";
-import { listStanden, resolveOplossingTekst } from "../db/standen.js?v=20260916f";
-import { getList } from "../db/lijsten.js?v=20260916f";
-import { svgToPngDataUrl } from "../export/rasterize.js?v=20260916f";
-import { downloadBlob } from "../export/docx.js?v=20260916f";
+import { renderDiagramSVG } from "../diagram/render.js?v=20260916g";
+import { parseFen } from "../core/fen.js?v=20260916g";
+import { listStanden, resolveOplossingTekst } from "../db/standen.js?v=20260916g";
+import { getList } from "../db/lijsten.js?v=20260916g";
+import { svgToPngDataUrl } from "../export/rasterize.js?v=20260916g";
+import { downloadBlob } from "../export/docx.js?v=20260916g";
 
 // Onthoudt de filterkeuzes zolang de pagina open staat (niet in IndexedDB),
 // zodat teruggaan vanaf een standdetailpagina niet alle filters wist.
 let savedFilterState = null;
+let savedMissingOnly = false;
 
 export async function renderDatabaseView(container, { onOpenStand, onAddSelectionToStencil } = {}) {
   container.innerHTML = `
     <h2>Mijn standen</h2>
+    <div data-role="missingWarning" style="display:none;margin-bottom:0.75rem;"></div>
     <div class="card">
       <div class="filters">
         <input type="text" data-field="search" placeholder="Zoeken op auteur, publicatie, notities..." />
@@ -50,9 +52,11 @@ export async function renderDatabaseView(container, { onOpenStand, onAddSelectio
   const emptyMsg = el('[data-role="empty"]');
   const selectionBar = el('[data-role="selectionBar"]');
   const selectionCount = el('[data-role="selectionCount"]');
+  const missingWarning = el('[data-role="missingWarning"]');
 
   const selected = new Set();
   let lastRendered = [];
+  let missingOnly = savedMissingOnly;
 
   const [speelsystemen, types] = await Promise.all([getList("speelsysteem"), getList("type")]);
   fillOptions(el('[data-field="speelsysteem"]'), speelsystemen);
@@ -94,14 +98,38 @@ export async function renderDatabaseView(container, { onOpenStand, onAddSelectio
       speelsysteem: raw.speelsysteem || undefined,
       type: raw.type || undefined,
       moeilijkheid: raw.moeilijkheid ? Number.parseInt(raw.moeilijkheid, 10) : undefined,
+      metOplossing: missingOnly ? false : undefined,
       sortBy,
       sortDir,
     };
   }
 
+  function updateMissingWarning(missingCount) {
+    if (missingOnly) {
+      missingWarning.style.display = "block";
+      missingWarning.innerHTML = `
+        <button type="button" data-action="clear-missing" style="background:#fdeaea;color:var(--kleur-fout);border:1px solid var(--kleur-fout);border-radius:8px;padding:0.5rem 0.9rem;cursor:pointer;">
+          Filter actief: alleen standen zonder oplossing. Klik om te wissen.
+        </button>
+      `;
+    } else if (missingCount > 0) {
+      missingWarning.style.display = "block";
+      missingWarning.innerHTML = `
+        <button type="button" data-action="show-missing" style="background:#fdeaea;color:var(--kleur-fout);border:1px solid var(--kleur-fout);border-radius:8px;padding:0.5rem 0.9rem;cursor:pointer;">
+          ⚠ ${missingCount} stand(en) zonder oplossing — bekijk ze
+        </button>
+      `;
+    } else {
+      missingWarning.style.display = "none";
+      missingWarning.innerHTML = "";
+    }
+  }
+
   async function refresh() {
     const standen = await listStanden(currentFilters());
     lastRendered = standen;
+    const missingCount = missingOnly ? standen.length : (await listStanden({ metOplossing: false })).length;
+    updateMissingWarning(missingCount);
     grid.innerHTML = "";
     emptyMsg.style.display = standen.length ? "none" : "block";
 
@@ -171,11 +199,31 @@ export async function renderDatabaseView(container, { onOpenStand, onAddSelectio
     el('[data-field="type"]').value = "";
     el('[data-field="moeilijkheid"]').value = "";
     el('[data-field="sort"]').value = "createdAt-desc";
+    missingOnly = false;
+    savedMissingOnly = false;
     refresh();
   });
 
+  missingWarning.addEventListener("click", (e) => {
+    const action = e.target.dataset.action;
+    if (action === "show-missing") {
+      missingOnly = true;
+      savedMissingOnly = true;
+      el('[data-field="search"]').value = "";
+      el('[data-field="speelsysteem"]').value = "";
+      el('[data-field="type"]').value = "";
+      el('[data-field="moeilijkheid"]').value = "";
+      el('[data-field="sort"]').value = "createdAt-desc";
+      refresh();
+    } else if (action === "clear-missing") {
+      missingOnly = false;
+      savedMissingOnly = false;
+      refresh();
+    }
+  });
+
   el('[data-action="share-selection"]').addEventListener("click", async () => {
-    const { buildShareData } = await import("../db/backup.js?v=20260916f");
+    const { buildShareData } = await import("../db/backup.js?v=20260916g");
     const data = await buildShareData([...selected]);
     const json = JSON.stringify(data);
     const encoded = btoa(unescape(encodeURIComponent(json)))

@@ -1,8 +1,8 @@
-import { exportAll, importAll } from "../db/backup.js?v=20260916f";
-import { listStanden } from "../db/standen.js?v=20260916f";
-import { buildCsv, buildPdnText } from "../export/portable.js?v=20260916f";
-import { downloadBlob } from "../export/docx.js?v=20260916f";
-import { buildTrainingZip, countTrainingRecords } from "../export/trainingExport.js?v=20260916f";
+import { exportAll, importAll } from "../db/backup.js?v=20260916g";
+import { listStanden } from "../db/standen.js?v=20260916g";
+import { buildCsv, buildPdnText } from "../export/portable.js?v=20260916g";
+import { downloadBlob } from "../export/docx.js?v=20260916g";
+import { buildTrainingZip, countTrainingRecords } from "../export/trainingExport.js?v=20260916g";
 
 const LAST_BACKUP_KEY = "damstencil_lastBackup";
 
@@ -19,10 +19,8 @@ function todayStamp() {
   return new Date().toISOString().slice(0, 10);
 }
 
-export async function renderBackupView(container) {
+export async function renderBackupSection(container) {
   container.innerHTML = `
-    <h2>Back-up en overdracht</h2>
-
     <div class="card">
       <h2 style="margin-top:0;">Back-up maken</h2>
       <p>Download je hele verzameling (standen, stencils en eigen lijsten) als één bestand. Bewaar dit ergens veilig, bijvoorbeeld in je e-mail of een cloudmap.</p>
@@ -53,14 +51,6 @@ export async function renderBackupView(container) {
         <button type="button" class="secondary" data-action="csv">Exporteer als CSV</button>
         <button type="button" class="secondary" data-action="pdn">Exporteer als leesbare tekst</button>
       </div>
-    </div>
-
-    <div class="card">
-      <h2 style="margin-top:0;">Trainingsmateriaal voor de fotoherkenning</h2>
-      <p>Elke keer dat je een stand invoert via een foto, wordt automatisch bewaard wat de herkenning dacht en wat de uiteindelijke stand werd — dat is bruikbaar materiaal om de fotoherkenning opnieuw te trainen. Deze knop zet het om naar het bestand dat het trainingsprogramma nodig heeft (uitpakken op de laptop en daarna opnieuw trainen).</p>
-      <p data-role="training-count" style="color:#666;font-size:0.85rem;"></p>
-      <button type="button" class="secondary" data-action="training-export">Exporteer voor trainen (ZIP)</button>
-      <p data-role="training-status" style="color:#666;font-size:0.85rem;margin-top:0.5rem;"></p>
     </div>
 
     <div class="card">
@@ -117,6 +107,20 @@ export async function renderBackupView(container) {
     const standen = await listStanden();
     downloadBlob(new Blob([buildPdnText(standen)], { type: "text/plain" }), `damstencil-standen-${todayStamp()}.pdn`);
   });
+}
+
+export async function renderTrainingSection(container) {
+  container.innerHTML = `
+    <div class="card">
+      <h2 style="margin-top:0;">Trainingsmateriaal voor de fotoherkenning</h2>
+      <p>Elke keer dat je een stand invoert via een foto, wordt automatisch bewaard wat de herkenning dacht en wat de uiteindelijke stand werd — dat is bruikbaar materiaal om de fotoherkenning opnieuw te trainen. Deze knop zet het om naar het bestand dat het trainingsprogramma nodig heeft (uitpakken op de laptop en daarna opnieuw trainen).</p>
+      <p data-role="training-count" style="color:#666;font-size:0.85rem;"></p>
+      <button type="button" class="secondary" data-action="training-export">Exporteer voor trainen (ZIP)</button>
+      <p data-role="training-status" style="color:#666;font-size:0.85rem;margin-top:0.5rem;"></p>
+    </div>
+  `;
+
+  const el = (sel) => container.querySelector(sel);
 
   const trainingCount = el('[data-role="training-count"]');
   countTrainingRecords()

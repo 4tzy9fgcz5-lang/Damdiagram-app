@@ -1,16 +1,17 @@
-import { renderEditorView } from "./editorView.js?v=20260916f";
-import { renderDatabaseView } from "./databaseView.js?v=20260916f";
-import { renderStandDetailView } from "./standDetailView.js?v=20260916f";
-import { renderStencilsListView } from "./stencilsListView.js?v=20260916f";
-import { renderStencilView, addStandenToStencil } from "./stencilView.js?v=20260916f";
-import { renderBackupView, getLastBackupDate } from "./backupView.js?v=20260916f";
-import { renderImportView } from "./importView.js?v=20260916f";
-import { renderPhotoImportView } from "./photoImportView.js?v=20260916f";
-import { renderBulkImportView } from "./bulkImportView.js?v=20260916f";
-import { renderDiagramCapture, cropAroundCorners } from "./diagramCaptureView.js?v=20260916f";
-import { listStanden } from "../db/standen.js?v=20260916f";
+import { renderEditorView } from "./editorView.js?v=20260916g";
+import { renderDatabaseView } from "./databaseView.js?v=20260916g";
+import { renderStandDetailView } from "./standDetailView.js?v=20260916g";
+import { renderStencilsListView } from "./stencilsListView.js?v=20260916g";
+import { renderStencilView, addStandenToStencil } from "./stencilView.js?v=20260916g";
+import { getLastBackupDate } from "./backupView.js?v=20260916g";
+import { renderSettingsView } from "./settingsView.js?v=20260916g";
+import { renderImportView } from "./importView.js?v=20260916g";
+import { renderPhotoImportView } from "./photoImportView.js?v=20260916g";
+import { renderBulkImportView } from "./bulkImportView.js?v=20260916g";
+import { renderDiagramCapture, cropAroundCorners } from "./diagramCaptureView.js?v=20260916g";
+import { listStanden } from "../db/standen.js?v=20260916g";
 
-const routes = ["nieuw", "foto", "bulk", "bulk-diagram", "database", "stand", "stencils", "stencil", "backup", "import"];
+const routes = ["nieuw", "foto", "bulk", "bulk-diagram", "database", "stand", "stencils", "stencil", "instellingen", "import"];
 let pendingRecognition = null;
 // Actieve bulk-import-rij: { drawable (hele paginafoto), diagrams: [{corners}], index }.
 // Alleen in het geheugen — bij een paginaherlaad ben je de voortgang kwijt (zie
@@ -41,8 +42,8 @@ const NAV_FOR_ROUTE = {
   stand: "database",
   stencils: "stencils",
   stencil: "stencils",
-  backup: "backup",
-  import: "backup",
+  instellingen: "instellingen",
+  import: "instellingen",
 };
 
 const BACKUP_REMINDER_DAYS = 14;
@@ -127,8 +128,16 @@ async function render() {
         location.hash = "#/database";
       },
     });
-  } else if (name === "backup") {
-    await renderBackupView(app);
+  } else if (name === "instellingen") {
+    await renderSettingsView(app, {
+      section: param,
+      onOpenSection: (slug) => {
+        location.hash = `#/instellingen/${slug}`;
+      },
+      onBack: () => {
+        location.hash = "#/instellingen";
+      },
+    });
   } else if (name === "import") {
     await renderImportView(app, {
       encoded: param,
