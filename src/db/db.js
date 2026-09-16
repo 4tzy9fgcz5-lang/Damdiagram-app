@@ -3,8 +3,8 @@ import {
   SCHEMA_VERSION,
   MIGRATIONS,
   STORE_LIJSTEN,
-  DEFAULT_LISTS,
-} from "./schema.js?v=20260917h";
+  DEFAULT_CATEGORIEEN,
+} from "./schema.js?v=20260918a";
 
 let dbPromise = null;
 let currentDb = null;
@@ -26,7 +26,7 @@ export function openDb() {
     request.onsuccess = async () => {
       const db = request.result;
       db.onversionchange = () => db.close();
-      await ensureDefaultLists(db);
+      await ensureDefaultCategorieen(db);
       currentDb = db;
       resolve(db);
     };
@@ -37,13 +37,19 @@ export function openDb() {
   return dbPromise;
 }
 
-async function ensureDefaultLists(db) {
-  for (const [naam, waarden] of Object.entries(DEFAULT_LISTS)) {
-    const existing = await tx(db, STORE_LIJSTEN, "readonly", (store) => promisify(store.get(naam)));
+// Zet de twee starterscategorieën neer in een gloednieuwe database, en
+// repareert (eenmalig, bij elke opstart onschadelijk) oudere databases die de
+// twee lijsten al hadden van vóór de configureerbare filtercategorieën —
+// toen misten ze nog een `label` (de vrij te hernoemen weergavetekst).
+async function ensureDefaultCategorieen(db) {
+  for (const { key, label, waarden } of DEFAULT_CATEGORIEEN) {
+    const existing = await tx(db, STORE_LIJSTEN, "readonly", (store) => promisify(store.get(key)));
     if (!existing) {
       await tx(db, STORE_LIJSTEN, "readwrite", (store) =>
-        promisify(store.put({ naam, waarden: [...waarden] }))
+        promisify(store.put({ naam: key, label, waarden: [...waarden] }))
       );
+    } else if (existing.label == null) {
+      await tx(db, STORE_LIJSTEN, "readwrite", (store) => promisify(store.put({ ...existing, label })));
     }
   }
 }

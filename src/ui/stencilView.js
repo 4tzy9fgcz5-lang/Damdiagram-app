@@ -1,11 +1,11 @@
-import { getStencil, saveStencil } from "../db/stencils.js?v=20260917h";
-import { getStand, saveStand } from "../db/standen.js?v=20260917h";
-import { resolveStencilItems } from "../stencil/compose.js?v=20260917h";
-import { buildStencilPagesHTML, missingOplossingen } from "../stencil/stencilPreview.js?v=20260917h";
-import { buildStencilDocxBlob, downloadBlob } from "../export/docx.js?v=20260917h";
-import { renderDiagramSVG } from "../diagram/render.js?v=20260917h";
-import { parseFen } from "../core/fen.js?v=20260917h";
-import { MAX_DIAGRAMS_PER_PAGE } from "../stencil/layout.js?v=20260917h";
+import { getStencil, saveStencil } from "../db/stencils.js?v=20260918a";
+import { getStand, saveStand } from "../db/standen.js?v=20260918a";
+import { resolveStencilItems } from "../stencil/compose.js?v=20260918a";
+import { buildStencilPagesHTML, missingOplossingen } from "../stencil/stencilPreview.js?v=20260918a";
+import { buildStencilDocxBlob, downloadBlob } from "../export/docx.js?v=20260918a";
+import { renderDiagramSVG } from "../diagram/render.js?v=20260918a";
+import { parseFen } from "../core/fen.js?v=20260918a";
+import { MAX_DIAGRAMS_PER_PAGE } from "../stencil/layout.js?v=20260918a";
 
 export async function renderStencilView(container, { stencilId, onOpenStand, onGotoDatabaseToAdd, onBack } = {}) {
   let stencil = await getStencil(stencilId);
@@ -238,9 +238,10 @@ export async function renderStencilView(container, { stencilId, onOpenStand, onG
 // dat er bewust al stond).
 function autoOpdracht(stand) {
   if (!stand || stand.opdracht) return "";
+  const types = stand.categorieen?.type ?? [];
   const labels = [];
-  if (stand.types?.includes("forcing")) labels.push("Forcing");
-  if (stand.types?.includes("lokzet")) labels.push("Lokzet");
+  if (types.includes("forcing")) labels.push("Forcing");
+  if (types.includes("lokzet")) labels.push("Lokzet");
   return labels.join(", ");
 }
 

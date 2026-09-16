@@ -1,8 +1,8 @@
-import { openDb, tx, promisify, newId } from "./db.js?v=20260917h";
-import { STORE_STANDEN } from "./schema.js?v=20260917h";
-import { parseFen, boardToFen } from "../core/fen.js?v=20260917h";
-import { mirrorBoard } from "../core/board.js?v=20260917h";
-import { formatZettenMetVarianten } from "../core/draughtsMoves.js?v=20260917h";
+import { openDb, tx, promisify, newId } from "./db.js?v=20260918a";
+import { STORE_STANDEN } from "./schema.js?v=20260918a";
+import { parseFen, boardToFen } from "../core/fen.js?v=20260918a";
+import { mirrorBoard } from "../core/board.js?v=20260918a";
+import { formatZettenMetVarianten } from "../core/draughtsMoves.js?v=20260918a";
 
 function canonicalFens(fenString) {
   const { board, turn } = parseFen(fenString);
@@ -28,6 +28,20 @@ function nowIso() {
   return new Date().toISOString();
 }
 
+// Kenmerken per filtercategorie (bv. { speelsysteem: ["Keller"], type: [...] })
+// staan sinds 2026-09-18 in dit ene, vrij uit te breiden veld in plaats van
+// een los `speelsystemen`- en `types`-veld. Oudere, al opgeslagen standen (of
+// een oude back-up die je terugzet) hebben dat veld nog niet — deze functie
+// leidt het dan alsnog af van de twee oude velden, zodat je nergens iets van
+// hoeft te migreren en beide vormen gewoon blijven werken.
+function normalizeCategorieen(record) {
+  if (record.categorieen) return record.categorieen;
+  const categorieen = {};
+  if (record.speelsystemen?.length) categorieen.speelsysteem = [...record.speelsystemen];
+  if (record.types?.length) categorieen.type = [...record.types];
+  return categorieen;
+}
+
 export async function saveStand(input) {
   if (!input.fen) throw new Error("Een stand moet een FEN hebben.");
   const { fen, mirrorFen } = canonicalFens(input.fen);
@@ -43,8 +57,7 @@ export async function saveStand(input) {
     auteur: input.auteur ?? "",
     jaartal: input.jaartal ?? null,
     publicatie: input.publicatie ?? "",
-    speelsystemen: input.speelsystemen ?? [],
-    types: input.types ?? [],
+    categorieen: normalizeCategorieen(input),
     moeilijkheid: input.moeilijkheid ?? null,
     notities: input.notities ?? "",
     zetten: input.zetten ?? [],
@@ -67,7 +80,9 @@ export async function saveStand(input) {
 
 export async function getStand(id) {
   const db = await openDb();
-  return tx(db, STORE_STANDEN, "readonly", (store) => promisify(store.get(id)));
+  const record = await tx(db, STORE_STANDEN, "readonly", (store) => promisify(store.get(id)));
+  if (!record) return record;
+  return { ...record, categorieen: normalizeCategorieen(record) };
 }
 
 export async function deleteStand(id) {
@@ -77,7 +92,8 @@ export async function deleteStand(id) {
 
 async function getAllStanden() {
   const db = await openDb();
-  return tx(db, STORE_STANDEN, "readonly", (store) => promisify(store.getAll()));
+  const all = await tx(db, STORE_STANDEN, "readonly", (store) => promisify(store.getAll()));
+  return all.map((record) => ({ ...record, categorieen: normalizeCategorieen(record) }));
 }
 
 export async function findDuplicates(fenString) {
@@ -94,8 +110,15 @@ function matchesFilters(stand, filters) {
     const haystack = `${stand.auteur} ${stand.publicatie} ${stand.notities}`.toLowerCase();
     if (!haystack.includes(q)) return false;
   }
-  if (filters.speelsysteem && !stand.speelsystemen.includes(filters.speelsysteem)) return false;
-  if (filters.type && !stand.types.includes(filters.type)) return false;
+  // filters.categorieen: { [categorieKey]: { waarde } | { ongedefinieerd: true } }
+  for (const [key, spec] of Object.entries(filters.categorieen ?? {})) {
+    const waarden = stand.categorieen?.[key] ?? [];
+    if (spec.ongedefinieerd) {
+      if (waarden.length > 0) return false;
+    } else if (spec.waarde && !waarden.includes(spec.waarde)) {
+      return false;
+    }
+  }
   if (filters.moeilijkheid && stand.moeilijkheid !== filters.moeilijkheid) return false;
   if (filters.moeilijkheidOngedefinieerd && stand.moeilijkheid != null) return false;
   if (filters.jaartal && stand.jaartal !== filters.jaartal) return false;
@@ -120,6 +143,21 @@ export async function listStanden(filters = {}) {
   const sortDir = filters.sortDir ?? "desc";
   filtered.sort((a, b) => compareStanden(a, b, sortBy, sortDir));
   return filtered;
+}
+
+// Massaal een kenmerk toewijzen (database-pagina, selectie -> "Kenmerken
+// toevoegen"): de waarde komt er per geselecteerde stand bij, bestaande
+// kenmerken in diezelfde categorie blijven staan (nooit vervangen — dat kan
+// per ongeluk kenmerken van een deel van de selectie wegdrukken die je niet
+// bedoeld had te wijzigen).
+export async function bulkAddCategorieWaarde(standIds, key, waarde) {
+  for (const id of standIds) {
+    const stand = await getStand(id);
+    if (!stand) continue;
+    const huidig = stand.categorieen?.[key] ?? [];
+    if (huidig.includes(waarde)) continue;
+    await saveStand({ ...stand, categorieen: { ...stand.categorieen, [key]: [...huidig, waarde] } });
+  }
 }
 
 export async function markUsedIn(standId, stencilId) {

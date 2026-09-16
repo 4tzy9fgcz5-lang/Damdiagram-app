@@ -1,11 +1,22 @@
-import { renderBackupSection, renderTrainingSection } from "./backupView.js?v=20260917h";
-import { getVerbergOplossing, setVerbergOplossing } from "../db/uiSettings.js?v=20260917h";
+import { renderBackupSection, renderTrainingSection } from "./backupView.js?v=20260918a";
+import { getVerbergOplossing, setVerbergOplossing } from "../db/uiSettings.js?v=20260918a";
+import { getAllCategorieen, addCategorie, renameCategorie, removeCategorie } from "../db/categorieen.js?v=20260918a";
+import { listStanden } from "../db/standen.js?v=20260918a";
+
+function escapeHtml(str) {
+  return str.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
 
 function renderPlaceholder(container) {
   container.innerHTML = `<div class="card"><p style="color:#666;">Hier komt later meer.</p></div>`;
 }
 
-function renderDatabaseSettingsSection(container) {
+// Filtercategorieën (Speelsysteem, Type, en wat Jan er zelf bij maakt) staan
+// als los filter op de database-pagina en als aanklikbare kenmerken bij het
+// invoeren van een stand — hier kun je ze hernoemen, verwijderen of nieuwe
+// toevoegen. De waarden zélf (bv. "Keller" binnen Speelsysteem) beheer je nog
+// steeds met "+ nieuw" op het invoerscherm.
+async function renderDatabaseSettingsSection(container) {
   container.innerHTML = `
     <div class="card">
       <label style="display:flex;align-items:center;gap:0.5rem;font-weight:normal;">
@@ -13,10 +24,71 @@ function renderDatabaseSettingsSection(container) {
         Oplossing verbergen tot ik erop klik (mocht je zelf willen puzzelen)
       </label>
     </div>
+    <div class="card">
+      <h3 style="margin-top:0;">Filtercategorieën</h3>
+      <p style="font-size:0.85rem;color:#666;">
+        Deze staan als filter op de database-pagina en als aanklikbare kenmerken bij het invoeren van een stand.
+      </p>
+      <div data-role="categorieList"></div>
+      <div class="button-row">
+        <button type="button" class="secondary" data-action="add-categorie">+ Nieuwe categorie</button>
+      </div>
+    </div>
   `;
   const checkbox = container.querySelector('[data-field="verberg-oplossing"]');
   checkbox.checked = getVerbergOplossing();
   checkbox.addEventListener("change", () => setVerbergOplossing(checkbox.checked));
+
+  const listHost = container.querySelector('[data-role="categorieList"]');
+
+  async function renderCategorieList() {
+    const categorieen = await getAllCategorieen();
+    if (categorieen.length === 0) {
+      listHost.innerHTML = '<p style="color:#666;font-size:0.85rem;">Nog geen categorieën.</p>';
+      return;
+    }
+    listHost.innerHTML = categorieen
+      .map(
+        (c) => `
+        <div class="solution-variant-row">
+          <span style="flex:1;">${escapeHtml(c.label)} <span style="color:#666;font-size:0.85rem;">(${c.waarden.length} waarde${c.waarden.length === 1 ? "" : "n"})</span></span>
+          <button type="button" class="secondary" data-action="rename-categorie" data-key="${c.key}">Hernoemen</button>
+          <button type="button" class="secondary" data-action="delete-categorie" data-key="${c.key}">Verwijderen</button>
+        </div>`
+      )
+      .join("");
+    for (const btn of listHost.querySelectorAll('[data-action="rename-categorie"]')) {
+      btn.addEventListener("click", async () => {
+        const cat = categorieen.find((c) => c.key === btn.dataset.key);
+        const nieuw = prompt("Nieuwe naam voor deze categorie:", cat?.label ?? "");
+        if (!nieuw || !nieuw.trim()) return;
+        await renameCategorie(btn.dataset.key, nieuw.trim());
+        await renderCategorieList();
+      });
+    }
+    for (const btn of listHost.querySelectorAll('[data-action="delete-categorie"]')) {
+      btn.addEventListener("click", async () => {
+        const cat = categorieen.find((c) => c.key === btn.dataset.key);
+        const alleStanden = await listStanden();
+        const inGebruik = alleStanden.filter((s) => (s.categorieen?.[btn.dataset.key]?.length ?? 0) > 0).length;
+        const melding =
+          inGebruik > 0
+            ? `Categorie "${cat?.label}" verwijderen? Die staat nog bij ${inGebruik} stand(en) ingevuld — die gegevens blijven bewaard, maar worden nergens meer getoond of doorzoekbaar zodra de categorie weg is.`
+            : `Categorie "${cat?.label}" verwijderen?`;
+        if (!confirm(melding)) return;
+        await removeCategorie(btn.dataset.key);
+        await renderCategorieList();
+      });
+    }
+  }
+  await renderCategorieList();
+
+  container.querySelector('[data-action="add-categorie"]').addEventListener("click", async () => {
+    const naam = prompt("Naam van de nieuwe categorie:");
+    if (!naam || !naam.trim()) return;
+    await addCategorie(naam.trim());
+    await renderCategorieList();
+  });
 }
 
 const SECTIES = [

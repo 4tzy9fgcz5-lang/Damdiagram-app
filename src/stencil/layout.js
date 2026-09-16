@@ -1,17 +1,10 @@
-const GRID_TABLE = {
-  1: { cols: 1, rows: 1 },
-  2: { cols: 2, rows: 1 },
-  3: { cols: 3, rows: 1 },
-  4: { cols: 2, rows: 2 },
-  5: { cols: 3, rows: 2 },
-  6: { cols: 3, rows: 2 },
-  7: { cols: 3, rows: 3 },
-  8: { cols: 3, rows: 3 },
-  9: { cols: 3, rows: 3 },
-  10: { cols: 3, rows: 4 },
-  11: { cols: 3, rows: 4 },
-  12: { cols: 3, rows: 4 },
-};
+// Vast rooster (3 kolommen x 4 rijen = de volle pagina van 12), ongeacht hoe
+// weinig diagrammen er op een bepaalde pagina staan. Eerder kreeg een pagina
+// met bv. 2 diagrammen een eigen, grotere rastercel toebedeeld (2 kolommen x
+// 1 rij) — de diagrammen werden daardoor véél groter dan op een volle pagina.
+// Nu blijft elk diagram overal even groot; een pagina met minder dan 12
+// diagrammen laat de rest van het rooster gewoon leeg (linksboven gevuld).
+const FIXED_GRID = { cols: 3, rows: 4 };
 
 // Een opgaveblad kent geen bovengrens meer aan het totaal aantal diagrammen,
 // maar op één A4-pagina passen er niet meer dan dit aantal (zie paginateItems).
@@ -21,7 +14,7 @@ export function getGridLayout(count) {
   if (count < 1 || count > MAX_DIAGRAMS_PER_PAGE) {
     throw new RangeError(`Een pagina heeft 1 tot ${MAX_DIAGRAMS_PER_PAGE} diagrammen, niet ${count}.`);
   }
-  return GRID_TABLE[count];
+  return FIXED_GRID;
 }
 
 // Splitst alle items van een opgaveblad in pagina's van elk maximaal

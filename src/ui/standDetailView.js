@@ -1,23 +1,28 @@
-import { parseFen } from "../core/fen.js?v=20260917h";
-import { getStand, saveStand, deleteStand } from "../db/standen.js?v=20260917h";
-import { createSolutionPlayer } from "./solutionPlayer.js?v=20260917h";
-import { getVerbergOplossing } from "../db/uiSettings.js?v=20260917h";
-import { renderDiagramSVG } from "../diagram/render.js?v=20260917h";
-import { svgToPngDataUrl } from "../export/rasterize.js?v=20260917h";
-import { downloadBlob } from "../export/docx.js?v=20260917h";
+import { parseFen } from "../core/fen.js?v=20260918a";
+import { getStand, saveStand, deleteStand } from "../db/standen.js?v=20260918a";
+import { getAllCategorieen } from "../db/categorieen.js?v=20260918a";
+import { createSolutionPlayer } from "./solutionPlayer.js?v=20260918a";
+import { getVerbergOplossing } from "../db/uiSettings.js?v=20260918a";
+import { renderDiagramSVG } from "../diagram/render.js?v=20260918a";
+import { svgToPngDataUrl } from "../export/rasterize.js?v=20260918a";
+import { downloadBlob } from "../export/docx.js?v=20260918a";
 
 function capitalize(str) {
   return str.charAt(0).toUpperCase() + str.slice(1);
 }
 
 // Rijen voor de infotabel onder de oplossing — alleen wat er daadwerkelijk is
-// ingevuld, in een vaste volgorde. Moeilijkheidsgraad staat er los van (zie
+// ingevuld, in een vaste volgorde: eerst elke filtercategorie die iets heeft
+// staan (Speelsysteem, Type, en wat er verder via Instellingen -> Database is
+// toegevoegd), dan auteur/publicatie. Moeilijkheidsgraad staat er los van (zie
 // renderMoeilijkheidStars): die rij is altijd zichtbaar, ook zonder waarde,
 // en is aanklikbaar.
-function metaRows(stand) {
+async function metaRows(stand) {
   const rows = [];
-  if (stand.speelsystemen.length) rows.push(["Speelsysteem", escapeHtml(stand.speelsystemen.join(", "))]);
-  if (stand.types.length) rows.push(["Speltype", escapeHtml(stand.types.map(capitalize).join(", "))]);
+  for (const cat of await getAllCategorieen()) {
+    const waarden = stand.categorieen?.[cat.key] ?? [];
+    if (waarden.length) rows.push([escapeHtml(cat.label), escapeHtml(waarden.join(", "))]);
+  }
   if (stand.auteur || stand.jaartal) {
     const tekst = [stand.auteur, stand.jaartal ? `(${stand.jaartal})` : ""].filter(Boolean).join(" ");
     rows.push(["Auteur", escapeHtml(tekst)]);
@@ -42,10 +47,11 @@ export async function renderStandDetailView(
   const basisOpgave = stand.opdracht?.trim() || (turn === "white" ? "Wit speelt en wint" : "Zwart speelt en wint");
   // Een speciaal speltype (forcing, lokzet, ...) komt vooraan te staan, zodat in
   // één oogopslag duidelijk is om wat voor soort opgave het gaat.
-  const typePrefix = stand.types.length ? stand.types.map(capitalize).join(", ") : "";
+  const types = stand.categorieen?.type ?? [];
+  const typePrefix = types.length ? types.map(capitalize).join(", ") : "";
   const opgave = typePrefix ? `${typePrefix} - ${basisOpgave}` : basisOpgave;
 
-  const rows = metaRows(stand);
+  const rows = await metaRows(stand);
 
   container.innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;margin-bottom:0.75rem;">

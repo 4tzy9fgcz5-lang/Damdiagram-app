@@ -7,10 +7,19 @@ export const STORE_STENCILS = "stencils";
 export const STORE_META = "meta";
 export const STORE_HERKENNING_LOG = "herkenningCorrecties";
 
-export const DEFAULT_LISTS = {
-  speelsysteem: ["klassiek", "flankspel", "Roozenburg", "Keller", "compositie met eindspel"],
-  type: ["directe combinatie", "forcing", "lokzet", "eindspel"],
-};
+// De twee filtercategorieën waar de app ooit mee gestart is — sindsdien
+// (2026-09-18) kan Jan er via Instellingen -> Database zelf categorieën bij
+// maken, hernoemen of verwijderen (zie src/db/categorieen.js). Deze twee zijn
+// verder niets bijzonders meer, alleen de starterswaarden voor een nieuwe,
+// lege database.
+export const DEFAULT_CATEGORIEEN = [
+  {
+    key: "speelsysteem",
+    label: "Speelsysteem",
+    waarden: ["klassiek", "flankspel", "Roozenburg", "Keller", "compositie met eindspel"],
+  },
+  { key: "type", label: "Type", waarden: ["directe combinatie", "forcing", "lokzet", "eindspel"] },
+];
 
 // Migraties draaien in volgorde op basis van de oude versie van de database.
 // Elke migratie krijgt de open upgrade-transactie (db, tx) en moet synchroon werken,

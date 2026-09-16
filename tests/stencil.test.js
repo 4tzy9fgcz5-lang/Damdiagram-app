@@ -1,17 +1,15 @@
-import { describe, it, assertEqual, assertThrows } from "./test-runner.js?v=20260917h";
-import { getGridLayout, computeCellRects, paginateItems, MAX_DIAGRAMS_PER_PAGE } from "../src/stencil/layout.js?v=20260917h";
-import { buildStencilPagesHTML, missingOplossingen } from "../src/stencil/stencilPreview.js?v=20260917h";
-import { opdrachtregelMetOndertitel } from "../src/stencil/compose.js?v=20260917h";
+import { describe, it, assertEqual, assertThrows } from "./test-runner.js?v=20260918a";
+import { getGridLayout, computeCellRects, paginateItems, MAX_DIAGRAMS_PER_PAGE } from "../src/stencil/layout.js?v=20260918a";
+import { buildStencilPagesHTML, missingOplossingen } from "../src/stencil/stencilPreview.js?v=20260918a";
+import { opdrachtregelMetOndertitel } from "../src/stencil/compose.js?v=20260918a";
 
 describe("stencil: rasterindeling", () => {
-  it("gebruikt 3 kolommen x 4 rijen bij 12 diagrammen", () => {
+  it("gebruikt altijd 3 kolommen x 4 rijen, ongeacht het aantal diagrammen", () => {
+    // Vast rooster (zie layout.js) zodat elk diagram overal even groot blijft —
+    // ook op een pagina met maar 1 of 2 stuks, i.p.v. een eigen, grotere cel.
     assertEqual(getGridLayout(12), { cols: 3, rows: 4 });
-  });
-  it("gebruikt een net raster voor 1 diagram", () => {
-    assertEqual(getGridLayout(1), { cols: 1, rows: 1 });
-  });
-  it("gebruikt 2x2 voor 4 diagrammen", () => {
-    assertEqual(getGridLayout(4), { cols: 2, rows: 2 });
+    assertEqual(getGridLayout(1), { cols: 3, rows: 4 });
+    assertEqual(getGridLayout(4), { cols: 3, rows: 4 });
   });
   it("weigert 0 of meer dan 12 diagrammen", () => {
     assertThrows(() => getGridLayout(0));

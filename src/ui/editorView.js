@@ -1,14 +1,15 @@
-import { createBoardEditor, createPalette } from "./boardEditor.js?v=20260917h";
-import { createSolutionInput } from "./solutionInput.js?v=20260917h";
-import { createEmptyBoard, countPieces, isWhite, isBlack } from "../core/board.js?v=20260917h";
-import { parseFen, boardToFen, FenParseError } from "../core/fen.js?v=20260917h";
-import { parseStandInput, QuickTextParseError } from "../core/quicktext.js?v=20260917h";
-import { validateBoard } from "../core/validate.js?v=20260917h";
-import { saveStand, getStand, findDuplicates } from "../db/standen.js?v=20260917h";
-import { getList, addListValue } from "../db/lijsten.js?v=20260917h";
-import { logHerkenningCorrectie } from "../db/herkenningLog.js?v=20260917h";
-import { reclassifyFromDataUrl } from "./diagramCaptureView.js?v=20260917h";
-import { RECOGNITION_VERSION as NEW_MODEL_VERSION } from "../recognition/newClassify.js?v=20260917h";
+import { createBoardEditor, createPalette } from "./boardEditor.js?v=20260918a";
+import { createSolutionInput } from "./solutionInput.js?v=20260918a";
+import { createEmptyBoard, countPieces, isWhite, isBlack } from "../core/board.js?v=20260918a";
+import { parseFen, boardToFen, FenParseError } from "../core/fen.js?v=20260918a";
+import { parseStandInput, QuickTextParseError } from "../core/quicktext.js?v=20260918a";
+import { validateBoard } from "../core/validate.js?v=20260918a";
+import { saveStand, getStand, findDuplicates } from "../db/standen.js?v=20260918a";
+import { getList, addListValue } from "../db/lijsten.js?v=20260918a";
+import { getAllCategorieen } from "../db/categorieen.js?v=20260918a";
+import { logHerkenningCorrectie } from "../db/herkenningLog.js?v=20260918a";
+import { reclassifyFromDataUrl } from "./diagramCaptureView.js?v=20260918a";
+import { RECOGNITION_VERSION as NEW_MODEL_VERSION } from "../recognition/newClassify.js?v=20260918a";
 
 const MOEILIJKHEID_MAX = 5;
 
@@ -110,11 +111,7 @@ export async function renderEditorView(
         <label>Publicatie</label>
         <input type="text" data-field="publicatie" placeholder="boek, tijdschrift of website" />
 
-        <label>Speelsysteem</label>
-        <div class="tag-list" data-role="speelsysteem"></div>
-
-        <label>Type</label>
-        <div class="tag-list" data-role="type"></div>
+        <div data-role="categorieen"></div>
 
         <label>Moeilijkheid</label>
         <div class="stars" data-role="stars"></div>
@@ -141,16 +138,16 @@ export async function renderEditorView(
   const dupWarningHost = el('[data-role="duplicateWarning"]');
   const gebruiktInHost = el('[data-role="gebruiktIn"]');
   const starsHost = el('[data-role="stars"]');
-  const speelsysteemHost = el('[data-role="speelsysteem"]');
-  const typeHost = el('[data-role="type"]');
+  const categorieenHost = el('[data-role="categorieen"]');
   const solutionInputHost = el('[data-role="solutionInput"]');
   const legacyOplossingRefHost = el('[data-role="legacyOplossingRef"]');
   const boekstijlHost = el('[data-role="boekstijl"]');
 
   let existingStand = null;
   let turn = "white";
-  let selectedSpeelsystemen = [];
-  let selectedTypes = [];
+  // Per categorie-key (speelsysteem, type, en wat Jan er zelf bij maakt in
+  // Instellingen -> Database) de gekozen waarden voor déze stand.
+  let selectedCategorieen = {};
   let selectedMoeilijkheid = null;
   let solutionZetten = [];
   let solutionZijvarianten = [];
@@ -168,8 +165,10 @@ export async function renderEditorView(
     if (existingStand) {
       const parsed = parseFen(existingStand.fen);
       turn = parsed.turn;
-      selectedSpeelsystemen = [...existingStand.speelsystemen];
-      selectedTypes = [...existingStand.types];
+      selectedCategorieen = {};
+      for (const [key, waarden] of Object.entries(existingStand.categorieen ?? {})) {
+        selectedCategorieen[key] = [...waarden];
+      }
       selectedMoeilijkheid = existingStand.moeilijkheid;
       selectedBoekstijl = existingStand.boekstijl || "";
       solutionZetten = existingStand.zetten ? existingStand.zetten.map((m) => ({ ...m })) : [];
@@ -342,14 +341,24 @@ export async function renderEditorView(
     host.appendChild(addBtn);
   }
 
-  await renderTagList(speelsysteemHost, "speelsysteem", selectedSpeelsystemen, (value, btn) => {
-    toggleInArray(selectedSpeelsystemen, value);
-    btn.classList.toggle("selected");
-  });
-  await renderTagList(typeHost, "type", selectedTypes, (value, btn) => {
-    toggleInArray(selectedTypes, value);
-    btn.classList.toggle("selected");
-  });
+  // Eén tag-lijst per filtercategorie (Speelsysteem, Type, en wat er verder
+  // via Instellingen -> Database is toegevoegd) — volledig dynamisch, want
+  // welke categorieën er zijn ligt niet meer vast in de code.
+  async function renderCategorieenTagLists() {
+    const categorieen = await getAllCategorieen();
+    categorieenHost.innerHTML = categorieen
+      .map((cat) => `<label>${escapeHtml(cat.label)}</label><div class="tag-list" data-cat="${cat.key}"></div>`)
+      .join("");
+    for (const cat of categorieen) {
+      if (!selectedCategorieen[cat.key]) selectedCategorieen[cat.key] = [];
+      const host = categorieenHost.querySelector(`[data-cat="${cat.key}"]`);
+      await renderTagList(host, cat.key, selectedCategorieen[cat.key], (value, btn) => {
+        toggleInArray(selectedCategorieen[cat.key], value);
+        btn.classList.toggle("selected");
+      });
+    }
+  }
+  await renderCategorieenTagLists();
 
   // Alleen bij een via-foto herkende stand: uit welk boek dit diagram komt, als
   // trainingsmateriaal voor de fotoherkenning (zie herkenningLog.js). Eén keuze per
@@ -413,8 +422,7 @@ export async function renderEditorView(
       auteur: el('[data-field="auteur"]').value.trim(),
       jaartal: jaartalRaw ? Number.parseInt(jaartalRaw, 10) : null,
       publicatie: el('[data-field="publicatie"]').value.trim(),
-      speelsystemen: [...selectedSpeelsystemen],
-      types: [...selectedTypes],
+      categorieen: Object.fromEntries(Object.entries(selectedCategorieen).map(([k, v]) => [k, [...v]])),
       moeilijkheid: selectedMoeilijkheid,
       notities: el('[data-field="notities"]').value.trim(),
       foto: photoDataUrl ?? existingStand?.foto ?? null,

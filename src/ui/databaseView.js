@@ -1,7 +1,17 @@
-import { renderDiagramSVG } from "../diagram/render.js?v=20260917h";
-import { parseFen } from "../core/fen.js?v=20260917h";
-import { listStanden, resolveOplossingTekst } from "../db/standen.js?v=20260917h";
-import { getList } from "../db/lijsten.js?v=20260917h";
+import { renderDiagramSVG } from "../diagram/render.js?v=20260918a";
+import { parseFen } from "../core/fen.js?v=20260918a";
+import { listStanden, resolveOplossingTekst, bulkAddCategorieWaarde } from "../db/standen.js?v=20260918a";
+import { getAllCategorieen } from "../db/categorieen.js?v=20260918a";
+
+function escapeHtml(str) {
+  return str.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+// Sentinel-waarde voor "geen enkele waarde in deze categorie" in een
+// categorie-filter-select — analoog aan "Niet gedefinieerd" bij
+// moeilijkheidsgraad, maar generiek voor elke (ook zelf toegevoegde)
+// categorie uit Instellingen -> Database.
+const GEEN_WAARDE = "__geen__";
 
 // Onthoudt de filterkeuzes zolang de pagina open staat (niet in IndexedDB),
 // zodat teruggaan vanaf een standdetailpagina niet alle filters wist.
@@ -15,8 +25,7 @@ export async function renderDatabaseView(container, { onOpenStand, onAddSelectio
     <div class="card">
       <div class="filters">
         <input type="text" data-field="search" placeholder="Zoeken op auteur, publicatie, notities..." />
-        <select data-field="speelsysteem"><option value="">Alle speelsystemen</option></select>
-        <select data-field="type"><option value="">Alle types</option></select>
+        <span data-role="categorieSelects" style="display:contents;"></span>
         <select data-field="moeilijkheid">
           <option value="">Alle moeilijkheid</option>
           <option value="1">★</option><option value="2">★★</option><option value="3">★★★</option>
@@ -32,12 +41,15 @@ export async function renderDatabaseView(container, { onOpenStand, onAddSelectio
         </select>
         <button type="button" class="secondary" data-action="reset-filters">Filters resetten</button>
       </div>
+      <div data-role="totals" style="color:#666;font-size:0.85rem;margin-bottom:0.5rem;"></div>
       <div data-role="selectionBar" style="display:none;margin-bottom:0.75rem;">
         <span data-role="selectionCount"></span>
         <button type="button" class="primary" data-action="add-selection">Toevoegen aan opgaveblad</button>
+        <button type="button" class="secondary" data-action="bulk-assign">Kenmerken toevoegen</button>
         <button type="button" class="secondary" data-action="share-selection">Stuur naar ander apparaat</button>
         <button type="button" class="secondary" data-action="select-all">Alles selecteren</button>
       </div>
+      <div data-role="bulkAssignPanel" style="display:none;margin-bottom:0.75rem;"></div>
       <div data-role="shareLink" style="display:none;margin-bottom:0.75rem;"></div>
       <div data-role="grid" class="stand-grid"></div>
       <div data-role="empty" style="display:none;color:#666;padding:1rem;text-align:center;">
@@ -49,40 +61,55 @@ export async function renderDatabaseView(container, { onOpenStand, onAddSelectio
   const el = (sel) => container.querySelector(sel);
   const grid = el('[data-role="grid"]');
   const emptyMsg = el('[data-role="empty"]');
+  const totalsHost = el('[data-role="totals"]');
   const selectionBar = el('[data-role="selectionBar"]');
   const selectionCount = el('[data-role="selectionCount"]');
   const missingWarning = el('[data-role="missingWarning"]');
+  const categorieSelectsHost = el('[data-role="categorieSelects"]');
+  const bulkAssignPanel = el('[data-role="bulkAssignPanel"]');
 
   const selected = new Set();
   let lastRendered = [];
   let missingOnly = savedMissingOnly;
+  let categorieen = [];
 
-  const [speelsystemen, types] = await Promise.all([getList("speelsysteem"), getList("type")]);
-  fillOptions(el('[data-field="speelsysteem"]'), speelsystemen);
-  fillOptions(el('[data-field="type"]'), types);
+  async function renderCategorieSelects() {
+    categorieen = await getAllCategorieen();
+    categorieSelectsHost.innerHTML = categorieen
+      .map(
+        (cat) => `
+        <select data-cat-filter="${cat.key}">
+          <option value="">Alle ${escapeHtml(cat.label)}</option>
+          ${cat.waarden.map((w) => `<option value="${escapeHtml(w)}">${escapeHtml(w)}</option>`).join("")}
+          <option value="${GEEN_WAARDE}">Geen ${escapeHtml(cat.label)}</option>
+        </select>`
+      )
+      .join("");
+  }
+  await renderCategorieSelects();
 
   if (savedFilterState) {
     el('[data-field="search"]').value = savedFilterState.search;
-    el('[data-field="speelsysteem"]').value = savedFilterState.speelsysteem;
-    el('[data-field="type"]').value = savedFilterState.type;
     el('[data-field="moeilijkheid"]').value = savedFilterState.moeilijkheid;
     el('[data-field="sort"]').value = savedFilterState.sort;
-  }
-
-  function fillOptions(select, values) {
-    for (const v of values) {
-      const opt = document.createElement("option");
-      opt.value = v;
-      opt.textContent = v;
-      select.appendChild(opt);
+    for (const select of categorieSelectsHost.querySelectorAll("select[data-cat-filter]")) {
+      const saved = savedFilterState.categorieRaw?.[select.dataset.catFilter];
+      if (saved != null) select.value = saved;
     }
   }
 
+  function resetCategorieSelects() {
+    for (const select of categorieSelectsHost.querySelectorAll("select[data-cat-filter]")) select.value = "";
+  }
+
   function rawFieldValues() {
+    const categorieRaw = {};
+    for (const select of categorieSelectsHost.querySelectorAll("select[data-cat-filter]")) {
+      categorieRaw[select.dataset.catFilter] = select.value;
+    }
     return {
       search: el('[data-field="search"]').value,
-      speelsysteem: el('[data-field="speelsysteem"]').value,
-      type: el('[data-field="type"]').value,
+      categorieRaw,
       moeilijkheid: el('[data-field="moeilijkheid"]').value,
       sort: el('[data-field="sort"]').value,
     };
@@ -92,10 +119,14 @@ export async function renderDatabaseView(container, { onOpenStand, onAddSelectio
     const raw = rawFieldValues();
     savedFilterState = raw;
     const [sortBy, sortDir] = raw.sort.split("-");
+    const categorieFilters = {};
+    for (const [key, value] of Object.entries(raw.categorieRaw)) {
+      if (!value) continue;
+      categorieFilters[key] = value === GEEN_WAARDE ? { ongedefinieerd: true } : { waarde: value };
+    }
     return {
       search: raw.search.trim(),
-      speelsysteem: raw.speelsysteem || undefined,
-      type: raw.type || undefined,
+      categorieen: categorieFilters,
       moeilijkheid:
         raw.moeilijkheid && raw.moeilijkheid !== "ongedefinieerd" ? Number.parseInt(raw.moeilijkheid, 10) : undefined,
       moeilijkheidOngedefinieerd: raw.moeilijkheid === "ongedefinieerd" ? true : undefined,
@@ -127,8 +158,13 @@ export async function renderDatabaseView(container, { onOpenStand, onAddSelectio
   }
 
   async function refresh() {
-    const standen = await listStanden(currentFilters());
+    const filters = currentFilters();
+    const [standen, totaalAantal] = await Promise.all([listStanden(filters), listStanden().then((a) => a.length)]);
     lastRendered = standen;
+    totalsHost.textContent =
+      standen.length === totaalAantal
+        ? `${totaalAantal} stand(en) in totaal.`
+        : `${standen.length} van ${totaalAantal} stand(en) getoond.`;
     const missingCount = missingOnly ? standen.length : (await listStanden({ metOplossing: false })).length;
     updateMissingWarning(missingCount);
     grid.innerHTML = "";
@@ -166,6 +202,7 @@ export async function renderDatabaseView(container, { onOpenStand, onAddSelectio
     selectionCount.textContent = `${selected.size} stand(en) geselecteerd. `;
     const allSelected = lastRendered.length > 0 && lastRendered.every((s) => selected.has(s.id));
     selectAllBtn.textContent = allSelected ? "Alles deselecteren" : "Alles selecteren";
+    if (selected.size === 0) closeBulkAssignPanel();
   }
 
   el('[data-action="add-selection"]').addEventListener("click", () => {
@@ -185,8 +222,7 @@ export async function renderDatabaseView(container, { onOpenStand, onAddSelectio
 
   el('[data-action="reset-filters"]').addEventListener("click", () => {
     el('[data-field="search"]').value = "";
-    el('[data-field="speelsysteem"]').value = "";
-    el('[data-field="type"]').value = "";
+    resetCategorieSelects();
     el('[data-field="moeilijkheid"]').value = "";
     el('[data-field="sort"]').value = "createdAt-desc";
     missingOnly = false;
@@ -200,8 +236,7 @@ export async function renderDatabaseView(container, { onOpenStand, onAddSelectio
       missingOnly = true;
       savedMissingOnly = true;
       el('[data-field="search"]').value = "";
-      el('[data-field="speelsysteem"]').value = "";
-      el('[data-field="type"]').value = "";
+      resetCategorieSelects();
       el('[data-field="moeilijkheid"]').value = "";
       el('[data-field="sort"]').value = "createdAt-desc";
       refresh();
@@ -212,8 +247,67 @@ export async function renderDatabaseView(container, { onOpenStand, onAddSelectio
     }
   });
 
+  // Kenmerken massaal toevoegen aan de geselecteerde standen — de gekozen
+  // waarde(n) komen erbij op elke geselecteerde stand, bestaande kenmerken op
+  // die standen blijven gewoon staan (nooit vervangen).
+  function closeBulkAssignPanel() {
+    bulkAssignPanel.style.display = "none";
+    bulkAssignPanel.innerHTML = "";
+  }
+
+  el('[data-action="bulk-assign"]').addEventListener("click", () => {
+    const gekozen = new Map();
+    bulkAssignPanel.style.display = "block";
+    bulkAssignPanel.innerHTML = `
+      <div class="warnings" style="background:#e7f0fb;color:#1c3d6b;border-color:#a9c3e8;">
+        <p style="margin:0 0 0.6rem;">Kies welke kenmerken je wilt toevoegen aan de ${selected.size} geselecteerde stand(en). Ze komen erbij; bestaande kenmerken op die standen blijven staan.</p>
+        ${
+          categorieen.length
+            ? categorieen
+                .map(
+                  (cat) => `
+              <div style="margin-bottom:0.5rem;">
+                <label>${escapeHtml(cat.label)}</label>
+                <div class="tag-list" data-cat-tags="${cat.key}">
+                  ${cat.waarden.map((w) => `<button type="button" class="tag" data-waarde="${escapeHtml(w)}">${escapeHtml(w)}</button>`).join("")}
+                </div>
+              </div>`
+                )
+                .join("")
+            : '<p style="color:#666;">Nog geen filtercategorieën ingesteld (zie Instellingen -> Database).</p>'
+        }
+        <div class="button-row">
+          <button type="button" class="primary" data-action="bulk-apply">Toepassen</button>
+          <button type="button" class="secondary" data-action="bulk-cancel">Sluiten</button>
+        </div>
+      </div>
+    `;
+    for (const btn of bulkAssignPanel.querySelectorAll("[data-waarde]")) {
+      const key = btn.closest("[data-cat-tags]").dataset.catTags;
+      btn.addEventListener("click", () => {
+        btn.classList.toggle("selected");
+        const set = gekozen.get(key) ?? new Set();
+        if (set.has(btn.dataset.waarde)) set.delete(btn.dataset.waarde);
+        else set.add(btn.dataset.waarde);
+        gekozen.set(key, set);
+      });
+    }
+    bulkAssignPanel.querySelector('[data-action="bulk-cancel"]').addEventListener("click", closeBulkAssignPanel);
+    bulkAssignPanel.querySelector('[data-action="bulk-apply"]').addEventListener("click", async (e) => {
+      e.target.disabled = true;
+      for (const [key, waardenSet] of gekozen) {
+        for (const waarde of waardenSet) {
+          await bulkAddCategorieWaarde([...selected], key, waarde);
+        }
+      }
+      closeBulkAssignPanel();
+      await refresh();
+      updateSelectionBar();
+    });
+  });
+
   el('[data-action="share-selection"]').addEventListener("click", async () => {
-    const { buildShareData } = await import("../db/backup.js?v=20260917h");
+    const { buildShareData } = await import("../db/backup.js?v=20260918a");
     const data = await buildShareData([...selected]);
     const json = JSON.stringify(data);
     const encoded = btoa(unescape(encodeURIComponent(json)))

@@ -1,5 +1,5 @@
-import { describe, it, assertEqual, assertTrue } from "./test-runner.js?v=20260917h";
-import { resetDatabaseForTests } from "../src/db/db.js?v=20260917h";
+import { describe, it, assertEqual, assertTrue } from "./test-runner.js?v=20260918a";
+import { resetDatabaseForTests } from "../src/db/db.js?v=20260918a";
 import {
   saveStand,
   getStand,
@@ -7,11 +7,13 @@ import {
   findDuplicates,
   listStanden,
   markUsedIn,
-} from "../src/db/standen.js?v=20260917h";
-import { getList, addListValue, renameListValue, removeListValue } from "../src/db/lijsten.js?v=20260917h";
-import { saveStencil, getStencil, listStencils, deleteStencil } from "../src/db/stencils.js?v=20260917h";
-import { exportAll, importAll, buildShareData } from "../src/db/backup.js?v=20260917h";
-import { logHerkenningCorrectie, getAllHerkenningCorrecties } from "../src/db/herkenningLog.js?v=20260917h";
+  bulkAddCategorieWaarde,
+} from "../src/db/standen.js?v=20260918a";
+import { getList, addListValue, renameListValue, removeListValue } from "../src/db/lijsten.js?v=20260918a";
+import { getAllCategorieen, addCategorie, renameCategorie, removeCategorie } from "../src/db/categorieen.js?v=20260918a";
+import { saveStencil, getStencil, listStencils, deleteStencil } from "../src/db/stencils.js?v=20260918a";
+import { exportAll, importAll, buildShareData } from "../src/db/backup.js?v=20260918a";
+import { logHerkenningCorrectie, getAllHerkenningCorrecties } from "../src/db/herkenningLog.js?v=20260918a";
 
 async function freshDb() {
   await resetDatabaseForTests();
@@ -65,14 +67,43 @@ describe("database: standen", () => {
     assertEqual(fetched, undefined);
   });
 
-  it("filtert op speelsysteem en zoekterm", async () => {
+  it("filtert op categorie en zoekterm", async () => {
     await freshDb();
-    await saveStand({ fen: "W:W13:B1", speelsystemen: ["Keller"], auteur: "Jansen" });
-    await saveStand({ fen: "W:W14:B2", speelsystemen: ["klassiek"], auteur: "Pietersen" });
-    const kellerStanden = await listStanden({ speelsysteem: "Keller" });
+    await saveStand({ fen: "W:W13:B1", categorieen: { speelsysteem: ["Keller"] }, auteur: "Jansen" });
+    await saveStand({ fen: "W:W14:B2", categorieen: { speelsysteem: ["klassiek"] }, auteur: "Pietersen" });
+    const kellerStanden = await listStanden({ categorieen: { speelsysteem: { waarde: "Keller" } } });
     assertEqual(kellerStanden.length, 1);
     const gezocht = await listStanden({ search: "jansen" });
     assertEqual(gezocht.length, 1);
+  });
+
+  it("filtert op 'geen enkele waarde' in een categorie", async () => {
+    await freshDb();
+    await saveStand({ fen: "W:W13:B1", categorieen: { type: ["forcing"] } });
+    await saveStand({ fen: "W:W14:B2" });
+    const zonderType = await listStanden({ categorieen: { type: { ongedefinieerd: true } } });
+    assertEqual(zonderType.length, 1);
+    assertEqual(zonderType[0].fen, "W:W14:B2");
+  });
+
+  it("leidt categorieën af van oude speelsystemen/types-velden (terugwaartse compatibiliteit)", async () => {
+    await freshDb();
+    const saved = await saveStand({ fen: "W:W13:B1" });
+    // Rechtstreeks een oud-vorm record neerzetten, zoals een oude back-up dat zou aanleveren.
+    await saveStand({ ...saved, categorieen: undefined, speelsystemen: ["Keller"], types: ["eindspel"] });
+    const fetched = await getStand(saved.id);
+    assertEqual(fetched.categorieen, { speelsysteem: ["Keller"], type: ["eindspel"] });
+  });
+
+  it("voegt bij massaal toewijzen een waarde toe zonder bestaande kenmerken te vervangen", async () => {
+    await freshDb();
+    const a = await saveStand({ fen: "W:W13:B1", categorieen: { speelsysteem: ["Keller"] } });
+    const b = await saveStand({ fen: "W:W14:B2" });
+    await bulkAddCategorieWaarde([a.id, b.id], "speelsysteem", "klassiek");
+    const fetchedA = await getStand(a.id);
+    const fetchedB = await getStand(b.id);
+    assertEqual(fetchedA.categorieen.speelsysteem, ["Keller", "klassiek"]);
+    assertEqual(fetchedB.categorieen.speelsysteem, ["klassiek"]);
   });
 
   it("markeert een stand als gebruikt in een stencil", async () => {
@@ -106,6 +137,39 @@ describe("database: eigen lijsten", () => {
     await removeListValue("type", "hernoemde-tag");
     waarden = await getList("type");
     assertTrue(!waarden.includes("hernoemde-tag"));
+  });
+});
+
+describe("database: filtercategorieën", () => {
+  it("bevat de twee starterscategorieën met hun label", async () => {
+    await freshDb();
+    const categorieen = await getAllCategorieen();
+    const speelsysteem = categorieen.find((c) => c.key === "speelsysteem");
+    assertTrue(!!speelsysteem);
+    assertEqual(speelsysteem.label, "Speelsysteem");
+    assertTrue(speelsysteem.waarden.includes("Keller"));
+  });
+
+  it("kan een nieuwe categorie toevoegen, hernoemen en verwijderen", async () => {
+    await freshDb();
+    const nieuw = await addCategorie("Thema");
+    assertEqual(nieuw.label, "Thema");
+    assertEqual(nieuw.key, "thema");
+
+    await renameCategorie(nieuw.key, "Thema's");
+    let categorieen = await getAllCategorieen();
+    assertTrue(categorieen.some((c) => c.key === "thema" && c.label === "Thema's"));
+
+    await removeCategorie(nieuw.key);
+    categorieen = await getAllCategorieen();
+    assertTrue(!categorieen.some((c) => c.key === "thema"));
+  });
+
+  it("geeft twee verschillende categorieën met dezelfde naam een unieke key", async () => {
+    await freshDb();
+    const eerste = await addCategorie("Bron");
+    const tweede = await addCategorie("Bron");
+    assertTrue(eerste.key !== tweede.key);
   });
 });
 
