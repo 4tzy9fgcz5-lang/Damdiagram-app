@@ -1,15 +1,15 @@
-import { createBoardEditor, createPalette } from "./boardEditor.js?v=20260918d";
-import { createSolutionInput } from "./solutionInput.js?v=20260918d";
-import { createEmptyBoard, countPieces, isWhite, isBlack } from "../core/board.js?v=20260918d";
-import { parseFen, boardToFen, FenParseError } from "../core/fen.js?v=20260918d";
-import { parseStandInput, QuickTextParseError } from "../core/quicktext.js?v=20260918d";
-import { validateBoard } from "../core/validate.js?v=20260918d";
-import { saveStand, getStand, findDuplicates } from "../db/standen.js?v=20260918d";
-import { getList, addListValue } from "../db/lijsten.js?v=20260918d";
-import { getAllCategorieen } from "../db/categorieen.js?v=20260918d";
-import { logHerkenningCorrectie } from "../db/herkenningLog.js?v=20260918d";
-import { reclassifyFromDataUrl } from "./diagramCaptureView.js?v=20260918d";
-import { RECOGNITION_VERSION as NEW_MODEL_VERSION } from "../recognition/newClassify.js?v=20260918d";
+import { createBoardEditor, createPalette } from "./boardEditor.js?v=20260918e";
+import { createSolutionInput } from "./solutionInput.js?v=20260918e";
+import { createEmptyBoard, countPieces, isWhite, isBlack } from "../core/board.js?v=20260918e";
+import { parseFen, boardToFen, FenParseError } from "../core/fen.js?v=20260918e";
+import { parseStandInput, QuickTextParseError } from "../core/quicktext.js?v=20260918e";
+import { validateBoard } from "../core/validate.js?v=20260918e";
+import { saveStand, getStand, findDuplicates } from "../db/standen.js?v=20260918e";
+import { getList, addListValue } from "../db/lijsten.js?v=20260918e";
+import { getAllCategorieen } from "../db/categorieen.js?v=20260918e";
+import { logHerkenningCorrectie } from "../db/herkenningLog.js?v=20260918e";
+import { reclassifyFromDataUrl } from "./diagramCaptureView.js?v=20260918e";
+import { RECOGNITION_VERSION as NEW_MODEL_VERSION } from "../recognition/newClassify.js?v=20260918e";
 
 const MOEILIJKHEID_MAX = 5;
 
@@ -475,7 +475,8 @@ export async function renderEditorView(
 
   async function doSave({ addToStencil }) {
     const input = collectStandInput();
-    if (!input.fen.includes("W") && !input.fen.includes("B")) {
+    const board = boardEditor.getBoard();
+    if (countPieces(board, isWhite) === 0 && countPieces(board, isBlack) === 0) {
       alert("De stand is verplicht.");
       return;
     }
