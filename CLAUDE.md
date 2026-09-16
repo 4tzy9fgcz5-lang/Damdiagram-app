@@ -9,7 +9,7 @@
   daadwerkelijk in de browser (zie "Testen tijdens ontwikkeling" hieronder) voor je
   meldt dat iets werkt.
 
-# Status en vervolgstappen (bijgewerkt 2026-09-16)
+# Status en vervolgstappen (bijgewerkt 2026-09-16b)
 
 Dit is een groeiende Nederlandse dam-app (werknaam "Dam-database", eerder
 "Damstencil"): standen verzamelen (handmatig, of via een foto van een boekdiagram),
@@ -35,6 +35,23 @@ server, geen build-stap.
   écht eindigt). `src/ui/solutionInput.js` is de klikbare invoer (rondt automatisch
   af zodra er nog maar één zet mogelijk is). `src/ui/solutionPlayer.js` is de
   alleen-lezen afspeelweergave (◀◀ / ▶ / ▶▶, zoals toernooibase).
+- **Sinds 2026-09-16: zijvarianten.** Een stand kan naast `zetten` (de
+  hoofdlijn) ook `zijvarianten` hebben: `[{ id, vanaf, zetten }]`, waarbij
+  `vanaf` het 0-based indexnummer in de hoofdlijn is dat de variant vervangt.
+  `draughtsMoves.js` heeft `formatZettenSequence`/`formatZettenMetVarianten`/
+  `plyColor`/`plyMoveNumber` voor de zetnummering; `resolveOplossingTekst`
+  (dus ook de Word-export) toont varianten tussen haakjes. Toevoegen kan
+  zowel bij het intikken (`solutionInput.js`, knop "Zijvariant toevoegen",
+  geneste aanroep van zichzelf met `allowVariations: false` — geen
+  varianten-op-varianten) als achteraf via "Bewerken" op een bestaande
+  stand. Bij afspelen (`solutionPlayer.js`) spring je ná het einde van de
+  hoofdlijn met "volgende" terug naar de eerste zijvariant; automatisch
+  afspelen (de klok-knop) blijft bewust binnen de hoofdlijn.
+- **Sinds 2026-09-16: vorige/volgende op de standdetailpagina.** Kom je er
+  via de database-pagina, dan onthoudt `src/ui/app.js` (`standNavIds`) de
+  toen zichtbare, gefilterde/gesorteerde lijst van standen, en toont
+  `standDetailView.js` daarmee "Vorige"/"Volgende"-knoppen. Vanuit een
+  opgaveblad geopend: geen navigatie (nog niet ondersteund).
 
 ## Veldherkenning: twee classifiers naast elkaar
 
