@@ -1,4 +1,4 @@
-import { FIELD_COUNT, PIECE_TYPES, fieldToCoord, coordToField, isKing, cloneBoard } from "./board.js?v=20260917b";
+import { FIELD_COUNT, PIECE_TYPES, fieldToCoord, coordToField, isKing, cloneBoard } from "./board.js?v=20260917d";
 
 const ALL_DIRS = [
   { dr: -1, dc: -1 },
@@ -31,9 +31,17 @@ function isCrownhead(color, row) {
 // blijft daarbij een schijf (slaat dus verder met schijf-geometrie, niet vliegend
 // als dam) — pas als de hele slagreeks daadwerkelijk op de damrij eindigt, wordt
 // hij dam. Zie buildCaptureMoves, dat naar het láátste veld van het pad kijkt.
-function captureSequencesFromField(board, field, color, kingPiece, capturedSoFar) {
+//
+// `originField` is het veld waar de slaande schijf ván start (vast voor de hele
+// reeks, in tegenstelling tot `field`, de huidige tussenpositie). Dat veld moet
+// overal in deze reeks als leeg gelden — de schijf staat er middenin de slag
+// niet meer — anders wordt een slagreeks die er (via-, over- of eind-veld) langs
+// het eigen vertrekveld terugkeert onterecht afgekapt doordat het statische
+// bord daar nog de oorspronkelijke schijf toont.
+function captureSequencesFromField(board, field, color, kingPiece, capturedSoFar, originField) {
   const { row, col } = fieldToCoord(field);
   const results = [];
+  const isEmpty = (f) => f === originField || board[f] == null;
 
   for (const { dr, dc } of ALL_DIRS) {
     if (kingPiece) {
@@ -43,7 +51,7 @@ function captureSequencesFromField(board, field, color, kingPiece, capturedSoFar
       while (r >= 0 && r <= 9 && c >= 0 && c <= 9) {
         const f = coordToField(r, c);
         if (f == null) break;
-        const piece = board[f];
+        const piece = isEmpty(f) ? null : board[f];
         if (sawEnemyField == null) {
           if (piece == null) {
             r += dr;
@@ -59,7 +67,7 @@ function captureSequencesFromField(board, field, color, kingPiece, capturedSoFar
         if (piece != null) break;
         const newCaptured = new Set(capturedSoFar);
         newCaptured.add(sawEnemyField);
-        const sub = captureSequencesFromField(board, f, color, true, newCaptured);
+        const sub = captureSequencesFromField(board, f, color, true, newCaptured, originField);
         if (sub.length === 0) results.push([{ land: f, captured: sawEnemyField }]);
         else for (const s of sub) results.push([{ land: f, captured: sawEnemyField }, ...s]);
         r += dr;
@@ -74,16 +82,16 @@ function captureSequencesFromField(board, field, color, kingPiece, capturedSoFar
       const overField = coordToField(r1, c1);
       const landField = coordToField(r2, c2);
       if (overField == null || landField == null) continue;
-      const overPiece = board[overField];
+      const overPiece = isEmpty(overField) ? null : board[overField];
       if (overPiece == null || colorOf(overPiece) === color) continue;
       if (capturedSoFar.has(overField)) continue;
-      if (board[landField] != null) continue;
+      if (!isEmpty(landField)) continue;
 
       const newCaptured = new Set(capturedSoFar);
       newCaptured.add(overField);
       // Nog als schijf verder zoeken, ook als landField op de damrij ligt — die
       // rij is alleen bijzonder als de slagreeks daar écht eindigt.
-      const sub = captureSequencesFromField(board, landField, color, false, newCaptured);
+      const sub = captureSequencesFromField(board, landField, color, false, newCaptured, originField);
       if (sub.length === 0) results.push([{ land: landField, captured: overField }]);
       else for (const s of sub) results.push([{ land: landField, captured: overField }, ...s]);
     }
@@ -97,7 +105,7 @@ function buildCaptureMoves(board, turn) {
     const piece = board[f];
     if (!piece || colorOf(piece) !== turn) continue;
     const kingPiece = isKing(piece);
-    const paths = captureSequencesFromField(board, f, turn, kingPiece, new Set());
+    const paths = captureSequencesFromField(board, f, turn, kingPiece, new Set(), f);
     for (const path of paths) {
       const pad = path.map((s) => s.land);
       const geslagen = path.map((s) => s.captured);

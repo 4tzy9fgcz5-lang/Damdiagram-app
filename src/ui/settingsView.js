@@ -1,5 +1,5 @@
-import { renderBackupSection, renderTrainingSection } from "./backupView.js?v=20260917b";
-import { getVerbergOplossing, setVerbergOplossing } from "../db/uiSettings.js?v=20260917b";
+import { renderBackupSection, renderTrainingSection } from "./backupView.js?v=20260917d";
+import { getVerbergOplossing, setVerbergOplossing } from "../db/uiSettings.js?v=20260917d";
 
 function renderPlaceholder(container) {
   container.innerHTML = `<div class="card"><p style="color:#666;">Hier komt later meer.</p></div>`;

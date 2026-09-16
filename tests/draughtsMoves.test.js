@@ -1,6 +1,6 @@
-import { describe, it, assertEqual, assertTrue } from "./test-runner.js?v=20260917b";
-import { coordToField, createEmptyBoard, PIECE_TYPES } from "../src/core/board.js?v=20260917b";
-import { getLegalMoves, applyMove } from "../src/core/draughtsMoves.js?v=20260917b";
+import { describe, it, assertEqual, assertTrue } from "./test-runner.js?v=20260917d";
+import { coordToField, createEmptyBoard, PIECE_TYPES } from "../src/core/board.js?v=20260917d";
+import { getLegalMoves, applyMove } from "../src/core/draughtsMoves.js?v=20260917d";
 
 // Rij0 = bovenkant (zwart start hier, velden 1-20), rij9 = onderkant (wit start hier, velden 31-50).
 // Wit speelt dus "omhoog" (rij neemt af), zwart "omlaag" (rij neemt toe).
@@ -91,6 +91,31 @@ describe("draughtsMoves: meeste-slaan-regel", () => {
       geslagen: [f(5, 6), f(3, 6)],
       wordtDam: false,
     });
+  });
+});
+
+describe("draughtsMoves: slagreeks terug naar eigen vertrekveld", () => {
+  it("mag tijdens dezelfde slagreeks landen op het inmiddels verlaten vertrekveld", () => {
+    // Vier zwarte schijven in een ruit rond wit: wit kan de hele ruit rondslaan,
+    // in beide richtingen, en komt daarbij terug op zijn eigen (inmiddels
+    // verlaten) vertrekveld. Regressietest voor een bug waarbij het statische
+    // bord dat vertrekveld nog als bezet zag, waardoor zo'n slagreeks er
+    // onterecht vóór stopte (gemeld door Jan: stand met een keuze tussen
+    // "23x12x3" en "3x12x23", die allebei nog door hadden moeten slaan naar 14).
+    const board = createEmptyBoard();
+    place(board, 5, 4, PIECE_TYPES.WHITE_PIECE);
+    place(board, 4, 3, PIECE_TYPES.BLACK_PIECE);
+    place(board, 2, 3, PIECE_TYPES.BLACK_PIECE);
+    place(board, 2, 5, PIECE_TYPES.BLACK_PIECE);
+    place(board, 4, 5, PIECE_TYPES.BLACK_PIECE);
+
+    const moves = getLegalMoves(board, "white");
+    assertEqual(moves.length, 2);
+    for (const move of moves) {
+      assertEqual(move.geslagen.length, 4);
+      assertEqual(move.pad[move.pad.length - 1], f(5, 4));
+      assertEqual(move.wordtDam, false);
+    }
   });
 });
 

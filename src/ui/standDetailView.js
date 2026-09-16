@@ -1,7 +1,7 @@
-import { parseFen } from "../core/fen.js?v=20260917b";
-import { getStand, saveStand, deleteStand } from "../db/standen.js?v=20260917b";
-import { createSolutionPlayer } from "./solutionPlayer.js?v=20260917b";
-import { getVerbergOplossing } from "../db/uiSettings.js?v=20260917b";
+import { parseFen } from "../core/fen.js?v=20260917d";
+import { getStand, saveStand, deleteStand } from "../db/standen.js?v=20260917d";
+import { createSolutionPlayer } from "./solutionPlayer.js?v=20260917d";
+import { getVerbergOplossing } from "../db/uiSettings.js?v=20260917d";
 
 function capitalize(str) {
   return str.charAt(0).toUpperCase() + str.slice(1);
