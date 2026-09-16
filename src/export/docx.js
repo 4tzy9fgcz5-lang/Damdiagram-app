@@ -1,9 +1,10 @@
-import * as docxLib from "../../lib/docx.mjs?v=20260917a";
-import { renderDiagramSVG } from "../diagram/render.js?v=20260917a";
-import { parseFen } from "../core/fen.js?v=20260917a";
-import { getGridLayout, paginateItems } from "../stencil/layout.js?v=20260917a";
-import { svgToPngBytes } from "./rasterize.js?v=20260917a";
-import { resolveOplossingTekst } from "../db/standen.js?v=20260917a";
+import * as docxLib from "../../lib/docx.mjs?v=20260917b";
+import { renderDiagramSVG } from "../diagram/render.js?v=20260917b";
+import { parseFen } from "../core/fen.js?v=20260917b";
+import { getGridLayout, paginateItems } from "../stencil/layout.js?v=20260917b";
+import { opdrachtregelMetOndertitel } from "../stencil/compose.js?v=20260917b";
+import { svgToPngBytes } from "./rasterize.js?v=20260917b";
+import { resolveOplossingTekst } from "../db/standen.js?v=20260917b";
 
 const {
   Document,
@@ -106,7 +107,7 @@ function buildHeader(stencil, { titelSuffix = "", toonOpdracht = true } = {}) {
       new Paragraph({
         alignment: AlignmentType.LEFT,
         spacing: tightSpacing({ before: 20 }),
-        children: [new TextRun({ text: stencil.opdrachtregel, italics: true, size: 22 })],
+        children: [new TextRun({ text: opdrachtregelMetOndertitel(stencil), italics: true, size: 22 })],
       })
     );
   }

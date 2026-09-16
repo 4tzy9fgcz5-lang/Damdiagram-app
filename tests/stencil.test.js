@@ -1,6 +1,7 @@
-import { describe, it, assertEqual, assertThrows } from "./test-runner.js?v=20260917a";
-import { getGridLayout, computeCellRects, paginateItems, MAX_DIAGRAMS_PER_PAGE } from "../src/stencil/layout.js?v=20260917a";
-import { buildStencilPagesHTML, missingOplossingen } from "../src/stencil/stencilPreview.js?v=20260917a";
+import { describe, it, assertEqual, assertThrows } from "./test-runner.js?v=20260917b";
+import { getGridLayout, computeCellRects, paginateItems, MAX_DIAGRAMS_PER_PAGE } from "../src/stencil/layout.js?v=20260917b";
+import { buildStencilPagesHTML, missingOplossingen } from "../src/stencil/stencilPreview.js?v=20260917b";
+import { opdrachtregelMetOndertitel } from "../src/stencil/compose.js?v=20260917b";
 
 describe("stencil: rasterindeling", () => {
   it("gebruikt 3 kolommen x 4 rijen bij 12 diagrammen", () => {
@@ -62,5 +63,14 @@ describe("stencil: voorbeeldweergave", () => {
   });
   it("telt standen zonder oplossing", () => {
     assertEqual(missingOplossingen(items), 1);
+  });
+  it("zet de ondertitel vooraan bij de opdrachtregel, gescheiden door een koppelteken", () => {
+    assertEqual(
+      opdrachtregelMetOndertitel({ ...stencil, ondertitel: "Clubkampioenschap ronde 3" }),
+      "Clubkampioenschap ronde 3 - Wit speelt en wint"
+    );
+  });
+  it("laat de opdrachtregel ongewijzigd zonder ondertitel", () => {
+    assertEqual(opdrachtregelMetOndertitel(stencil), "Wit speelt en wint");
   });
 });

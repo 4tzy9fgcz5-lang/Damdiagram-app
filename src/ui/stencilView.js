@@ -1,13 +1,13 @@
-import { getStencil, saveStencil } from "../db/stencils.js?v=20260917a";
-import { saveStand } from "../db/standen.js?v=20260917a";
-import { resolveStencilItems } from "../stencil/compose.js?v=20260917a";
-import { buildStencilPagesHTML, missingOplossingen } from "../stencil/stencilPreview.js?v=20260917a";
-import { buildStencilDocxBlob, downloadBlob } from "../export/docx.js?v=20260917a";
-import { renderDiagramSVG } from "../diagram/render.js?v=20260917a";
-import { parseFen } from "../core/fen.js?v=20260917a";
-import { MAX_DIAGRAMS_PER_PAGE } from "../stencil/layout.js?v=20260917a";
+import { getStencil, saveStencil } from "../db/stencils.js?v=20260917b";
+import { getStand, saveStand } from "../db/standen.js?v=20260917b";
+import { resolveStencilItems } from "../stencil/compose.js?v=20260917b";
+import { buildStencilPagesHTML, missingOplossingen } from "../stencil/stencilPreview.js?v=20260917b";
+import { buildStencilDocxBlob, downloadBlob } from "../export/docx.js?v=20260917b";
+import { renderDiagramSVG } from "../diagram/render.js?v=20260917b";
+import { parseFen } from "../core/fen.js?v=20260917b";
+import { MAX_DIAGRAMS_PER_PAGE } from "../stencil/layout.js?v=20260917b";
 
-export async function renderStencilView(container, { stencilId, onOpenStand, onGotoDatabaseToAdd } = {}) {
+export async function renderStencilView(container, { stencilId, onOpenStand, onGotoDatabaseToAdd, onBack } = {}) {
   let stencil = await getStencil(stencilId);
   if (!stencil) {
     container.innerHTML = `<p>Opgaveblad niet gevonden.</p>`;
@@ -15,6 +15,7 @@ export async function renderStencilView(container, { stencilId, onOpenStand, onG
   }
 
   container.innerHTML = `
+    <button type="button" class="secondary" data-action="back" style="margin-bottom:0.75rem;">&#8592; Terug naar overzicht</button>
     <h2>Opgaveblad bewerken</h2>
     <div class="card">
       <div class="field-row">
@@ -29,6 +30,8 @@ export async function renderStencilView(container, { stencilId, onOpenStand, onG
       </div>
       <label>Clubnaam</label>
       <input type="text" data-field="club" />
+      <label>Ondertitel/notitie (optioneel)</label>
+      <input type="text" data-field="ondertitel" placeholder="komt vooraan bij de opdrachtregel, bijv. 'Clubkampioenschap ronde 3'" />
       <label>Algemene opdrachtregel</label>
       <input type="text" data-field="opdrachtregel" />
     </div>
@@ -36,6 +39,7 @@ export async function renderStencilView(container, { stencilId, onOpenStand, onG
     <div class="card">
       <div class="button-row" style="margin-top:0;">
         <button type="button" class="primary" data-action="add">Standen toevoegen</button>
+        <button type="button" class="secondary" data-action="sort-difficulty">Sorteer op moeilijkheidsgraad</button>
       </div>
       <div data-role="grid" class="stand-grid" style="margin-top:1rem;"></div>
       <p data-role="count" style="color:#666;font-size:0.85rem;"></p>
@@ -62,9 +66,12 @@ export async function renderStencilView(container, { stencilId, onOpenStand, onG
 
   const el = (sel) => container.querySelector(sel);
 
+  el('[data-action="back"]').addEventListener("click", () => onBack?.());
+
   el('[data-field="titel"]').value = stencil.titel;
   el('[data-field="datum"]').value = stencil.datum;
   el('[data-field="club"]').value = stencil.club;
+  el('[data-field="ondertitel"]').value = stencil.ondertitel;
   el('[data-field="opdrachtregel"]').value = stencil.opdrachtregel;
 
   async function persistHeader() {
@@ -73,18 +80,24 @@ export async function renderStencilView(container, { stencilId, onOpenStand, onG
       titel: el('[data-field="titel"]').value.trim() || "Opgaveblad",
       datum: el('[data-field="datum"]').value.trim(),
       club: el('[data-field="club"]').value.trim(),
+      ondertitel: el('[data-field="ondertitel"]').value.trim(),
       opdrachtregel: el('[data-field="opdrachtregel"]').value.trim() || "Wit speelt en wint",
     });
   }
-  for (const field of ["titel", "datum", "club", "opdrachtregel"]) {
+  for (const field of ["titel", "datum", "club", "ondertitel", "opdrachtregel"]) {
     el(`[data-field="${field}"]`).addEventListener("change", persistHeader);
   }
 
   el('[data-action="add"]').addEventListener("click", () => onGotoDatabaseToAdd?.(stencilId));
 
+  // Bewaart de scrollpositie: renderGrid vervangt alle kaarten in de grid, en
+  // zonder dit schoot de pagina daardoor (even kortstondig een lege grid) terug
+  // naar boven bij bijvoorbeeld het verwijderen van een diagram.
   async function persistStanden(newStanden) {
+    const scrollY = window.scrollY;
     stencil = await saveStencil({ ...stencil, standen: newStanden });
     await renderGrid();
+    window.scrollTo(0, scrollY);
   }
 
   async function renderGrid() {
@@ -154,6 +167,19 @@ export async function renderStencilView(container, { stencilId, onOpenStand, onG
   }
   await renderGrid();
 
+  // Diagram 1 = laagste moeilijkheidsgraad, oplopend. Een stand zonder eigen
+  // classificatie telt voorlopig als 3 sterren. Blijft een expliciete knop
+  // (i.p.v. automatisch bij elke wijziging), zodat een handmatige volgorde via
+  // ↑/↓ daarna niet steeds weer wordt overschreven.
+  el('[data-action="sort-difficulty"]').addEventListener("click", async () => {
+    const items = await resolveStencilItems(stencil);
+    const moeilijkheidPerStandId = new Map(items.map((item) => [item.standId, item.stand?.moeilijkheid ?? 3]));
+    const sorted = [...stencil.standen].sort(
+      (a, b) => moeilijkheidPerStandId.get(a.standId) - moeilijkheidPerStandId.get(b.standId)
+    );
+    await persistStanden(sorted);
+  });
+
   async function openPreview(mode) {
     const items = await resolveStencilItems(stencil);
     if (items.length === 0) {
@@ -206,12 +232,29 @@ export async function renderStencilView(container, { stencilId, onOpenStand, onG
   el('[data-action="docx-beide"]').addEventListener("click", () => exportDocx("beide"));
 }
 
+// Een forcing of lokzet is voor een oplosser niet altijd meteen als zodanig
+// herkenbaar — dat zet je daarom vast in het opdrachtveld, maar alleen als de
+// stand zelf nog geen eigen opdrachttekst heeft (anders overschrijf je iets
+// dat er bewust al stond).
+function autoOpdracht(stand) {
+  if (!stand || stand.opdracht) return "";
+  const labels = [];
+  if (stand.types?.includes("forcing")) labels.push("Forcing");
+  if (stand.types?.includes("lokzet")) labels.push("Lokzet");
+  return labels.join(", ");
+}
+
 export async function addStandenToStencil(stencilId, standIds) {
   const stencil = await getStencil(stencilId);
   if (!stencil) throw new Error("Opgaveblad niet gevonden.");
   const existingIds = new Set(stencil.standen.map((s) => s.standId));
   const toAdd = standIds.filter((id) => !existingIds.has(id));
-  const newStanden = [...stencil.standen, ...toAdd.map((standId) => ({ standId, opdracht: "" }))];
+  const nieuweItems = [];
+  for (const standId of toAdd) {
+    const stand = await getStand(standId);
+    nieuweItems.push({ standId, opdracht: autoOpdracht(stand) });
+  }
+  const newStanden = [...stencil.standen, ...nieuweItems];
   await saveStencil({ ...stencil, standen: newStanden });
   return { added: toAdd.length, skipped: standIds.length - toAdd.length };
 }

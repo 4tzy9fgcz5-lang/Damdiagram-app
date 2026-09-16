@@ -1,7 +1,22 @@
-import { renderBackupSection, renderTrainingSection } from "./backupView.js?v=20260917a";
+import { renderBackupSection, renderTrainingSection } from "./backupView.js?v=20260917b";
+import { getVerbergOplossing, setVerbergOplossing } from "../db/uiSettings.js?v=20260917b";
 
 function renderPlaceholder(container) {
   container.innerHTML = `<div class="card"><p style="color:#666;">Hier komt later meer.</p></div>`;
+}
+
+function renderDatabaseSettingsSection(container) {
+  container.innerHTML = `
+    <div class="card">
+      <label style="display:flex;align-items:center;gap:0.5rem;font-weight:normal;">
+        <input type="checkbox" data-field="verberg-oplossing" />
+        Oplossing verbergen tot ik erop klik (mocht je zelf willen puzzelen)
+      </label>
+    </div>
+  `;
+  const checkbox = container.querySelector('[data-field="verberg-oplossing"]');
+  checkbox.checked = getVerbergOplossing();
+  checkbox.addEventListener("change", () => setVerbergOplossing(checkbox.checked));
 }
 
 const SECTIES = [
@@ -21,7 +36,7 @@ const SECTIES = [
     slug: "database",
     titel: "Database-venster",
     omschrijving: "Voorkeuren voor het overzicht van je standen.",
-    render: renderPlaceholder,
+    render: renderDatabaseSettingsSection,
   },
   {
     slug: "opgavebladen",

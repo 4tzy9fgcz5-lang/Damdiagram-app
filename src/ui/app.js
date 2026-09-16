@@ -1,16 +1,16 @@
-import { renderEditorView } from "./editorView.js?v=20260917a";
-import { renderDatabaseView } from "./databaseView.js?v=20260917a";
-import { renderStandDetailView } from "./standDetailView.js?v=20260917a";
-import { renderStencilsListView } from "./stencilsListView.js?v=20260917a";
-import { renderStencilView, addStandenToStencil } from "./stencilView.js?v=20260917a";
-import { saveStencil } from "../db/stencils.js?v=20260917a";
-import { getLastBackupDate } from "./backupView.js?v=20260917a";
-import { renderSettingsView } from "./settingsView.js?v=20260917a";
-import { renderImportView } from "./importView.js?v=20260917a";
-import { renderPhotoImportView } from "./photoImportView.js?v=20260917a";
-import { renderBulkImportView } from "./bulkImportView.js?v=20260917a";
-import { renderDiagramCapture, cropAroundCorners } from "./diagramCaptureView.js?v=20260917a";
-import { listStanden } from "../db/standen.js?v=20260917a";
+import { renderEditorView } from "./editorView.js?v=20260917b";
+import { renderDatabaseView } from "./databaseView.js?v=20260917b";
+import { renderStandDetailView } from "./standDetailView.js?v=20260917b";
+import { renderStencilsListView } from "./stencilsListView.js?v=20260917b";
+import { renderStencilView, addStandenToStencil } from "./stencilView.js?v=20260917b";
+import { saveStencil } from "../db/stencils.js?v=20260917b";
+import { getLastBackupDate } from "./backupView.js?v=20260917b";
+import { renderSettingsView } from "./settingsView.js?v=20260917b";
+import { renderImportView } from "./importView.js?v=20260917b";
+import { renderPhotoImportView } from "./photoImportView.js?v=20260917b";
+import { renderBulkImportView } from "./bulkImportView.js?v=20260917b";
+import { renderDiagramCapture, cropAroundCorners } from "./diagramCaptureView.js?v=20260917b";
+import { listStanden } from "../db/standen.js?v=20260917b";
 
 const routes = ["nieuw", "foto", "bulk", "bulk-diagram", "database", "stand", "stencils", "stencil", "instellingen", "import"];
 let pendingRecognition = null;
@@ -118,6 +118,9 @@ async function render() {
       },
       onGotoDatabaseToAdd: (stencilId) => {
         location.hash = `#/database/${stencilId}`;
+      },
+      onBack: () => {
+        location.hash = "#/stencils";
       },
     });
   } else if (name === "stand") {

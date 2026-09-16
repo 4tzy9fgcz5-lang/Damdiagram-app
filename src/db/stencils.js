@@ -1,5 +1,5 @@
-import { openDb, tx, promisify, newId } from "./db.js?v=20260917a";
-import { STORE_STENCILS } from "./schema.js?v=20260917a";
+import { openDb, tx, promisify, newId } from "./db.js?v=20260917b";
+import { STORE_STENCILS } from "./schema.js?v=20260917b";
 
 function nowIso() {
   return new Date().toISOString();
@@ -13,6 +13,7 @@ export async function saveStencil(input) {
     titel: input.titel ?? "Opgaveblad",
     club: input.club ?? "",
     datum: input.datum ?? nowIso().slice(0, 10),
+    ondertitel: input.ondertitel ?? "",
     opdrachtregel: input.opdrachtregel ?? "Wit speelt en wint",
     // Elk item: { standId, opdracht }. opdracht start als kopie van het opdrachtveld
     // van de stand zelf, maar kan per stencil losstaand worden aangepast (zie stencilView).

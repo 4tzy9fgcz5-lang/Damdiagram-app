@@ -1,12 +1,14 @@
-import { createBoardEditor, createPalette } from "./boardEditor.js?v=20260917a";
-import { createSolutionInput } from "./solutionInput.js?v=20260917a";
-import { createEmptyBoard, countPieces, isWhite, isBlack } from "../core/board.js?v=20260917a";
-import { parseFen, boardToFen, FenParseError } from "../core/fen.js?v=20260917a";
-import { parseStandInput, QuickTextParseError } from "../core/quicktext.js?v=20260917a";
-import { validateBoard } from "../core/validate.js?v=20260917a";
-import { saveStand, getStand, findDuplicates } from "../db/standen.js?v=20260917a";
-import { getList, addListValue } from "../db/lijsten.js?v=20260917a";
-import { logHerkenningCorrectie } from "../db/herkenningLog.js?v=20260917a";
+import { createBoardEditor, createPalette } from "./boardEditor.js?v=20260917b";
+import { createSolutionInput } from "./solutionInput.js?v=20260917b";
+import { createEmptyBoard, countPieces, isWhite, isBlack } from "../core/board.js?v=20260917b";
+import { parseFen, boardToFen, FenParseError } from "../core/fen.js?v=20260917b";
+import { parseStandInput, QuickTextParseError } from "../core/quicktext.js?v=20260917b";
+import { validateBoard } from "../core/validate.js?v=20260917b";
+import { saveStand, getStand, findDuplicates } from "../db/standen.js?v=20260917b";
+import { getList, addListValue } from "../db/lijsten.js?v=20260917b";
+import { logHerkenningCorrectie } from "../db/herkenningLog.js?v=20260917b";
+import { reclassifyFromDataUrl } from "./diagramCaptureView.js?v=20260917b";
+import { RECOGNITION_VERSION as NEW_MODEL_VERSION } from "../recognition/newClassify.js?v=20260917b";
 
 const MOEILIJKHEID_MAX = 5;
 
@@ -43,6 +45,17 @@ export async function renderEditorView(
             photoDataUrl
               ? `<div data-role="photoBlock" class="editor-photo-block">
                   <img src="${photoDataUrl}" style="width:100%;border-radius:8px;border:1px solid #d0d0d0;display:block;" />
+                  <div class="quick-actions" style="justify-content:flex-start;margin-top:0.5rem;">
+                    <label style="display:inline-flex;align-items:center;gap:0.3rem;font-weight:normal;margin:0;">
+                      <input type="radio" name="editor-classifier" value="new" /> Nieuwe herkenning
+                    </label>
+                    <label style="display:inline-flex;align-items:center;gap:0.3rem;font-weight:normal;margin:0;">
+                      <input type="radio" name="editor-classifier" value="old" /> Oude herkenning
+                    </label>
+                  </div>
+                  <p style="font-size:0.8rem;color:#666;margin:0.2rem 0 0;">
+                    Ander resultaat nodig? Wisselen herkent dezelfde foto opnieuw en vervangt het bord hierboven.
+                  </p>
                   <label style="margin-top:0.5rem;">Boekstijl (voor training van de fotoherkenning)</label>
                   <div class="tag-list" data-role="boekstijl"></div>
                 </div>`
@@ -177,8 +190,11 @@ export async function renderEditorView(
 
   // Welke velden onzeker zijn (gele rand) hangt af van wélke classifier de foto
   // herkende — dat bepaalt en levert photoImportView al aan, dit scherm hoeft de
-  // drempel van de gebruikte classifier niet te kennen.
-  const uncertainFields = uncertainFieldsProp ?? [];
+  // drempel van de gebruikte classifier niet te kennen. Alle drie hieronder zijn
+  // herschrijfbaar (geen const): bij het wisselen van classifier (zie
+  // switchClassifier) vervangen ze de oorspronkelijke fotoherkenning, ook als
+  // basis voor het trainingslogboek bij opslaan.
+  let uncertainFields = uncertainFieldsProp ?? [];
 
   const boardEditor = createBoardEditor(boardHost, {
     board: existingStand ? parseFen(existingStand.fen).board : initialBoard ?? createEmptyBoard(),
@@ -190,6 +206,43 @@ export async function renderEditorView(
     highlightFields: uncertainFields,
   });
   createPalette(paletteHost, { onSelect: (tool) => boardEditor.setTool(tool) });
+
+  // Schakelaar op het correctiescherm zelf: soms is de gekozen classifier
+  // duidelijk mis (of "crasht" met een rare, foutieve stand) en scheelt het
+  // tijd om meteen — zonder terug te gaan naar de foto-stap — dezelfde foto met
+  // de andere classifier te laten herkennen. Vervangt het bord; eventuele eigen
+  // correcties tot dat moment gaan daarbij verloren (vandaar de bevestiging).
+  if (photoDataUrl) {
+    const classifierRadios = container.querySelectorAll('input[name="editor-classifier"]');
+    const isCurrentlyNew = modelVersion === NEW_MODEL_VERSION;
+    for (const radio of classifierRadios) {
+      radio.checked = radio.value === (isCurrentlyNew ? "new" : "old");
+    }
+    for (const radio of classifierRadios) {
+      radio.addEventListener("change", async (e) => {
+        if (!e.target.checked) return;
+        const useNew = e.target.value === "new";
+        const doorgaan = confirm(
+          "Dit herkent dezelfde foto opnieuw en vervangt het bord. Eigen correcties die je al gemaakt hebt, gaan daarbij verloren. Doorgaan?"
+        );
+        if (!doorgaan) {
+          for (const r of classifierRadios) r.checked = r.value === (useNew ? "old" : "new");
+          return;
+        }
+        try {
+          const result = await reclassifyFromDataUrl(photoDataUrl, useNew);
+          initialBoard = result.board;
+          confidences = result.confidences;
+          uncertainFields = result.uncertainFields;
+          modelVersion = result.modelVersion;
+          boardEditor.setBoard(result.board);
+          boardEditor.setHighlights(uncertainFields);
+        } catch (err) {
+          alert("Opnieuw herkennen is mislukt: " + err.message);
+        }
+      });
+    }
+  }
 
   function renderPieceCount() {
     const board = boardEditor.getBoard();

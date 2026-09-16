@@ -1,9 +1,9 @@
-import { renderDiagramSVG } from "../diagram/render.js?v=20260917a";
-import { parseFen } from "../core/fen.js?v=20260917a";
-import { listStanden, resolveOplossingTekst } from "../db/standen.js?v=20260917a";
-import { getList } from "../db/lijsten.js?v=20260917a";
-import { svgToPngDataUrl } from "../export/rasterize.js?v=20260917a";
-import { downloadBlob } from "../export/docx.js?v=20260917a";
+import { renderDiagramSVG } from "../diagram/render.js?v=20260917b";
+import { parseFen } from "../core/fen.js?v=20260917b";
+import { listStanden, resolveOplossingTekst } from "../db/standen.js?v=20260917b";
+import { getList } from "../db/lijsten.js?v=20260917b";
+import { svgToPngDataUrl } from "../export/rasterize.js?v=20260917b";
+import { downloadBlob } from "../export/docx.js?v=20260917b";
 
 // Onthoudt de filterkeuzes zolang de pagina open staat (niet in IndexedDB),
 // zodat teruggaan vanaf een standdetailpagina niet alle filters wist.
@@ -220,7 +220,7 @@ export async function renderDatabaseView(container, { onOpenStand, onAddSelectio
   });
 
   el('[data-action="share-selection"]').addEventListener("click", async () => {
-    const { buildShareData } = await import("../db/backup.js?v=20260917a");
+    const { buildShareData } = await import("../db/backup.js?v=20260917b");
     const data = await buildShareData([...selected]);
     const json = JSON.stringify(data);
     const encoded = btoa(unescape(encodeURIComponent(json)))

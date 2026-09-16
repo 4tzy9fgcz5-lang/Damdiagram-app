@@ -3,21 +3,21 @@
 // foto-import als elke stap van de bulk-import (rij-door-diagrammen) precies
 // dezelfde, vertrouwde flow gebruiken.
 
-import { warpToSquareCanvas } from "../recognition/homography.js?v=20260917a";
-import { classifyBoard, CONFIDENCE_THRESHOLD, RECOGNITION_VERSION } from "../recognition/classify.js?v=20260917a";
+import { warpToSquareCanvas } from "../recognition/homography.js?v=20260917b";
+import { classifyBoard, CONFIDENCE_THRESHOLD, RECOGNITION_VERSION } from "../recognition/classify.js?v=20260917b";
 import {
   createClassifier as createNewClassifier,
   FLAG_BELOW as NEW_FLAG_BELOW,
   RECOGNITION_VERSION as NEW_RECOGNITION_VERSION,
-} from "../recognition/newClassify.js?v=20260917a";
+} from "../recognition/newClassify.js?v=20260917b";
 import {
   buildCornersOverlay,
   buildGridOverlay,
   buildFieldCrops,
   buildRawFieldCrops,
-} from "../recognition/debugRender.js?v=20260917a";
-import { FIELD_COUNT, createEmptyBoard, PIECE_TYPES } from "../core/board.js?v=20260917a";
-import { drawableSize, WORKING_MAX_SIDE } from "./imageInput.js?v=20260917a";
+} from "../recognition/debugRender.js?v=20260917b";
+import { FIELD_COUNT, createEmptyBoard, PIECE_TYPES } from "../core/board.js?v=20260917b";
+import { drawableSize, WORKING_MAX_SIDE } from "./imageInput.js?v=20260917b";
 
 // Ligt buiten het bereik van het cache-bust-bompscript (dat kijkt alleen naar JS-
 // imports/HTML-tags) — bij het trainen van een nieuw damscan/weights.json dus ook
@@ -102,6 +102,24 @@ async function classifyWithComparison(useNew, warpedCanvas) {
   }
   const uncertainFields = [...new Set([...result.uncertainFields, ...disagreementFields])].sort((a, b) => a - b);
   return { ...result, uncertainFields, disagreementFields };
+}
+
+// Herkent een al eerder rechtgetrokken foto (de data-URL die bij een stand wordt
+// opgeslagen) nogmaals, met de gekozen classifier — voor de schakelaar op het
+// correctiescherm (editorView.js): daar wil je soms alsnog van classifier kunnen
+// wisselen zonder terug te gaan naar de hoeken/resultaten-stap.
+export async function reclassifyFromDataUrl(photoDataUrl, useNew) {
+  const img = new Image();
+  await new Promise((resolve, reject) => {
+    img.onload = () => resolve();
+    img.onerror = () => reject(new Error("kon de opgeslagen foto niet laden"));
+    img.src = photoDataUrl;
+  });
+  const canvas = document.createElement("canvas");
+  canvas.width = img.naturalWidth;
+  canvas.height = img.naturalHeight;
+  canvas.getContext("2d").drawImage(img, 0, 0);
+  return classifyWithComparison(useNew, canvas);
 }
 
 const WARP_SIZE = 500;

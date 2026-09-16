@@ -1,8 +1,8 @@
-import { renderDiagramSVG } from "../diagram/render.js?v=20260917a";
-import { parseFen } from "../core/fen.js?v=20260917a";
-import { resolveOplossingTekst } from "../db/standen.js?v=20260917a";
-import { getGridLayout, paginateItems } from "./layout.js?v=20260917a";
-import { effectiveOpdracht } from "./compose.js?v=20260917a";
+import { renderDiagramSVG } from "../diagram/render.js?v=20260917b";
+import { parseFen } from "../core/fen.js?v=20260917b";
+import { resolveOplossingTekst } from "../db/standen.js?v=20260917b";
+import { getGridLayout, paginateItems } from "./layout.js?v=20260917b";
+import { opdrachtregelMetOndertitel } from "./compose.js?v=20260917b";
 
 const PAGE_STYLE = `
   @page { size: A4 portrait; margin: 14mm; }
@@ -33,7 +33,7 @@ function headerHTML(stencil, { titelSuffix = "", toonOpdracht = true } = {}) {
   return `
     <div class="sheet-header">
       <h1>${escapeHtml(stencil.titel)}${titelSuffix}</h1>
-      ${toonOpdracht ? `<div class="opdracht">${escapeHtml(stencil.opdrachtregel)}</div>` : ""}
+      ${toonOpdracht ? `<div class="opdracht">${escapeHtml(opdrachtregelMetOndertitel(stencil))}</div>` : ""}
     </div>
   `;
 }

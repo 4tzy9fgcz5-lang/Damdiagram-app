@@ -1,5 +1,5 @@
-import { describe, it, assertEqual, assertTrue } from "./test-runner.js?v=20260917a";
-import { resetDatabaseForTests } from "../src/db/db.js?v=20260917a";
+import { describe, it, assertEqual, assertTrue } from "./test-runner.js?v=20260917b";
+import { resetDatabaseForTests } from "../src/db/db.js?v=20260917b";
 import {
   saveStand,
   getStand,
@@ -7,11 +7,11 @@ import {
   findDuplicates,
   listStanden,
   markUsedIn,
-} from "../src/db/standen.js?v=20260917a";
-import { getList, addListValue, renameListValue, removeListValue } from "../src/db/lijsten.js?v=20260917a";
-import { saveStencil, getStencil, listStencils, deleteStencil } from "../src/db/stencils.js?v=20260917a";
-import { exportAll, importAll, buildShareData } from "../src/db/backup.js?v=20260917a";
-import { logHerkenningCorrectie, getAllHerkenningCorrecties } from "../src/db/herkenningLog.js?v=20260917a";
+} from "../src/db/standen.js?v=20260917b";
+import { getList, addListValue, renameListValue, removeListValue } from "../src/db/lijsten.js?v=20260917b";
+import { saveStencil, getStencil, listStencils, deleteStencil } from "../src/db/stencils.js?v=20260917b";
+import { exportAll, importAll, buildShareData } from "../src/db/backup.js?v=20260917b";
+import { logHerkenningCorrectie, getAllHerkenningCorrecties } from "../src/db/herkenningLog.js?v=20260917b";
 
 async function freshDb() {
   await resetDatabaseForTests();

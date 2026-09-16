@@ -352,10 +352,23 @@ a.secondary {
   min-height: 1.2em;
 }
 
-.stand-detail-meta {
-  font-size: 0.85rem;
+.stand-detail-tabel {
+  margin: 0.75rem auto 0;
+  font-size: 0.9rem;
+  border-collapse: collapse;
+}
+
+.stand-detail-tabel th,
+.stand-detail-tabel td {
+  text-align: left;
+  padding: 0.2rem 0.75rem 0.2rem 0;
+  vertical-align: top;
+}
+
+.stand-detail-tabel th {
   color: #666;
-  margin-top: 0.5rem;
+  font-weight: 600;
+  white-space: nowrap;
 }
 
 .solution-layout {

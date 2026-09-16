@@ -1,6 +1,32 @@
-import { parseFen } from "../core/fen.js?v=20260917a";
-import { getStand, saveStand, deleteStand } from "../db/standen.js?v=20260917a";
-import { createSolutionPlayer } from "./solutionPlayer.js?v=20260917a";
+import { parseFen } from "../core/fen.js?v=20260917b";
+import { getStand, saveStand, deleteStand } from "../db/standen.js?v=20260917b";
+import { createSolutionPlayer } from "./solutionPlayer.js?v=20260917b";
+import { getVerbergOplossing } from "../db/uiSettings.js?v=20260917b";
+
+function capitalize(str) {
+  return str.charAt(0).toUpperCase() + str.slice(1);
+}
+
+function starsHTML(n) {
+  let html = "";
+  for (let i = 1; i <= 5; i++) html += `<span class="star${i <= n ? " filled" : ""}">★</span>`;
+  return html;
+}
+
+// Rijen voor de infotabel onder de oplossing — alleen wat er daadwerkelijk is
+// ingevuld, in een vaste volgorde.
+function metaRows(stand) {
+  const rows = [];
+  if (stand.speelsystemen.length) rows.push(["Speelsysteem", escapeHtml(stand.speelsystemen.join(", "))]);
+  if (stand.types.length) rows.push(["Speltype", escapeHtml(stand.types.map(capitalize).join(", "))]);
+  if (stand.moeilijkheid) rows.push(["Moeilijkheidsgraad", starsHTML(stand.moeilijkheid)]);
+  if (stand.auteur || stand.jaartal) {
+    const tekst = [stand.auteur, stand.jaartal ? `(${stand.jaartal})` : ""].filter(Boolean).join(" ");
+    rows.push(["Auteur", escapeHtml(tekst)]);
+  }
+  if (stand.publicatie) rows.push(["Publicatie", escapeHtml(stand.publicatie)]);
+  return rows;
+}
 
 // Focus-weergave van een opgeslagen stand: opgave, bord, oplossing, auteur. Geen
 // invulvelden — bewerken gaat via de knop onderaan naar de gewone invoerpagina.
@@ -12,14 +38,13 @@ export async function renderStandDetailView(container, { standId, onEdit, onDele
   }
 
   const { board, turn } = parseFen(stand.fen);
-  const opgave = stand.opdracht?.trim() || (turn === "white" ? "Wit speelt en wint" : "Zwart speelt en wint");
+  const basisOpgave = stand.opdracht?.trim() || (turn === "white" ? "Wit speelt en wint" : "Zwart speelt en wint");
+  // Een speciaal speltype (forcing, lokzet, ...) komt vooraan te staan, zodat in
+  // één oogopslag duidelijk is om wat voor soort opgave het gaat.
+  const typePrefix = stand.types.length ? stand.types.map(capitalize).join(", ") : "";
+  const opgave = typePrefix ? `${typePrefix} - ${basisOpgave}` : basisOpgave;
 
-  const bijschrift = [];
-  if (stand.auteur) bijschrift.push(escapeHtml(stand.auteur));
-  if (stand.jaartal) bijschrift.push(String(stand.jaartal));
-  if (stand.publicatie) bijschrift.push(escapeHtml(stand.publicatie));
-  const tags = [...stand.speelsystemen, ...stand.types].join(", ");
-  if (tags) bijschrift.push(escapeHtml(tags));
+  const rows = metaRows(stand);
 
   container.innerHTML = `
     <button type="button" class="secondary" data-action="back" style="margin-bottom:0.75rem;">&#8592; Terug naar overzicht</button>
@@ -27,7 +52,13 @@ export async function renderStandDetailView(container, { standId, onEdit, onDele
     <div class="card" style="text-align:center;">
       <div data-role="player"></div>
       <div data-role="legacyOplossing"></div>
-      ${bijschrift.length ? `<p class="stand-detail-meta">${bijschrift.join(" · ")}</p>` : ""}
+      ${
+        rows.length
+          ? `<table class="stand-detail-tabel">${rows
+              .map(([label, waarde]) => `<tr><th>${label}</th><td>${waarde}</td></tr>`)
+              .join("")}</table>`
+          : ""
+      }
       <div class="button-row" style="justify-content:center;">
         <button type="button" class="secondary" data-action="edit">Bewerken</button>
         <button type="button" class="secondary" data-action="delete">Verwijderen</button>
@@ -40,16 +71,27 @@ export async function renderStandDetailView(container, { standId, onEdit, onDele
     board,
     zetten: stand.zetten ?? [],
     turn,
+    startHidden: getVerbergOplossing(),
     onSolutionChange: async (nieuweZetten) => {
       stand.zetten = nieuweZetten;
       await saveStand(stand);
     },
   });
 
+  // Een oude, vrij getypte oplossingstekst heeft geen eigen af-te-spelen zetten,
+  // dus valt buiten het verbergen/tonen van de speler hierboven — hier apart
+  // hetzelfde gedrag, zodat de instelling ook voor oudere standen werkt.
   const legacyHost = container.querySelector('[data-role="legacyOplossing"]');
   const heeftZetten = stand.zetten && stand.zetten.length > 0;
   if (!heeftZetten && stand.oplossing) {
-    legacyHost.innerHTML = `<p style="white-space:pre-wrap;text-align:left;">${escapeHtml(stand.oplossing)}</p>`;
+    if (getVerbergOplossing()) {
+      legacyHost.innerHTML = `<p><button type="button" class="secondary" data-action="reveal-legacy">Oplossing tonen</button></p>`;
+      legacyHost.querySelector('[data-action="reveal-legacy"]').addEventListener("click", () => {
+        legacyHost.innerHTML = `<p style="white-space:pre-wrap;text-align:left;">${escapeHtml(stand.oplossing)}</p>`;
+      });
+    } else {
+      legacyHost.innerHTML = `<p style="white-space:pre-wrap;text-align:left;">${escapeHtml(stand.oplossing)}</p>`;
+    }
   }
 
   container.querySelector('[data-action="back"]').addEventListener("click", () => onBack?.());
