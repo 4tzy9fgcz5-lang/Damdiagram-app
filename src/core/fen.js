@@ -1,4 +1,4 @@
-import { FIELD_COUNT, PIECE_TYPES, createEmptyBoard, isValidField } from "./board.js?v=20260916e";
+import { FIELD_COUNT, PIECE_TYPES, createEmptyBoard, isValidField } from "./board.js?v=20260916f";
 
 export class FenParseError extends Error {}
 

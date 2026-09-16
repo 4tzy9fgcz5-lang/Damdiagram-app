@@ -1,25 +1,21 @@
 // Bulk-import, stap 1: een foto van een hele boekpagina met meerdere diagrammen
-// erop, waarna de app zelf probeert te vinden hoeveel diagrammen erop staan en
-// waar. De gebruiker kan gevonden diagrammen verwijderen, de hoeken bijstellen,
-// en zelf een gemist diagram toevoegen — de automatische detectie hoeft niet
-// perfect te zijn, dat vangt dit scherm op (zie CLAUDE.md-plan voor bulk-import).
-//
-// Deze eerste versie levert de bevestigde hoeken van elk diagram op via
-// `onConfirmed`; het stap-voor-stap doorlopen (hoeken fijn afstellen -> herkennen
-// -> oplossing invoeren per diagram) is een volgende stap, nog niet hier.
+// erop. Dit scherm is puur een controle: klopt het aantal gevonden diagrammen?
+// Hoeken preciezer afstellen gebeurt straks per diagram, in de vertrouwde
+// hoeken-stap (diagramCaptureView.js) — hier alleen verwijderen wat niet hoort en
+// zelf toevoegen wat gemist is.
 
-import { loadDrawable, drawableSize, WORKING_MAX_SIDE } from "./photoImportView.js?v=20260916e";
-import { detectMultipleBoardCorners } from "../recognition/detectMultiBoard.js?v=20260916e";
+import { loadDrawable, drawableSize, WORKING_MAX_SIDE } from "./imageInput.js?v=20260916f";
+import { detectMultipleBoardCorners } from "../recognition/detectMultiBoard.js?v=20260916f";
 
-const HANDLE_RADIUS = 12;
-const HANDLE_HIT_RADIUS = 26;
 const COLORS = ["#d1495b", "#1a5c38", "#3a6ea5", "#e0a800", "#8854d0", "#009688"];
 
-function defaultSquare(canvas, index) {
-  const size = Math.min(canvas.width, canvas.height) * 0.22;
+// Een redelijke standaardplek voor een handmatig toegevoegd diagram — de
+// gebruiker stelt de precieze hoeken pas bij zodra dát diagram aan de beurt is.
+function defaultBoxCorners(fullWidth, fullHeight, index) {
+  const size = Math.min(fullWidth, fullHeight) * 0.22;
   const offset = (index % 5) * size * 0.15;
-  const cx = canvas.width / 2 + offset;
-  const cy = canvas.height / 2 + offset;
+  const cx = fullWidth / 2 + offset;
+  const cy = fullHeight / 2 + offset;
   return [
     { x: cx - size / 2, y: cy - size / 2 },
     { x: cx + size / 2, y: cy - size / 2 },
@@ -43,9 +39,12 @@ export async function renderBulkImportView(container, { onConfirmed } = {}) {
     </div>
 
     <div class="card" data-role="overview" style="display:none;">
+      <p>Controleer of alle diagrammen op de foto gevonden zijn. Verwijder wat niet
+        hoort; voeg zelf iets toe als er een gemist is. De hoeken van elk diagram
+        stel je zo meteen, per diagram, precies af.</p>
       <p data-role="status" style="color:#666;font-size:0.85rem;"></p>
       <div style="position:relative;display:inline-block;max-width:100%;">
-        <canvas data-role="canvas" style="width:100%;max-width:620px;height:auto;display:block;touch-action:none;border-radius:8px;"></canvas>
+        <canvas data-role="canvas" style="width:100%;max-width:620px;height:auto;display:block;border-radius:8px;"></canvas>
       </div>
       <div class="button-row" style="margin-top:0.75rem;">
         <button type="button" class="secondary" data-action="add">+ Diagram toevoegen</button>
@@ -67,17 +66,9 @@ export async function renderBulkImportView(container, { onConfirmed } = {}) {
   const list = el('[data-role="list"]');
 
   let drawable = null;
-  let items = []; // { id, corners: [{x,y} x4] in canvas-coördinaten }
-  let selectedId = null;
-  let dragCornerIndex = -1;
+  let scale = 1;
+  let items = []; // { id, corners: [{x,y} x4] in VOLLEDIGE-RESOLUTIE coördinaten van drawable
   let nextId = 1;
-
-  function toCanvasPoint(clientX, clientY) {
-    const rect = canvas.getBoundingClientRect();
-    const scaleX = canvas.width / rect.width;
-    const scaleY = canvas.height / rect.height;
-    return { x: (clientX - rect.left) * scaleX, y: (clientY - rect.top) * scaleY };
-  }
 
   function redraw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -85,31 +76,19 @@ export async function renderBulkImportView(container, { onConfirmed } = {}) {
 
     items.forEach((item, index) => {
       const color = COLORS[index % COLORS.length];
-      const isSelected = item.id === selectedId;
+      const displayCorners = item.corners.map((p) => ({ x: p.x * scale, y: p.y * scale }));
       ctx.save();
       ctx.strokeStyle = color;
-      ctx.lineWidth = isSelected ? Math.max(3, canvas.width * 0.006) : Math.max(2, canvas.width * 0.003);
+      ctx.lineWidth = Math.max(2, canvas.width * 0.004);
       ctx.beginPath();
-      item.corners.forEach((p, i) => (i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y)));
+      displayCorners.forEach((p, i) => (i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y)));
       ctx.closePath();
       ctx.stroke();
 
-      const label = item.corners[0];
+      const label = displayCorners[0];
       ctx.fillStyle = color;
       ctx.font = `bold ${Math.round(canvas.width * 0.03)}px sans-serif`;
       ctx.fillText(String(index + 1), label.x + 4, label.y + canvas.width * 0.03);
-
-      if (isSelected) {
-        item.corners.forEach((p, i) => {
-          ctx.beginPath();
-          ctx.arc(p.x, p.y, HANDLE_RADIUS, 0, Math.PI * 2);
-          ctx.fillStyle = i === dragCornerIndex ? "#e7f3ec" : "#ffffff";
-          ctx.fill();
-          ctx.lineWidth = 3;
-          ctx.strokeStyle = color;
-          ctx.stroke();
-        });
-      }
       ctx.restore();
     });
   }
@@ -129,75 +108,19 @@ export async function renderBulkImportView(container, { onConfirmed } = {}) {
       row.innerHTML = `
         <span style="display:inline-block;width:0.9rem;height:0.9rem;border-radius:50%;background:${color};flex-shrink:0;"></span>
         <span style="flex:1;">Diagram ${index + 1}</span>
-        <button type="button" class="secondary" data-select="${item.id}">${item.id === selectedId ? "Klaar met slepen" : "Hoeken aanpassen"}</button>
         <button type="button" class="secondary" data-remove="${item.id}">Verwijderen</button>
       `;
       list.appendChild(row);
-    });
-    list.querySelectorAll("[data-select]").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        const id = Number(btn.dataset.select);
-        selectedId = selectedId === id ? null : id;
-        renderList();
-        redraw();
-      });
     });
     list.querySelectorAll("[data-remove]").forEach((btn) => {
       btn.addEventListener("click", () => {
         const id = Number(btn.dataset.remove);
         items = items.filter((it) => it.id !== id);
-        if (selectedId === id) selectedId = null;
         renderList();
         redraw();
       });
     });
   }
-
-  function nearestCorner(point) {
-    if (selectedId == null) return -1;
-    const item = items.find((it) => it.id === selectedId);
-    if (!item) return -1;
-    let best = -1;
-    let bestDist = Infinity;
-    item.corners.forEach((p, i) => {
-      const d = Math.hypot(p.x - point.x, p.y - point.y);
-      if (d < bestDist) {
-        bestDist = d;
-        best = i;
-      }
-    });
-    const hitRadiusCanvasUnits = HANDLE_HIT_RADIUS * (canvas.width / canvas.getBoundingClientRect().width);
-    return bestDist <= hitRadiusCanvasUnits ? best : -1;
-  }
-
-  function onPointerDown(evt) {
-    const point = toCanvasPoint(evt.clientX, evt.clientY);
-    const idx = nearestCorner(point);
-    if (idx === -1) return;
-    dragCornerIndex = idx;
-    canvas.setPointerCapture(evt.pointerId);
-    evt.preventDefault();
-  }
-  function onPointerMove(evt) {
-    if (dragCornerIndex === -1 || selectedId == null) return;
-    const item = items.find((it) => it.id === selectedId);
-    if (!item) return;
-    const point = toCanvasPoint(evt.clientX, evt.clientY);
-    item.corners[dragCornerIndex] = {
-      x: Math.max(0, Math.min(canvas.width, point.x)),
-      y: Math.max(0, Math.min(canvas.height, point.y)),
-    };
-    redraw();
-    evt.preventDefault();
-  }
-  function onPointerUp() {
-    dragCornerIndex = -1;
-  }
-
-  canvas.addEventListener("pointerdown", onPointerDown);
-  canvas.addEventListener("pointermove", onPointerMove);
-  canvas.addEventListener("pointerup", onPointerUp);
-  canvas.addEventListener("pointercancel", onPointerUp);
 
   async function handleFile(file) {
     if (!file) return;
@@ -205,7 +128,7 @@ export async function renderBulkImportView(container, { onConfirmed } = {}) {
     try {
       drawable = await loadDrawable(file);
       const { width, height } = drawableSize(drawable);
-      const scale = Math.min(1, WORKING_MAX_SIDE / Math.max(width, height));
+      scale = Math.min(1, WORKING_MAX_SIDE / Math.max(width, height));
       canvas.width = Math.round(width * scale);
       canvas.height = Math.round(height * scale);
 
@@ -220,15 +143,11 @@ export async function renderBulkImportView(container, { onConfirmed } = {}) {
       } catch {
         detected = [];
       }
-      items = detected.map((corners) => ({
-        id: nextId++,
-        corners: corners.map((p) => ({ x: p.x * scale, y: p.y * scale })),
-      }));
-      selectedId = null;
+      items = detected.map((corners) => ({ id: nextId++, corners }));
 
       status.textContent =
         items.length > 0
-          ? `${items.length} diagram(men) gevonden — controleer of dit klopt, verwijder wat niet hoort en voeg zo nodig zelf iets toe.`
+          ? `${items.length} diagram(men) gevonden — controleer of dit klopt en verwijder wat niet hoort.`
           : "Geen diagrammen automatisch gevonden. Voeg ze zelf toe met “+ Diagram toevoegen”.";
       renderList();
       redraw();
@@ -245,7 +164,6 @@ export async function renderBulkImportView(container, { onConfirmed } = {}) {
   el('[data-action="restart"]').addEventListener("click", () => {
     drawable = null;
     items = [];
-    selectedId = null;
     pickCard.style.display = "block";
     overviewCard.style.display = "none";
     el('[data-role="camera-input"]').value = "";
@@ -253,9 +171,8 @@ export async function renderBulkImportView(container, { onConfirmed } = {}) {
   });
 
   el('[data-action="add"]').addEventListener("click", () => {
-    const id = nextId++;
-    items.push({ id, corners: defaultSquare(canvas, items.length) });
-    selectedId = id;
+    const { width, height } = drawableSize(drawable);
+    items.push({ id: nextId++, corners: defaultBoxCorners(width, height, items.length) });
     renderList();
     redraw();
   });
@@ -265,11 +182,6 @@ export async function renderBulkImportView(container, { onConfirmed } = {}) {
       status.textContent = "Voeg eerst minstens één diagram toe.";
       return;
     }
-    const { width: fullWidth } = drawableSize(drawable);
-    const scaleUp = fullWidth / canvas.width;
-    const diagrams = items.map((item) => ({
-      corners: item.corners.map((p) => ({ x: p.x * scaleUp, y: p.y * scaleUp })),
-    }));
-    onConfirmed?.({ drawable, diagrams });
+    onConfirmed?.({ drawable, diagrams: items.map((item) => ({ corners: item.corners })) });
   });
 }

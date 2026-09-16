@@ -1,16 +1,21 @@
-import { renderEditorView } from "./editorView.js?v=20260916e";
-import { renderDatabaseView } from "./databaseView.js?v=20260916e";
-import { renderStandDetailView } from "./standDetailView.js?v=20260916e";
-import { renderStencilsListView } from "./stencilsListView.js?v=20260916e";
-import { renderStencilView, addStandenToStencil } from "./stencilView.js?v=20260916e";
-import { renderBackupView, getLastBackupDate } from "./backupView.js?v=20260916e";
-import { renderImportView } from "./importView.js?v=20260916e";
-import { renderPhotoImportView } from "./photoImportView.js?v=20260916e";
-import { renderBulkImportView } from "./bulkImportView.js?v=20260916e";
-import { listStanden } from "../db/standen.js?v=20260916e";
+import { renderEditorView } from "./editorView.js?v=20260916f";
+import { renderDatabaseView } from "./databaseView.js?v=20260916f";
+import { renderStandDetailView } from "./standDetailView.js?v=20260916f";
+import { renderStencilsListView } from "./stencilsListView.js?v=20260916f";
+import { renderStencilView, addStandenToStencil } from "./stencilView.js?v=20260916f";
+import { renderBackupView, getLastBackupDate } from "./backupView.js?v=20260916f";
+import { renderImportView } from "./importView.js?v=20260916f";
+import { renderPhotoImportView } from "./photoImportView.js?v=20260916f";
+import { renderBulkImportView } from "./bulkImportView.js?v=20260916f";
+import { renderDiagramCapture, cropAroundCorners } from "./diagramCaptureView.js?v=20260916f";
+import { listStanden } from "../db/standen.js?v=20260916f";
 
-const routes = ["nieuw", "foto", "bulk", "database", "stand", "stencils", "stencil", "backup", "import"];
+const routes = ["nieuw", "foto", "bulk", "bulk-diagram", "database", "stand", "stencils", "stencil", "backup", "import"];
 let pendingRecognition = null;
+// Actieve bulk-import-rij: { drawable (hele paginafoto), diagrams: [{corners}], index }.
+// Alleen in het geheugen — bij een paginaherlaad ben je de voortgang kwijt (zie
+// CLAUDE.md-plan, "tussentijds hervatten" is een latere stap).
+let bulkQueue = null;
 
 function showToast(message) {
   const toast = document.createElement("div");
@@ -31,6 +36,7 @@ const NAV_FOR_ROUTE = {
   nieuw: "nieuw",
   foto: "nieuw",
   bulk: "nieuw",
+  "bulk-diagram": "nieuw",
   database: "database",
   stand: "database",
   stencils: "stencils",
@@ -57,6 +63,15 @@ async function checkBackupReminder() {
 async function render() {
   const app = document.getElementById("app");
   const { name, param } = currentRoute();
+
+  // Een actieve bulk-rij blijft alleen "hangen" tijdens de rij zelf (bulk,
+  // bulk-diagram, en de tussenstap #/nieuw zonder param). Navigeer je ergens
+  // anders naartoe — ook naar #/nieuw/<id> om een bestaande stand te bewerken —
+  // dan is de rij voorbij; anders zou een latere, losse opslag onterecht als
+  // bulk-stap behandeld worden.
+  if (bulkQueue && name !== "bulk" && name !== "bulk-diagram" && !(name === "nieuw" && !param)) {
+    bulkQueue = null;
+  }
 
   for (const btn of document.querySelectorAll(".app-nav button")) {
     btn.classList.toggle("active", btn.dataset.route === NAV_FOR_ROUTE[name]);
@@ -127,12 +142,27 @@ async function render() {
       },
     });
   } else if (name === "bulk") {
+    bulkQueue = null;
     await renderBulkImportView(app, {
-      onConfirmed: ({ diagrams }) => {
-        // Het stap-voor-stap doorlopen per diagram (hoeken fijn afstellen ->
-        // herkennen -> oplossing invoeren) is de volgende stap; voor nu bevestigt
-        // dit alleen dat de gevonden/aangepaste diagrammen goed doorkomen.
-        showToast(`${diagrams.length} diagram(men) bevestigd. De rij-door-diagrammen-stap volgt nog.`);
+      onConfirmed: ({ drawable, diagrams }) => {
+        bulkQueue = { drawable, diagrams, index: 0 };
+        location.hash = "#/bulk-diagram";
+      },
+    });
+  } else if (name === "bulk-diagram") {
+    if (!bulkQueue) {
+      location.hash = "#/bulk";
+      return;
+    }
+    const { drawable, diagrams, index } = bulkQueue;
+    const { canvas: cropCanvas, corners: cropCorners } = cropAroundCorners(drawable, diagrams[index].corners);
+    renderDiagramCapture(app, {
+      drawable: cropCanvas,
+      initialCorners: cropCorners,
+      heading: `Diagram ${index + 1} van ${diagrams.length}`,
+      onRecognized: (result) => {
+        pendingRecognition = result;
+        location.hash = "#/nieuw";
       },
     });
   } else {
@@ -146,6 +176,18 @@ async function render() {
       photoDataUrl: recognition?.photoDataUrl,
       modelVersion: recognition?.modelVersion,
       onSaved: (stand, { addToStencil }) => {
+        if (bulkQueue) {
+          bulkQueue.index += 1;
+          if (bulkQueue.index < bulkQueue.diagrams.length) {
+            showToast(`Opgeslagen (${bulkQueue.index} van ${bulkQueue.diagrams.length}).`);
+            location.hash = "#/bulk-diagram";
+          } else {
+            showToast(`Bulk-import klaar: ${bulkQueue.diagrams.length} diagram(men) opgeslagen.`);
+            bulkQueue = null;
+            location.hash = "#/database";
+          }
+          return;
+        }
         showToast(addToStencil ? "Opgeslagen. Kies of maak nu een stencil." : "Opgeslagen in de database.");
         if (addToStencil) {
           location.hash = "#/stencils";

@@ -1,6 +1,6 @@
-import { describe, it, assertEqual, assertTrue } from "./test-runner.js?v=20260916e";
-import { classifyFromFeatures, CONFIDENCE_THRESHOLD } from "../src/recognition/classify.js?v=20260916e";
-import { PIECE_TYPES, FIELD_COUNT, fieldToCoord } from "../src/core/board.js?v=20260916e";
+import { describe, it, assertEqual, assertTrue } from "./test-runner.js?v=20260916f";
+import { classifyFromFeatures, CONFIDENCE_THRESHOLD } from "../src/recognition/classify.js?v=20260916f";
+import { PIECE_TYPES, FIELD_COUNT, fieldToCoord } from "../src/core/board.js?v=20260916f";
 
 const OUT_SIZE = 500;
 const SQUARE = OUT_SIZE / 10;

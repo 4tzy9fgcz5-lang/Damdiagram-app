@@ -1,6 +1,6 @@
-import { renderDiagramSVG } from "../diagram/render.js?v=20260916e";
-import { applyMove, moveToNotation } from "../core/draughtsMoves.js?v=20260916e";
-import { createSolutionInput } from "./solutionInput.js?v=20260916e";
+import { renderDiagramSVG } from "../diagram/render.js?v=20260916f";
+import { applyMove, moveToNotation } from "../core/draughtsMoves.js?v=20260916f";
+import { createSolutionInput } from "./solutionInput.js?v=20260916f";
 
 function escapeHtml(str) {
   return str.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
