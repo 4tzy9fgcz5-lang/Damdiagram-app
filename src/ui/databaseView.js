@@ -1,9 +1,7 @@
-import { renderDiagramSVG } from "../diagram/render.js?v=20260917d";
-import { parseFen } from "../core/fen.js?v=20260917d";
-import { listStanden, resolveOplossingTekst } from "../db/standen.js?v=20260917d";
-import { getList } from "../db/lijsten.js?v=20260917d";
-import { svgToPngDataUrl } from "../export/rasterize.js?v=20260917d";
-import { downloadBlob } from "../export/docx.js?v=20260917d";
+import { renderDiagramSVG } from "../diagram/render.js?v=20260917e";
+import { parseFen } from "../core/fen.js?v=20260917e";
+import { listStanden, resolveOplossingTekst } from "../db/standen.js?v=20260917e";
+import { getList } from "../db/lijsten.js?v=20260917e";
 
 // Onthoudt de filterkeuzes zolang de pagina open staat (niet in IndexedDB),
 // zodat teruggaan vanaf een standdetailpagina niet alle filters wist.
@@ -146,20 +144,12 @@ export async function renderDatabaseView(container, { onOpenStand, onAddSelectio
         <div class="meta">
           ${resolveOplossingTekst(stand) ? "" : '<span style="color:#a30000;">geen oplossing</span>'}
         </div>
-        <div class="button-row" style="justify-content:center;">
-          <button type="button" class="secondary" data-role="png">PNG</button>
-        </div>
       `;
       card.querySelector('[data-role="selectLabel"]').addEventListener("click", (e) => e.stopPropagation());
       card.querySelector('[data-role="select"]').addEventListener("change", (e) => {
         if (e.target.checked) selected.add(stand.id);
         else selected.delete(stand.id);
         updateSelectionBar();
-      });
-      card.querySelector('[data-role="png"]').addEventListener("click", async (e) => {
-        e.stopPropagation();
-        const { blob } = await svgToPngDataUrl(svg, 900);
-        downloadBlob(blob, `damstand-${stand.id.slice(0, 8)}.png`);
       });
       card.addEventListener("click", () => onOpenStand?.(stand.id));
       grid.appendChild(card);
@@ -220,7 +210,7 @@ export async function renderDatabaseView(container, { onOpenStand, onAddSelectio
   });
 
   el('[data-action="share-selection"]').addEventListener("click", async () => {
-    const { buildShareData } = await import("../db/backup.js?v=20260917d");
+    const { buildShareData } = await import("../db/backup.js?v=20260917e");
     const data = await buildShareData([...selected]);
     const json = JSON.stringify(data);
     const encoded = btoa(unescape(encodeURIComponent(json)))

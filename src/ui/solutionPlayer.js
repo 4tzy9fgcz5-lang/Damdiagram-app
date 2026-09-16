@@ -1,6 +1,6 @@
-import { renderDiagramSVG } from "../diagram/render.js?v=20260917d";
-import { applyMove, moveToNotation } from "../core/draughtsMoves.js?v=20260917d";
-import { createSolutionInput } from "./solutionInput.js?v=20260917d";
+import { renderDiagramSVG } from "../diagram/render.js?v=20260917e";
+import { applyMove, moveToNotation } from "../core/draughtsMoves.js?v=20260917e";
+import { createSolutionInput } from "./solutionInput.js?v=20260917e";
 
 function escapeHtml(str) {
   return str.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -58,6 +58,17 @@ export function createSolutionPlayer(container, { board, zetten = [], turn = "wh
   // Niets te verbergen als er nog geen oplossing is ingevoerd — dan moet de
   // "Oplossing invoeren"-link gewoon meteen bereikbaar blijven.
   let revealed = !startHidden || currentZetten.length === 0;
+  let keydownHandler = null;
+
+  // Geen aparte "destroy"-aanroep vanuit de aanroeper (die bestaat nergens in
+  // deze app) — de handler schakelt zichzelf uit zodra de container niet meer
+  // in de pagina zit (na navigeren weg van de standdetailpagina).
+  function stopListeningForKeys() {
+    if (keydownHandler) {
+      document.removeEventListener("keydown", keydownHandler);
+      keydownHandler = null;
+    }
+  }
 
   function buildSnapshots() {
     const snaps = [board];
@@ -179,10 +190,30 @@ export function createSolutionPlayer(container, { board, zetten = [], turn = "wh
     if (revealed) wireNav();
     else wireRevealPrompt();
     draw();
+
+    stopListeningForKeys();
+    keydownHandler = (e) => {
+      if (!container.isConnected) {
+        stopListeningForKeys();
+        return;
+      }
+      if (!revealed) return;
+      const tag = document.activeElement?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+      if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        prevBtn.click();
+      } else if (e.key === "ArrowRight") {
+        e.preventDefault();
+        nextBtn.click();
+      }
+    };
+    document.addEventListener("keydown", keydownHandler);
   }
 
   function renderEdit() {
     stopPlaying();
+    stopListeningForKeys();
     container.innerHTML = `<div data-role="input"></div>`;
     const inputHost = container.querySelector('[data-role="input"]');
     createSolutionInput(inputHost, {

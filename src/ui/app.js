@@ -1,16 +1,16 @@
-import { renderEditorView } from "./editorView.js?v=20260917d";
-import { renderDatabaseView } from "./databaseView.js?v=20260917d";
-import { renderStandDetailView } from "./standDetailView.js?v=20260917d";
-import { renderStencilsListView } from "./stencilsListView.js?v=20260917d";
-import { renderStencilView, addStandenToStencil } from "./stencilView.js?v=20260917d";
-import { saveStencil } from "../db/stencils.js?v=20260917d";
-import { getLastBackupDate } from "./backupView.js?v=20260917d";
-import { renderSettingsView } from "./settingsView.js?v=20260917d";
-import { renderImportView } from "./importView.js?v=20260917d";
-import { renderPhotoImportView } from "./photoImportView.js?v=20260917d";
-import { renderBulkImportView } from "./bulkImportView.js?v=20260917d";
-import { renderDiagramCapture, cropAroundCorners } from "./diagramCaptureView.js?v=20260917d";
-import { listStanden } from "../db/standen.js?v=20260917d";
+import { renderEditorView } from "./editorView.js?v=20260917e";
+import { renderDatabaseView } from "./databaseView.js?v=20260917e";
+import { renderStandDetailView } from "./standDetailView.js?v=20260917e";
+import { renderStencilsListView } from "./stencilsListView.js?v=20260917e";
+import { renderStencilView, addStandenToStencil } from "./stencilView.js?v=20260917e";
+import { saveStencil } from "../db/stencils.js?v=20260917e";
+import { getLastBackupDate } from "./backupView.js?v=20260917e";
+import { renderSettingsView } from "./settingsView.js?v=20260917e";
+import { renderImportView } from "./importView.js?v=20260917e";
+import { renderPhotoImportView } from "./photoImportView.js?v=20260917e";
+import { renderBulkImportView } from "./bulkImportView.js?v=20260917e";
+import { renderDiagramCapture, cropAroundCorners } from "./diagramCaptureView.js?v=20260917e";
+import { listStanden } from "../db/standen.js?v=20260917e";
 
 const routes = ["nieuw", "foto", "bulk", "bulk-diagram", "database", "stand", "stencils", "stencil", "instellingen", "import"];
 let pendingRecognition = null;
@@ -18,6 +18,10 @@ let pendingRecognition = null;
 // Alleen in het geheugen — bij een paginaherlaad ben je de voortgang kwijt (zie
 // CLAUDE.md-plan, "tussentijds hervatten" is een latere stap).
 let bulkQueue = null;
+// Onthoudt van waaruit een standdetailpagina geopend is (database of een
+// opgaveblad), zodat "Terug" naar de juiste plek gaat in plaats van altijd
+// naar de database.
+let standReturnRoute = "#/database";
 
 function showToast(message) {
   const toast = document.createElement("div");
@@ -83,6 +87,7 @@ async function render() {
     const forStencilId = param;
     await renderDatabaseView(app, {
       onOpenStand: (id) => {
+        standReturnRoute = "#/database";
         location.hash = `#/stand/${id}`;
       },
       onAddSelectionToStencil: async (ids) => {
@@ -114,6 +119,7 @@ async function render() {
     await renderStencilView(app, {
       stencilId: param,
       onOpenStand: (id) => {
+        standReturnRoute = `#/stencil/${param}`;
         location.hash = `#/stand/${id}`;
       },
       onGotoDatabaseToAdd: (stencilId) => {
@@ -131,10 +137,10 @@ async function render() {
       },
       onDeleted: () => {
         showToast("Verwijderd.");
-        location.hash = "#/database";
+        location.hash = standReturnRoute;
       },
       onBack: () => {
-        location.hash = "#/database";
+        location.hash = standReturnRoute;
       },
     });
   } else if (name === "instellingen") {

@@ -1,14 +1,14 @@
-import { createBoardEditor, createPalette } from "./boardEditor.js?v=20260917d";
-import { createSolutionInput } from "./solutionInput.js?v=20260917d";
-import { createEmptyBoard, countPieces, isWhite, isBlack } from "../core/board.js?v=20260917d";
-import { parseFen, boardToFen, FenParseError } from "../core/fen.js?v=20260917d";
-import { parseStandInput, QuickTextParseError } from "../core/quicktext.js?v=20260917d";
-import { validateBoard } from "../core/validate.js?v=20260917d";
-import { saveStand, getStand, findDuplicates } from "../db/standen.js?v=20260917d";
-import { getList, addListValue } from "../db/lijsten.js?v=20260917d";
-import { logHerkenningCorrectie } from "../db/herkenningLog.js?v=20260917d";
-import { reclassifyFromDataUrl } from "./diagramCaptureView.js?v=20260917d";
-import { RECOGNITION_VERSION as NEW_MODEL_VERSION } from "../recognition/newClassify.js?v=20260917d";
+import { createBoardEditor, createPalette } from "./boardEditor.js?v=20260917e";
+import { createSolutionInput } from "./solutionInput.js?v=20260917e";
+import { createEmptyBoard, countPieces, isWhite, isBlack } from "../core/board.js?v=20260917e";
+import { parseFen, boardToFen, FenParseError } from "../core/fen.js?v=20260917e";
+import { parseStandInput, QuickTextParseError } from "../core/quicktext.js?v=20260917e";
+import { validateBoard } from "../core/validate.js?v=20260917e";
+import { saveStand, getStand, findDuplicates } from "../db/standen.js?v=20260917e";
+import { getList, addListValue } from "../db/lijsten.js?v=20260917e";
+import { logHerkenningCorrectie } from "../db/herkenningLog.js?v=20260917e";
+import { reclassifyFromDataUrl } from "./diagramCaptureView.js?v=20260917e";
+import { RECOGNITION_VERSION as NEW_MODEL_VERSION } from "../recognition/newClassify.js?v=20260917e";
 
 const MOEILIJKHEID_MAX = 5;
 

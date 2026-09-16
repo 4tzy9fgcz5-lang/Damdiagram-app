@@ -1,7 +1,10 @@
-import { parseFen } from "../core/fen.js?v=20260917d";
-import { getStand, saveStand, deleteStand } from "../db/standen.js?v=20260917d";
-import { createSolutionPlayer } from "./solutionPlayer.js?v=20260917d";
-import { getVerbergOplossing } from "../db/uiSettings.js?v=20260917d";
+import { parseFen } from "../core/fen.js?v=20260917e";
+import { getStand, saveStand, deleteStand } from "../db/standen.js?v=20260917e";
+import { createSolutionPlayer } from "./solutionPlayer.js?v=20260917e";
+import { getVerbergOplossing } from "../db/uiSettings.js?v=20260917e";
+import { renderDiagramSVG } from "../diagram/render.js?v=20260917e";
+import { svgToPngDataUrl } from "../export/rasterize.js?v=20260917e";
+import { downloadBlob } from "../export/docx.js?v=20260917e";
 
 function capitalize(str) {
   return str.charAt(0).toUpperCase() + str.slice(1);
@@ -60,6 +63,7 @@ export async function renderStandDetailView(container, { standId, onEdit, onDele
           : ""
       }
       <div class="button-row" style="justify-content:center;">
+        <button type="button" class="secondary" data-action="png">PNG</button>
         <button type="button" class="secondary" data-action="edit">Bewerken</button>
         <button type="button" class="secondary" data-action="delete">Verwijderen</button>
       </div>
@@ -95,6 +99,11 @@ export async function renderStandDetailView(container, { standId, onEdit, onDele
   }
 
   container.querySelector('[data-action="back"]').addEventListener("click", () => onBack?.());
+  container.querySelector('[data-action="png"]').addEventListener("click", async () => {
+    const svg = renderDiagramSVG(board, { size: 900 });
+    const { blob } = await svgToPngDataUrl(svg, 900);
+    downloadBlob(blob, `damstand-${stand.id.slice(0, 8)}.png`);
+  });
   container.querySelector('[data-action="edit"]').addEventListener("click", () => onEdit?.(stand.id));
   container.querySelector('[data-action="delete"]').addEventListener("click", async () => {
     if (!confirm("Deze stand verwijderen? Dit kan niet ongedaan worden gemaakt.")) return;
