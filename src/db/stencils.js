@@ -1,5 +1,5 @@
-import { openDb, tx, promisify, newId } from "./db.js?v=20260916g";
-import { STORE_STENCILS } from "./schema.js?v=20260916g";
+import { openDb, tx, promisify, newId } from "./db.js?v=20260916h";
+import { STORE_STENCILS } from "./schema.js?v=20260916h";
 
 function nowIso() {
   return new Date().toISOString();

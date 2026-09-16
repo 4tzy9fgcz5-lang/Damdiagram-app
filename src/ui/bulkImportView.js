@@ -4,13 +4,16 @@
 // hoeken-stap (diagramCaptureView.js) — hier alleen verwijderen wat niet hoort en
 // zelf toevoegen wat gemist is.
 
-import { loadDrawable, drawableSize, WORKING_MAX_SIDE } from "./imageInput.js?v=20260916g";
-import { detectMultipleBoardCorners } from "../recognition/detectMultiBoard.js?v=20260916g";
+import { loadDrawable, drawableSize, WORKING_MAX_SIDE } from "./imageInput.js?v=20260916h";
+import { detectMultipleBoardCorners } from "../recognition/detectMultiBoard.js?v=20260916h";
+import { getList, addListValue } from "../db/lijsten.js?v=20260916h";
 
 const COLORS = ["#d1495b", "#1a5c38", "#3a6ea5", "#e0a800", "#8854d0", "#009688"];
 
-// Een redelijke standaardplek voor een handmatig toegevoegd diagram — de
-// gebruiker stelt de precieze hoeken pas bij zodra dát diagram aan de beurt is.
+// Een redelijke standaardplek voor een handmatig toegevoegd diagram. De
+// gebruiker plaatst 'm pas echt zodra dát diagram aan de beurt is — daar krijgt
+// hij (anders dan een automatisch gevonden diagram) de hele pagina te zien om de
+// hoeken vrij naartoe te kunnen slepen, niet een klein uitsnedegebied.
 function defaultBoxCorners(fullWidth, fullHeight, index) {
   const size = Math.min(fullWidth, fullHeight) * 0.22;
   const offset = (index % 5) * size * 0.15;
@@ -51,6 +54,10 @@ export async function renderBulkImportView(container, { onConfirmed } = {}) {
         <button type="button" class="secondary" data-action="restart">Andere foto</button>
       </div>
       <div data-role="list" style="margin-top:0.75rem;display:flex;flex-direction:column;gap:0.4rem;"></div>
+
+      <label style="margin-top:0.75rem;">Boekstijl (voor training van de fotoherkenning) — geldt voor alle diagrammen op deze pagina</label>
+      <div class="tag-list" data-role="boekstijl"></div>
+
       <div class="button-row">
         <button type="button" class="primary" data-action="confirm">Doorgaan</button>
       </div>
@@ -64,11 +71,47 @@ export async function renderBulkImportView(container, { onConfirmed } = {}) {
   const ctx = canvas.getContext("2d");
   const status = el('[data-role="status"]');
   const list = el('[data-role="list"]');
+  const boekstijlHost = el('[data-role="boekstijl"]');
 
   let drawable = null;
   let scale = 1;
-  let items = []; // { id, corners: [{x,y} x4] in VOLLEDIGE-RESOLUTIE coördinaten van drawable
+  // { id, corners: [{x,y} x4] in VOLLEDIGE-RESOLUTIE coördinaten van drawable, manual }
+  let items = [];
   let nextId = 1;
+  let selectedBoekstijl = "";
+
+  // Zelfde patroon als de boekstijl-kiezer in editorView.js: één keuze, geldt nu
+  // voor de hele pagina in plaats van per stand, zodat je dit niet per diagram
+  // hoeft te herhalen.
+  async function renderBoekstijlPicker() {
+    const values = await getList("boekstijl");
+    boekstijlHost.innerHTML = "";
+    for (const value of values) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "tag";
+      btn.textContent = value;
+      if (selectedBoekstijl === value) btn.classList.add("selected");
+      btn.addEventListener("click", () => {
+        selectedBoekstijl = selectedBoekstijl === value ? "" : value;
+        renderBoekstijlPicker();
+      });
+      boekstijlHost.appendChild(btn);
+    }
+    const addBtn = document.createElement("button");
+    addBtn.type = "button";
+    addBtn.className = "tag";
+    addBtn.textContent = "+ nieuw";
+    addBtn.addEventListener("click", async () => {
+      const naam = prompt("Uit welk boek of tijdschrift komen deze diagrammen?");
+      if (!naam || !naam.trim()) return;
+      await addListValue("boekstijl", naam.trim());
+      selectedBoekstijl = naam.trim();
+      renderBoekstijlPicker();
+    });
+    boekstijlHost.appendChild(addBtn);
+  }
+  await renderBoekstijlPicker();
 
   function redraw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -80,12 +123,14 @@ export async function renderBulkImportView(container, { onConfirmed } = {}) {
       ctx.save();
       ctx.strokeStyle = color;
       ctx.lineWidth = Math.max(2, canvas.width * 0.004);
+      if (item.manual) ctx.setLineDash([canvas.width * 0.012, canvas.width * 0.008]);
       ctx.beginPath();
       displayCorners.forEach((p, i) => (i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y)));
       ctx.closePath();
       ctx.stroke();
 
       const label = displayCorners[0];
+      ctx.setLineDash([]);
       ctx.fillStyle = color;
       ctx.font = `bold ${Math.round(canvas.width * 0.03)}px sans-serif`;
       ctx.fillText(String(index + 1), label.x + 4, label.y + canvas.width * 0.03);
@@ -107,7 +152,7 @@ export async function renderBulkImportView(container, { onConfirmed } = {}) {
       row.style.gap = "0.5rem";
       row.innerHTML = `
         <span style="display:inline-block;width:0.9rem;height:0.9rem;border-radius:50%;background:${color};flex-shrink:0;"></span>
-        <span style="flex:1;">Diagram ${index + 1}</span>
+        <span style="flex:1;">Diagram ${index + 1}${item.manual ? " (zelf toegevoegd — hoeken zelf plaatsen op de hele pagina)" : ""}</span>
         <button type="button" class="secondary" data-remove="${item.id}">Verwijderen</button>
       `;
       list.appendChild(row);
@@ -143,7 +188,7 @@ export async function renderBulkImportView(container, { onConfirmed } = {}) {
       } catch {
         detected = [];
       }
-      items = detected.map((corners) => ({ id: nextId++, corners }));
+      items = detected.map((corners) => ({ id: nextId++, corners, manual: false }));
 
       status.textContent =
         items.length > 0
@@ -172,7 +217,8 @@ export async function renderBulkImportView(container, { onConfirmed } = {}) {
 
   el('[data-action="add"]').addEventListener("click", () => {
     const { width, height } = drawableSize(drawable);
-    items.push({ id: nextId++, corners: defaultBoxCorners(width, height, items.length) });
+    items.push({ id: nextId++, corners: defaultBoxCorners(width, height, items.length), manual: true });
+    status.textContent = 'Diagram toegevoegd (gestippeld) — zodra het aan de beurt is, sleep je de hoeken op de hele pagina naar de juiste plek.';
     renderList();
     redraw();
   });
@@ -182,6 +228,10 @@ export async function renderBulkImportView(container, { onConfirmed } = {}) {
       status.textContent = "Voeg eerst minstens één diagram toe.";
       return;
     }
-    onConfirmed?.({ drawable, diagrams: items.map((item) => ({ corners: item.corners })) });
+    onConfirmed?.({
+      drawable,
+      boekstijl: selectedBoekstijl,
+      diagrams: items.map((item) => ({ corners: item.corners, manual: item.manual })),
+    });
   });
 }

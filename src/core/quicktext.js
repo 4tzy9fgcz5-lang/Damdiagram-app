@@ -1,5 +1,5 @@
-import { PIECE_TYPES, createEmptyBoard, isValidField } from "./board.js?v=20260916g";
-import { parseFen } from "./fen.js?v=20260916g";
+import { PIECE_TYPES, createEmptyBoard, isValidField } from "./board.js?v=20260916h";
+import { parseFen } from "./fen.js?v=20260916h";
 
 export class QuickTextParseError extends Error {}
 

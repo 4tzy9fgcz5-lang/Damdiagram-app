@@ -1,18 +1,27 @@
-import { createBoardEditor, createPalette } from "./boardEditor.js?v=20260916g";
-import { createSolutionInput } from "./solutionInput.js?v=20260916g";
-import { createEmptyBoard, countPieces, isWhite, isBlack } from "../core/board.js?v=20260916g";
-import { parseFen, boardToFen, FenParseError } from "../core/fen.js?v=20260916g";
-import { parseStandInput, QuickTextParseError } from "../core/quicktext.js?v=20260916g";
-import { validateBoard } from "../core/validate.js?v=20260916g";
-import { saveStand, getStand, findDuplicates } from "../db/standen.js?v=20260916g";
-import { getList, addListValue } from "../db/lijsten.js?v=20260916g";
-import { logHerkenningCorrectie } from "../db/herkenningLog.js?v=20260916g";
+import { createBoardEditor, createPalette } from "./boardEditor.js?v=20260916h";
+import { createSolutionInput } from "./solutionInput.js?v=20260916h";
+import { createEmptyBoard, countPieces, isWhite, isBlack } from "../core/board.js?v=20260916h";
+import { parseFen, boardToFen, FenParseError } from "../core/fen.js?v=20260916h";
+import { parseStandInput, QuickTextParseError } from "../core/quicktext.js?v=20260916h";
+import { validateBoard } from "../core/validate.js?v=20260916h";
+import { saveStand, getStand, findDuplicates } from "../db/standen.js?v=20260916h";
+import { getList, addListValue } from "../db/lijsten.js?v=20260916h";
+import { logHerkenningCorrectie } from "../db/herkenningLog.js?v=20260916h";
 
 const MOEILIJKHEID_MAX = 5;
 
 export async function renderEditorView(
   container,
-  { standId, onSaved, initialBoard, confidences, uncertainFields: uncertainFieldsProp, photoDataUrl, modelVersion } = {}
+  {
+    standId,
+    onSaved,
+    initialBoard,
+    confidences,
+    uncertainFields: uncertainFieldsProp,
+    photoDataUrl,
+    modelVersion,
+    initialBoekstijl,
+  } = {}
 ) {
   container.innerHTML = `
     <h2>Nieuwe stand invoeren</h2>
@@ -130,7 +139,10 @@ export async function renderEditorView(
   let selectedTypes = [];
   let selectedMoeilijkheid = null;
   let solutionZetten = [];
-  let selectedBoekstijl = "";
+  // Bij bulk-import komt hier de éénmalig voor de hele pagina gekozen boekstijl
+  // binnen (zie bulkImportView.js), zodat je die niet per diagram hoeft te
+  // herhalen — nog wel per stand aan te passen voor uitzonderingen.
+  let selectedBoekstijl = initialBoekstijl || "";
 
   if (standId) {
     existingStand = await getStand(standId);

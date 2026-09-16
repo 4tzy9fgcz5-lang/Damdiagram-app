@@ -1,15 +1,15 @@
-import { renderEditorView } from "./editorView.js?v=20260916g";
-import { renderDatabaseView } from "./databaseView.js?v=20260916g";
-import { renderStandDetailView } from "./standDetailView.js?v=20260916g";
-import { renderStencilsListView } from "./stencilsListView.js?v=20260916g";
-import { renderStencilView, addStandenToStencil } from "./stencilView.js?v=20260916g";
-import { getLastBackupDate } from "./backupView.js?v=20260916g";
-import { renderSettingsView } from "./settingsView.js?v=20260916g";
-import { renderImportView } from "./importView.js?v=20260916g";
-import { renderPhotoImportView } from "./photoImportView.js?v=20260916g";
-import { renderBulkImportView } from "./bulkImportView.js?v=20260916g";
-import { renderDiagramCapture, cropAroundCorners } from "./diagramCaptureView.js?v=20260916g";
-import { listStanden } from "../db/standen.js?v=20260916g";
+import { renderEditorView } from "./editorView.js?v=20260916h";
+import { renderDatabaseView } from "./databaseView.js?v=20260916h";
+import { renderStandDetailView } from "./standDetailView.js?v=20260916h";
+import { renderStencilsListView } from "./stencilsListView.js?v=20260916h";
+import { renderStencilView, addStandenToStencil } from "./stencilView.js?v=20260916h";
+import { getLastBackupDate } from "./backupView.js?v=20260916h";
+import { renderSettingsView } from "./settingsView.js?v=20260916h";
+import { renderImportView } from "./importView.js?v=20260916h";
+import { renderPhotoImportView } from "./photoImportView.js?v=20260916h";
+import { renderBulkImportView } from "./bulkImportView.js?v=20260916h";
+import { renderDiagramCapture, cropAroundCorners } from "./diagramCaptureView.js?v=20260916h";
+import { listStanden } from "../db/standen.js?v=20260916h";
 
 const routes = ["nieuw", "foto", "bulk", "bulk-diagram", "database", "stand", "stencils", "stencil", "instellingen", "import"];
 let pendingRecognition = null;
@@ -153,8 +153,8 @@ async function render() {
   } else if (name === "bulk") {
     bulkQueue = null;
     await renderBulkImportView(app, {
-      onConfirmed: ({ drawable, diagrams }) => {
-        bulkQueue = { drawable, diagrams, index: 0 };
+      onConfirmed: ({ drawable, diagrams, boekstijl }) => {
+        bulkQueue = { drawable, diagrams, boekstijl, index: 0 };
         location.hash = "#/bulk-diagram";
       },
     });
@@ -164,13 +164,24 @@ async function render() {
       return;
     }
     const { drawable, diagrams, index } = bulkQueue;
-    const { canvas: cropCanvas, corners: cropCorners } = cropAroundCorners(drawable, diagrams[index].corners);
+    const diagram = diagrams[index];
+    // Automatisch gevonden diagrammen: een ruim uitgesneden stukje rond de al
+    // vrij nauwkeurige hoeken (lekker groot en makkelijk te verslepen). Zelf
+    // toegevoegde diagrammen staan op een gok-positie — daar toont dit juist de
+    // hele pagina, zodat de hoeken vrij naar de werkelijke plek gesleept kunnen
+    // worden (net als bij een losse foto-import).
+    const { drawable: stepDrawable, corners: stepCorners } = diagram.manual
+      ? { drawable, corners: diagram.corners }
+      : (() => {
+          const { canvas, corners } = cropAroundCorners(drawable, diagram.corners);
+          return { drawable: canvas, corners };
+        })();
     renderDiagramCapture(app, {
-      drawable: cropCanvas,
-      initialCorners: cropCorners,
+      drawable: stepDrawable,
+      initialCorners: stepCorners,
       heading: `Diagram ${index + 1} van ${diagrams.length}`,
       onRecognized: (result) => {
-        pendingRecognition = result;
+        pendingRecognition = { ...result, boekstijl: bulkQueue.boekstijl };
         location.hash = "#/nieuw";
       },
     });
@@ -184,6 +195,7 @@ async function render() {
       uncertainFields: recognition?.uncertainFields,
       photoDataUrl: recognition?.photoDataUrl,
       modelVersion: recognition?.modelVersion,
+      initialBoekstijl: recognition?.boekstijl,
       onSaved: (stand, { addToStencil }) => {
         if (bulkQueue) {
           bulkQueue.index += 1;
