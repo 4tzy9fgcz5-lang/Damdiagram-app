@@ -1,5 +1,5 @@
-import { describe, it, assertEqual, assertTrue } from "./test-runner.js?v=20260918a";
-import { computeHomography, applyHomography, warpToSquareCanvas } from "../src/recognition/homography.js?v=20260918a";
+import { describe, it, assertEqual, assertTrue } from "./test-runner.js?v=20260918d";
+import { computeHomography, applyHomography, warpToSquareCanvas } from "../src/recognition/homography.js?v=20260918d";
 
 function approxEqual(a, b, eps = 0.001) {
   return Math.abs(a - b) < eps;

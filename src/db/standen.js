@@ -1,8 +1,8 @@
-import { openDb, tx, promisify, newId } from "./db.js?v=20260918a";
-import { STORE_STANDEN } from "./schema.js?v=20260918a";
-import { parseFen, boardToFen } from "../core/fen.js?v=20260918a";
-import { mirrorBoard } from "../core/board.js?v=20260918a";
-import { formatZettenMetVarianten } from "../core/draughtsMoves.js?v=20260918a";
+import { openDb, tx, promisify, newId } from "./db.js?v=20260918d";
+import { STORE_STANDEN } from "./schema.js?v=20260918d";
+import { parseFen, boardToFen } from "../core/fen.js?v=20260918d";
+import { mirrorBoard } from "../core/board.js?v=20260918d";
+import { formatZettenMetVarianten } from "../core/draughtsMoves.js?v=20260918d";
 
 function canonicalFens(fenString) {
   const { board, turn } = parseFen(fenString);
@@ -157,6 +157,21 @@ export async function bulkAddCategorieWaarde(standIds, key, waarde) {
     const huidig = stand.categorieen?.[key] ?? [];
     if (huidig.includes(waarde)) continue;
     await saveStand({ ...stand, categorieen: { ...stand.categorieen, [key]: [...huidig, waarde] } });
+  }
+}
+
+// Bij het hernoemen van een wáárde binnen een categorie (Instellingen ->
+// Database, bv. "klassiek" -> "Klassiek"): ook op alle standen die 'm al
+// hadden aangevinkt de tekst bijwerken. Zonder dit zou zo'n stand na het
+// hernoemen alsnog de oude tekst blijven tonen en onvindbaar worden via het
+// (hernoemde) filter — puur de naam van de lijst-waarde aanpassen is dus niet
+// genoeg.
+export async function renameCategorieWaardeOpStanden(key, oud, nieuw) {
+  const alle = await getAllStanden();
+  for (const stand of alle) {
+    const waarden = stand.categorieen?.[key];
+    if (!waarden || !waarden.includes(oud)) continue;
+    await saveStand({ ...stand, categorieen: { ...stand.categorieen, [key]: waarden.map((w) => (w === oud ? nieuw : w)) } });
   }
 }
 

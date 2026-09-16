@@ -1,15 +1,15 @@
-import { createBoardEditor, createPalette } from "./boardEditor.js?v=20260918a";
-import { createSolutionInput } from "./solutionInput.js?v=20260918a";
-import { createEmptyBoard, countPieces, isWhite, isBlack } from "../core/board.js?v=20260918a";
-import { parseFen, boardToFen, FenParseError } from "../core/fen.js?v=20260918a";
-import { parseStandInput, QuickTextParseError } from "../core/quicktext.js?v=20260918a";
-import { validateBoard } from "../core/validate.js?v=20260918a";
-import { saveStand, getStand, findDuplicates } from "../db/standen.js?v=20260918a";
-import { getList, addListValue } from "../db/lijsten.js?v=20260918a";
-import { getAllCategorieen } from "../db/categorieen.js?v=20260918a";
-import { logHerkenningCorrectie } from "../db/herkenningLog.js?v=20260918a";
-import { reclassifyFromDataUrl } from "./diagramCaptureView.js?v=20260918a";
-import { RECOGNITION_VERSION as NEW_MODEL_VERSION } from "../recognition/newClassify.js?v=20260918a";
+import { createBoardEditor, createPalette } from "./boardEditor.js?v=20260918d";
+import { createSolutionInput } from "./solutionInput.js?v=20260918d";
+import { createEmptyBoard, countPieces, isWhite, isBlack } from "../core/board.js?v=20260918d";
+import { parseFen, boardToFen, FenParseError } from "../core/fen.js?v=20260918d";
+import { parseStandInput, QuickTextParseError } from "../core/quicktext.js?v=20260918d";
+import { validateBoard } from "../core/validate.js?v=20260918d";
+import { saveStand, getStand, findDuplicates } from "../db/standen.js?v=20260918d";
+import { getList, addListValue } from "../db/lijsten.js?v=20260918d";
+import { getAllCategorieen } from "../db/categorieen.js?v=20260918d";
+import { logHerkenningCorrectie } from "../db/herkenningLog.js?v=20260918d";
+import { reclassifyFromDataUrl } from "./diagramCaptureView.js?v=20260918d";
+import { RECOGNITION_VERSION as NEW_MODEL_VERSION } from "../recognition/newClassify.js?v=20260918d";
 
 const MOEILIJKHEID_MAX = 5;
 
@@ -18,6 +18,7 @@ export async function renderEditorView(
   {
     standId,
     onSaved,
+    onSkip,
     initialBoard,
     confidences,
     uncertainFields: uncertainFieldsProp,
@@ -74,6 +75,7 @@ export async function renderEditorView(
           </label>
         </div>
         <div data-role="warnings"></div>
+        <div data-role="duplicateWarning"></div>
 
         <label>Stand invoeren</label>
         <textarea
@@ -120,7 +122,6 @@ export async function renderEditorView(
         <textarea data-field="notities"></textarea>
 
         <div data-role="gebruiktIn" style="font-size:0.8rem;color:#666;margin-top:0.5rem;"></div>
-        <div data-role="duplicateWarning"></div>
 
         <div class="button-row">
           <button type="button" class="primary" data-action="save">Opslaan in database</button>
@@ -205,6 +206,7 @@ export async function renderEditorView(
       renderWarnings();
       renderPieceCount();
       reinitSolutionInput(true);
+      checkDuplicates();
     },
     highlightFields: uncertainFields,
   });
@@ -260,6 +262,7 @@ export async function renderEditorView(
     radio.addEventListener("change", (e) => {
       if (e.target.checked) turn = e.target.value;
       reinitSolutionInput(true);
+      checkDuplicates();
     });
   }
 
@@ -270,9 +273,48 @@ export async function renderEditorView(
           .map((w) => `<li>${escapeHtml(w)}</li>`)
           .join("")}</ul></div>`
       : "";
-    dupWarningHost.innerHTML = "";
   }
   renderWarnings();
+
+  // Meteen na het intikken van de stand controleren of hij (of de gespiegelde
+  // versie) al in de database staat — vóór je auteur, oplossing en de rest
+  // hebt ingevuld, zodat dat werk niet voor niets is. `dupCheckToken`
+  // voorkomt dat een trage, oudere controle een nieuwere nog overschrijft als
+  // je snel achter elkaar aan het bord verandert.
+  let dupCheckToken = 0;
+  async function checkDuplicates() {
+    const myToken = ++dupCheckToken;
+    if (existingStand) {
+      dupWarningHost.innerHTML = "";
+      return;
+    }
+    const board = boardEditor.getBoard();
+    // Let op: de FEN begint altijd met "W:" of "B:" (wie er aan zet is), dus
+    // fen.includes("W"/"B") checkt dat nooit betrouwbaar — echt op stukken
+    // tellen in plaats van op de tekst zoeken.
+    if (countPieces(board, isWhite) === 0 && countPieces(board, isBlack) === 0) {
+      dupWarningHost.innerHTML = "";
+      return;
+    }
+    const fen = boardToFen(board, turn);
+    const { exact, mirrored } = await findDuplicates(fen);
+    if (myToken !== dupCheckToken) return;
+    if (exact.length === 0 && mirrored.length === 0) {
+      dupWarningHost.innerHTML = "";
+      return;
+    }
+    const soort = exact.length > 0 ? "Deze stand" : "De gespiegelde versie van deze stand";
+    dupWarningHost.innerHTML = `
+      <div class="warnings">
+        <strong>Let op:</strong> ${soort} staat al in de database.
+        <div class="button-row" style="margin-top:0.5rem;">
+          <button type="button" class="secondary" data-action="skip-diagram">Diagram overslaan</button>
+        </div>
+      </div>
+    `;
+    dupWarningHost.querySelector('[data-action="skip-diagram"]').addEventListener("click", () => onSkip?.());
+  }
+  checkDuplicates();
 
   function reinitSolutionInput(resetZetten) {
     if (resetZetten) {
@@ -438,17 +480,9 @@ export async function renderEditorView(
       return;
     }
 
-    if (!existingStand) {
-      const { exact, mirrored } = await findDuplicates(input.fen);
-      if (exact.length > 0 || mirrored.length > 0) {
-        const soort = exact.length > 0 ? "dezelfde stand" : "de gespiegelde versie van deze stand";
-        const doorgaan = confirm(
-          `Deze stand lijkt al in de database te staan (${soort} gevonden). Toch opslaan?`
-        );
-        if (!doorgaan) return;
-      }
-    }
-
+    // Geen aparte bevestigingsvraag meer hier — als deze stand al bestaat, is
+    // dat allang zichtbaar geweest via de melding direct onder het bord (zie
+    // checkDuplicates hierboven), ruim voordat je de rest was gaan invullen.
     const saved = await saveStand(input);
     existingStand = saved;
 

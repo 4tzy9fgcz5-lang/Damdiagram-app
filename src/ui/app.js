@@ -1,16 +1,16 @@
-import { renderEditorView } from "./editorView.js?v=20260918a";
-import { renderDatabaseView } from "./databaseView.js?v=20260918a";
-import { renderStandDetailView } from "./standDetailView.js?v=20260918a";
-import { renderStencilsListView } from "./stencilsListView.js?v=20260918a";
-import { renderStencilView, addStandenToStencil } from "./stencilView.js?v=20260918a";
-import { saveStencil } from "../db/stencils.js?v=20260918a";
-import { getLastBackupDate } from "./backupView.js?v=20260918a";
-import { renderSettingsView } from "./settingsView.js?v=20260918a";
-import { renderImportView } from "./importView.js?v=20260918a";
-import { renderPhotoImportView } from "./photoImportView.js?v=20260918a";
-import { renderBulkImportView } from "./bulkImportView.js?v=20260918a";
-import { renderDiagramCapture, cropAroundCorners } from "./diagramCaptureView.js?v=20260918a";
-import { listStanden } from "../db/standen.js?v=20260918a";
+import { renderEditorView } from "./editorView.js?v=20260918d";
+import { renderDatabaseView } from "./databaseView.js?v=20260918d";
+import { renderStandDetailView } from "./standDetailView.js?v=20260918d";
+import { renderStencilsListView } from "./stencilsListView.js?v=20260918d";
+import { renderStencilView, addStandenToStencil } from "./stencilView.js?v=20260918d";
+import { saveStencil } from "../db/stencils.js?v=20260918d";
+import { getLastBackupDate } from "./backupView.js?v=20260918d";
+import { renderSettingsView } from "./settingsView.js?v=20260918d";
+import { renderImportView } from "./importView.js?v=20260918d";
+import { renderPhotoImportView } from "./photoImportView.js?v=20260918d";
+import { renderBulkImportView } from "./bulkImportView.js?v=20260918d";
+import { renderDiagramCapture, cropAroundCorners } from "./diagramCaptureView.js?v=20260918d";
+import { listStanden } from "../db/standen.js?v=20260918d";
 
 const routes = ["nieuw", "foto", "bulk", "bulk-diagram", "database", "stand", "stencils", "stencil", "instellingen", "import"];
 let pendingRecognition = null;
@@ -256,6 +256,26 @@ async function render() {
           location.hash = "#/nieuw";
           render();
         }
+      },
+      // "Diagram overslaan" bij de "staat al in de database"-melding: niets
+      // opslaan, gewoon doorschuiven — vooral handig tijdens een bulk-import,
+      // waar je anders voor niets auteur/oplossing van een dubbel diagram zou
+      // invullen. Buiten een bulk-rij is er geen zinvolle "volgende" om naar
+      // door te gaan; dan ga je terug naar het overzicht.
+      onSkip: () => {
+        if (bulkQueue) {
+          bulkQueue.index += 1;
+          if (bulkQueue.index < bulkQueue.diagrams.length) {
+            showToast(`Overgeslagen (${bulkQueue.index} van ${bulkQueue.diagrams.length}).`);
+            location.hash = "#/bulk-diagram";
+          } else {
+            showToast(`Bulk-import klaar: laatste diagram overgeslagen.`);
+            bulkQueue = null;
+            location.hash = "#/database";
+          }
+          return;
+        }
+        location.hash = "#/database";
       },
     });
   }

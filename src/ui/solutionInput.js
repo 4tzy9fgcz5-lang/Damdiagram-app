@@ -1,5 +1,5 @@
-import { renderDiagramSVG } from "../diagram/render.js?v=20260918a";
-import { isValidField } from "../core/board.js?v=20260918a";
+import { renderDiagramSVG } from "../diagram/render.js?v=20260918d";
+import { isValidField } from "../core/board.js?v=20260918d";
 import {
   getLegalMoves,
   applyMove,
@@ -8,7 +8,7 @@ import {
   plyColor,
   plyMoveNumber,
   formatZettenSequence,
-} from "../core/draughtsMoves.js?v=20260918a";
+} from "../core/draughtsMoves.js?v=20260918d";
 
 function escapeHtml(str) {
   return str.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -245,8 +245,13 @@ export function createSolutionInput(
 
     prevBtn.disabled = browseStep === 0;
     nextBtn.disabled = live;
+    // "Zet ongedaan maken" haalt specifiek de láátste zet weg, dus alleen
+    // zinnig als je daar ook naar kijkt (live). "Wis oplossing" wist altijd
+    // alles, ongeacht welke stap je op dat moment bekijkt — dat mag dus
+    // overal, anders moest je eerst terug naar het einde bladeren om te
+    // kunnen wissen.
     undoBtn.disabled = zetten.length === 0 || !live;
-    clearBtn.disabled = zetten.length === 0 || !live;
+    clearBtn.disabled = zetten.length === 0;
     addVariantBtn.disabled = candidatesAt(browseStep).length === 0;
     renderVariantList();
   }

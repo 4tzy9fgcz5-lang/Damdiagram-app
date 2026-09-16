@@ -1,7 +1,8 @@
-import { renderBackupSection, renderTrainingSection } from "./backupView.js?v=20260918a";
-import { getVerbergOplossing, setVerbergOplossing } from "../db/uiSettings.js?v=20260918a";
-import { getAllCategorieen, addCategorie, renameCategorie, removeCategorie } from "../db/categorieen.js?v=20260918a";
-import { listStanden } from "../db/standen.js?v=20260918a";
+import { renderBackupSection, renderTrainingSection } from "./backupView.js?v=20260918d";
+import { getVerbergOplossing, setVerbergOplossing } from "../db/uiSettings.js?v=20260918d";
+import { getAllCategorieen, addCategorie, renameCategorie, removeCategorie } from "../db/categorieen.js?v=20260918d";
+import { addListValue, renameListValue, removeListValue } from "../db/lijsten.js?v=20260918d";
+import { listStanden, renameCategorieWaardeOpStanden } from "../db/standen.js?v=20260918d";
 
 function escapeHtml(str) {
   return str.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -40,6 +41,10 @@ async function renderDatabaseSettingsSection(container) {
   checkbox.addEventListener("change", () => setVerbergOplossing(checkbox.checked));
 
   const listHost = container.querySelector('[data-role="categorieList"]');
+  // Welke categorieën hun waarden-lijst opengeklapt hebben — buiten
+  // renderCategorieList() bewaard, zodat een hernoem/verwijder-actie op een
+  // waarde het paneel niet weer dichtklapt.
+  const expandedKeys = new Set();
 
   async function renderCategorieList() {
     const categorieen = await getAllCategorieen();
@@ -48,15 +53,47 @@ async function renderDatabaseSettingsSection(container) {
       return;
     }
     listHost.innerHTML = categorieen
-      .map(
-        (c) => `
-        <div class="solution-variant-row">
-          <span style="flex:1;">${escapeHtml(c.label)} <span style="color:#666;font-size:0.85rem;">(${c.waarden.length} waarde${c.waarden.length === 1 ? "" : "n"})</span></span>
-          <button type="button" class="secondary" data-action="rename-categorie" data-key="${c.key}">Hernoemen</button>
-          <button type="button" class="secondary" data-action="delete-categorie" data-key="${c.key}">Verwijderen</button>
-        </div>`
-      )
+      .map((c) => {
+        const expanded = expandedKeys.has(c.key);
+        const waardenHtml = c.waarden.length
+          ? c.waarden
+              .map(
+                (w) => `
+              <div style="display:flex;align-items:center;gap:0.5rem;padding:0.2rem 0;">
+                <span style="flex:1;">${escapeHtml(w)}</span>
+                <button type="button" class="secondary" data-action="rename-waarde" data-key="${c.key}" data-waarde="${escapeHtml(w)}">Hernoemen</button>
+                <button type="button" class="secondary" data-action="delete-waarde" data-key="${c.key}" data-waarde="${escapeHtml(w)}">Verwijderen</button>
+              </div>`
+              )
+              .join("")
+          : '<p style="color:#666;font-size:0.85rem;margin:0.2rem 0;">Nog geen waarden.</p>';
+        return `
+        <div style="border-top:1px solid var(--kleur-rand);padding:0.4rem 0;">
+          <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;">
+            <span style="flex:1;">${escapeHtml(c.label)} <span style="color:#666;font-size:0.85rem;">(${c.waarden.length} waarde${c.waarden.length === 1 ? "" : "n"})</span></span>
+            <button type="button" class="secondary" data-action="toggle-waarden" data-key="${c.key}">${expanded ? "Waarden verbergen" : "Waarden tonen"}</button>
+            <button type="button" class="secondary" data-action="rename-categorie" data-key="${c.key}">Hernoemen</button>
+            <button type="button" class="secondary" data-action="delete-categorie" data-key="${c.key}">Verwijderen</button>
+          </div>
+          ${
+            expanded
+              ? `<div style="margin:0.5rem 0 0 0.5rem;padding-left:0.5rem;border-left:2px solid var(--kleur-rand);">
+                  ${waardenHtml}
+                  <button type="button" class="secondary" data-action="add-waarde" data-key="${c.key}" style="margin-top:0.3rem;">+ Nieuwe waarde</button>
+                </div>`
+              : ""
+          }
+        </div>`;
+      })
       .join("");
+
+    for (const btn of listHost.querySelectorAll('[data-action="toggle-waarden"]')) {
+      btn.addEventListener("click", () => {
+        if (expandedKeys.has(btn.dataset.key)) expandedKeys.delete(btn.dataset.key);
+        else expandedKeys.add(btn.dataset.key);
+        renderCategorieList();
+      });
+    }
     for (const btn of listHost.querySelectorAll('[data-action="rename-categorie"]')) {
       btn.addEventListener("click", async () => {
         const cat = categorieen.find((c) => c.key === btn.dataset.key);
@@ -76,7 +113,40 @@ async function renderDatabaseSettingsSection(container) {
             ? `Categorie "${cat?.label}" verwijderen? Die staat nog bij ${inGebruik} stand(en) ingevuld — die gegevens blijven bewaard, maar worden nergens meer getoond of doorzoekbaar zodra de categorie weg is.`
             : `Categorie "${cat?.label}" verwijderen?`;
         if (!confirm(melding)) return;
+        expandedKeys.delete(btn.dataset.key);
         await removeCategorie(btn.dataset.key);
+        await renderCategorieList();
+      });
+    }
+    for (const btn of listHost.querySelectorAll('[data-action="rename-waarde"]')) {
+      btn.addEventListener("click", async () => {
+        const nieuw = prompt("Nieuwe naam voor deze waarde:", btn.dataset.waarde);
+        if (!nieuw || !nieuw.trim() || nieuw.trim() === btn.dataset.waarde) return;
+        await renameListValue(btn.dataset.key, btn.dataset.waarde, nieuw.trim());
+        await renameCategorieWaardeOpStanden(btn.dataset.key, btn.dataset.waarde, nieuw.trim());
+        await renderCategorieList();
+      });
+    }
+    for (const btn of listHost.querySelectorAll('[data-action="delete-waarde"]')) {
+      btn.addEventListener("click", async () => {
+        const alleStanden = await listStanden();
+        const inGebruik = alleStanden.filter((s) =>
+          (s.categorieen?.[btn.dataset.key] ?? []).includes(btn.dataset.waarde)
+        ).length;
+        const melding =
+          inGebruik > 0
+            ? `Waarde "${btn.dataset.waarde}" verwijderen? Die staat nog bij ${inGebruik} stand(en) aangevinkt — dat blijft zichtbaar op die standen, maar is straks niet meer als los filter te kiezen.`
+            : `Waarde "${btn.dataset.waarde}" verwijderen?`;
+        if (!confirm(melding)) return;
+        await removeListValue(btn.dataset.key, btn.dataset.waarde);
+        await renderCategorieList();
+      });
+    }
+    for (const btn of listHost.querySelectorAll('[data-action="add-waarde"]')) {
+      btn.addEventListener("click", async () => {
+        const naam = prompt("Nieuwe waarde:");
+        if (!naam || !naam.trim()) return;
+        await addListValue(btn.dataset.key, naam.trim());
         await renderCategorieList();
       });
     }

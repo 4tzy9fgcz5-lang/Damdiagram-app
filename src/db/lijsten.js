@@ -1,5 +1,5 @@
-import { openDb, tx, promisify } from "./db.js?v=20260918a";
-import { STORE_LIJSTEN } from "./schema.js?v=20260918a";
+import { openDb, tx, promisify } from "./db.js?v=20260918d";
+import { STORE_LIJSTEN } from "./schema.js?v=20260918d";
 
 export async function getList(naam) {
   const db = await openDb();
@@ -15,9 +15,16 @@ export async function getAllLists() {
   return result;
 }
 
+// Bestaande velden op het record behouden (met name `label` — zie
+// categorieen.js) in plaats van het record blind te overschrijven: anders zou
+// het toevoegen/hernoemen/verwijderen van een waarde in een filtercategorie
+// per ongeluk `label` wegvegen, waardoor die categorie zelf onzichtbaar werd
+// (categorieen.js herkent een record als categorie aan de aanwezigheid van
+// `label`).
 async function saveListValues(naam, waarden) {
   const db = await openDb();
-  await tx(db, STORE_LIJSTEN, "readwrite", (store) => promisify(store.put({ naam, waarden })));
+  const existing = await tx(db, STORE_LIJSTEN, "readonly", (store) => promisify(store.get(naam)));
+  await tx(db, STORE_LIJSTEN, "readwrite", (store) => promisify(store.put({ ...existing, naam, waarden })));
   return waarden;
 }
 
