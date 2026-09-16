@@ -1,7 +1,7 @@
-import { renderDiagramSVG } from "../diagram/render.js?v=20260917e";
-import { parseFen } from "../core/fen.js?v=20260917e";
-import { listStanden, resolveOplossingTekst } from "../db/standen.js?v=20260917e";
-import { getList } from "../db/lijsten.js?v=20260917e";
+import { renderDiagramSVG } from "../diagram/render.js?v=20260917f";
+import { parseFen } from "../core/fen.js?v=20260917f";
+import { listStanden, resolveOplossingTekst } from "../db/standen.js?v=20260917f";
+import { getList } from "../db/lijsten.js?v=20260917f";
 
 // Onthoudt de filterkeuzes zolang de pagina open staat (niet in IndexedDB),
 // zodat teruggaan vanaf een standdetailpagina niet alle filters wist.
@@ -151,7 +151,7 @@ export async function renderDatabaseView(container, { onOpenStand, onAddSelectio
         else selected.delete(stand.id);
         updateSelectionBar();
       });
-      card.addEventListener("click", () => onOpenStand?.(stand.id));
+      card.addEventListener("click", () => onOpenStand?.(stand.id, lastRendered.map((s) => s.id)));
       grid.appendChild(card);
     }
   }
@@ -210,7 +210,7 @@ export async function renderDatabaseView(container, { onOpenStand, onAddSelectio
   });
 
   el('[data-action="share-selection"]').addEventListener("click", async () => {
-    const { buildShareData } = await import("../db/backup.js?v=20260917e");
+    const { buildShareData } = await import("../db/backup.js?v=20260917f");
     const data = await buildShareData([...selected]);
     const json = JSON.stringify(data);
     const encoded = btoa(unescape(encodeURIComponent(json)))

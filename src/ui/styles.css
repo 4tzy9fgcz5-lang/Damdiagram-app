@@ -442,6 +442,33 @@ a.secondary {
   font-weight: 600;
 }
 
+/* Zijvarianten: cursief en iets gedempter, zodat de hoofdlijn duidelijk blijft
+   opvallen — de haakjes zelf staan niet in een <span> en blijven dus gewone
+   tekstkleur. */
+.solution-variant-group {
+  font-style: italic;
+  color: #555;
+}
+
+.solution-variant-ply.current {
+  font-style: normal;
+}
+
+.solution-variant-list {
+  text-align: left;
+  font-size: 0.85rem;
+  margin-top: 0.5rem;
+}
+
+.solution-variant-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  padding: 0.3rem 0;
+  border-top: 1px solid var(--kleur-rand);
+}
+
 .toast {
   position: fixed;
   bottom: 1rem;

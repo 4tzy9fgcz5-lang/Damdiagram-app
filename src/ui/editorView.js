@@ -1,14 +1,14 @@
-import { createBoardEditor, createPalette } from "./boardEditor.js?v=20260917e";
-import { createSolutionInput } from "./solutionInput.js?v=20260917e";
-import { createEmptyBoard, countPieces, isWhite, isBlack } from "../core/board.js?v=20260917e";
-import { parseFen, boardToFen, FenParseError } from "../core/fen.js?v=20260917e";
-import { parseStandInput, QuickTextParseError } from "../core/quicktext.js?v=20260917e";
-import { validateBoard } from "../core/validate.js?v=20260917e";
-import { saveStand, getStand, findDuplicates } from "../db/standen.js?v=20260917e";
-import { getList, addListValue } from "../db/lijsten.js?v=20260917e";
-import { logHerkenningCorrectie } from "../db/herkenningLog.js?v=20260917e";
-import { reclassifyFromDataUrl } from "./diagramCaptureView.js?v=20260917e";
-import { RECOGNITION_VERSION as NEW_MODEL_VERSION } from "../recognition/newClassify.js?v=20260917e";
+import { createBoardEditor, createPalette } from "./boardEditor.js?v=20260917f";
+import { createSolutionInput } from "./solutionInput.js?v=20260917f";
+import { createEmptyBoard, countPieces, isWhite, isBlack } from "../core/board.js?v=20260917f";
+import { parseFen, boardToFen, FenParseError } from "../core/fen.js?v=20260917f";
+import { parseStandInput, QuickTextParseError } from "../core/quicktext.js?v=20260917f";
+import { validateBoard } from "../core/validate.js?v=20260917f";
+import { saveStand, getStand, findDuplicates } from "../db/standen.js?v=20260917f";
+import { getList, addListValue } from "../db/lijsten.js?v=20260917f";
+import { logHerkenningCorrectie } from "../db/herkenningLog.js?v=20260917f";
+import { reclassifyFromDataUrl } from "./diagramCaptureView.js?v=20260917f";
+import { RECOGNITION_VERSION as NEW_MODEL_VERSION } from "../recognition/newClassify.js?v=20260917f";
 
 const MOEILIJKHEID_MAX = 5;
 
@@ -153,6 +153,7 @@ export async function renderEditorView(
   let selectedTypes = [];
   let selectedMoeilijkheid = null;
   let solutionZetten = [];
+  let solutionZijvarianten = [];
   // Bij bulk-import komt hier de éénmalig voor de hele pagina gekozen boekstijl
   // binnen (zie bulkImportView.js), zodat je die niet per diagram hoeft te
   // herhalen — nog wel per stand aan te passen voor uitzonderingen.
@@ -172,6 +173,9 @@ export async function renderEditorView(
       selectedMoeilijkheid = existingStand.moeilijkheid;
       selectedBoekstijl = existingStand.boekstijl || "";
       solutionZetten = existingStand.zetten ? existingStand.zetten.map((m) => ({ ...m })) : [];
+      solutionZijvarianten = existingStand.zijvarianten
+        ? existingStand.zijvarianten.map((v) => ({ id: v.id, vanaf: v.vanaf, zetten: v.zetten.map((m) => ({ ...m })) }))
+        : [];
       if (solutionZetten.length === 0 && existingStand.oplossing) {
         legacyOplossingRefHost.innerHTML = `<p style="font-size:0.85rem;color:#666;">Bestaande oplossingstekst (ter referentie): ${escapeHtml(
           existingStand.oplossing
@@ -272,13 +276,18 @@ export async function renderEditorView(
   renderWarnings();
 
   function reinitSolutionInput(resetZetten) {
-    if (resetZetten) solutionZetten = [];
+    if (resetZetten) {
+      solutionZetten = [];
+      solutionZijvarianten = [];
+    }
     createSolutionInput(solutionInputHost, {
       board: boardEditor.getBoard(),
       turn,
       initialZetten: solutionZetten,
-      onChange: (zetten) => {
-        solutionZetten = zetten;
+      initialZijvarianten: solutionZijvarianten,
+      onChange: (state) => {
+        solutionZetten = state.zetten;
+        solutionZijvarianten = state.zijvarianten;
       },
     });
   }
@@ -400,6 +409,7 @@ export async function renderEditorView(
       opdracht: el('[data-field="opdracht"]').value.trim(),
       oplossing: existingStand?.oplossing ?? "",
       zetten: solutionZetten,
+      zijvarianten: solutionZijvarianten,
       auteur: el('[data-field="auteur"]').value.trim(),
       jaartal: jaartalRaw ? Number.parseInt(jaartalRaw, 10) : null,
       publicatie: el('[data-field="publicatie"]').value.trim(),

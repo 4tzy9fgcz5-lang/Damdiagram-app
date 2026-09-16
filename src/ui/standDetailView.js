@@ -1,10 +1,10 @@
-import { parseFen } from "../core/fen.js?v=20260917e";
-import { getStand, saveStand, deleteStand } from "../db/standen.js?v=20260917e";
-import { createSolutionPlayer } from "./solutionPlayer.js?v=20260917e";
-import { getVerbergOplossing } from "../db/uiSettings.js?v=20260917e";
-import { renderDiagramSVG } from "../diagram/render.js?v=20260917e";
-import { svgToPngDataUrl } from "../export/rasterize.js?v=20260917e";
-import { downloadBlob } from "../export/docx.js?v=20260917e";
+import { parseFen } from "../core/fen.js?v=20260917f";
+import { getStand, saveStand, deleteStand } from "../db/standen.js?v=20260917f";
+import { createSolutionPlayer } from "./solutionPlayer.js?v=20260917f";
+import { getVerbergOplossing } from "../db/uiSettings.js?v=20260917f";
+import { renderDiagramSVG } from "../diagram/render.js?v=20260917f";
+import { svgToPngDataUrl } from "../export/rasterize.js?v=20260917f";
+import { downloadBlob } from "../export/docx.js?v=20260917f";
 
 function capitalize(str) {
   return str.charAt(0).toUpperCase() + str.slice(1);
@@ -33,7 +33,10 @@ function metaRows(stand) {
 
 // Focus-weergave van een opgeslagen stand: opgave, bord, oplossing, auteur. Geen
 // invulvelden — bewerken gaat via de knop onderaan naar de gewone invoerpagina.
-export async function renderStandDetailView(container, { standId, onEdit, onDeleted, onBack } = {}) {
+export async function renderStandDetailView(
+  container,
+  { standId, onEdit, onDeleted, onBack, hasNav = false, onPrev, onNext } = {}
+) {
   const stand = await getStand(standId);
   if (!stand) {
     container.innerHTML = `<p>Deze stand bestaat niet (meer).</p>`;
@@ -50,7 +53,17 @@ export async function renderStandDetailView(container, { standId, onEdit, onDele
   const rows = metaRows(stand);
 
   container.innerHTML = `
-    <button type="button" class="secondary" data-action="back" style="margin-bottom:0.75rem;">&#8592; Terug naar overzicht</button>
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;margin-bottom:0.75rem;">
+      <button type="button" class="secondary" data-action="back">&#8592; Terug naar overzicht</button>
+      ${
+        hasNav
+          ? `<div class="button-row" style="margin:0;">
+               <button type="button" class="secondary" data-action="prev">&#8592; Vorige</button>
+               <button type="button" class="secondary" data-action="next">Volgende &#8594;</button>
+             </div>`
+          : ""
+      }
+    </div>
     <h2>${escapeHtml(opgave)}</h2>
     <div class="card" style="text-align:center;">
       <div data-role="player"></div>
@@ -74,10 +87,12 @@ export async function renderStandDetailView(container, { standId, onEdit, onDele
   createSolutionPlayer(playerHost, {
     board,
     zetten: stand.zetten ?? [],
+    zijvarianten: stand.zijvarianten ?? [],
     turn,
     startHidden: getVerbergOplossing(),
-    onSolutionChange: async (nieuweZetten) => {
+    onSolutionChange: async ({ zetten: nieuweZetten, zijvarianten: nieuweZijvarianten }) => {
       stand.zetten = nieuweZetten;
+      stand.zijvarianten = nieuweZijvarianten;
       await saveStand(stand);
     },
   });
@@ -99,6 +114,14 @@ export async function renderStandDetailView(container, { standId, onEdit, onDele
   }
 
   container.querySelector('[data-action="back"]').addEventListener("click", () => onBack?.());
+  if (hasNav) {
+    const prevBtn = container.querySelector('[data-action="prev"]');
+    const nextBtn = container.querySelector('[data-action="next"]');
+    prevBtn.disabled = !onPrev;
+    nextBtn.disabled = !onNext;
+    prevBtn.addEventListener("click", () => onPrev?.());
+    nextBtn.addEventListener("click", () => onNext?.());
+  }
   container.querySelector('[data-action="png"]').addEventListener("click", async () => {
     const svg = renderDiagramSVG(board, { size: 900 });
     const { blob } = await svgToPngDataUrl(svg, 900);

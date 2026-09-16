@@ -1,38 +1,65 @@
-import { renderDiagramSVG } from "../diagram/render.js?v=20260917e";
-import { applyMove, moveToNotation } from "../core/draughtsMoves.js?v=20260917e";
-import { createSolutionInput } from "./solutionInput.js?v=20260917e";
+import { renderDiagramSVG } from "../diagram/render.js?v=20260917f";
+import { applyMove, moveToNotation, plyColor, plyMoveNumber } from "../core/draughtsMoves.js?v=20260917f";
+import { createSolutionInput } from "./solutionInput.js?v=20260917f";
 
 function escapeHtml(str) {
   return str.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
 
-// Bouwt de volledige damnotatie als HTML, met één <span data-ply> per zet zodat de
-// huidige stap gemarkeerd (en aangeklikt) kan worden — net als bij toernooibase.
-function buildNotationHTML(zetten, firstTurn, currentStep) {
+// Bouwt de volledige damnotatie als HTML: de hoofdlijn met één <span data-ply>
+// per zet (zodat de huidige stap gemarkeerd en aangeklikt kan worden — net als
+// bij toernooibase), en eventuele zijvarianten direct ná de hoofdzet waar ze een
+// alternatief voor zijn, tussen haakjes en met eigen klikbare <span data-vindex>-
+// zetten. `position` is `{ mode: "main", step }` of `{ mode: "variant",
+// variantIndex, vIndex }` en bepaalt welke zet als "current" gemarkeerd wordt.
+function buildNotationHTML(zetten, firstTurn, zijvarianten, position) {
   if (!zetten.length)
     return '<span class="solution-empty">Nog geen oplossing ingevoerd. <a href="#" class="solution-start-entry" data-action="start-entry">Oplossing invoeren</a></span>';
 
-  const ply = (index, text) =>
-    `<span class="solution-ply${index === currentStep ? " current" : ""}" data-ply="${index}">${escapeHtml(
-      text
-    )}</span>`;
+  const mainPly = (globalPly, text) =>
+    `<span class="solution-ply${
+      position.mode === "main" && position.step === globalPly ? " current" : ""
+    }" data-ply="${globalPly}">${escapeHtml(text)}</span>`;
 
-  const parts = [];
-  let i = 0;
-  let moveNumber = 1;
-  if (firstTurn === "black") {
-    parts.push(`${moveNumber}. ... ${ply(1, moveToNotation(zetten[0]))}`);
-    i = 1;
-    moveNumber++;
+  const variantPly = (variantIndex, vIndex, text) =>
+    `<span class="solution-ply solution-variant-ply${
+      position.mode === "variant" && position.variantIndex === variantIndex && position.vIndex === vIndex
+        ? " current"
+        : ""
+    }" data-variant-index="${variantIndex}" data-vindex="${vIndex}">${escapeHtml(text)}</span>`;
+
+  const perVanaf = new Map();
+  zijvarianten.forEach((v, variantIndex) => {
+    const lijst = perVanaf.get(v.vanaf) ?? [];
+    lijst.push({ variant: v, variantIndex });
+    perVanaf.set(v.vanaf, lijst);
+  });
+
+  function variantGroupHtml(variant, variantIndex) {
+    const pieces = [];
+    let j = 0;
+    if (plyColor(firstTurn, variant.vanaf) === "black") {
+      pieces.push(`${plyMoveNumber(firstTurn, variant.vanaf)}. ...`);
+      pieces.push(variantPly(variantIndex, 1, moveToNotation(variant.zetten[0])));
+      j = 1;
+    }
+    for (; j < variant.zetten.length; j++) {
+      const globalPly = variant.vanaf + j;
+      if (plyColor(firstTurn, globalPly) === "white") pieces.push(`${plyMoveNumber(firstTurn, globalPly)}.`);
+      pieces.push(variantPly(variantIndex, j + 1, moveToNotation(variant.zetten[j])));
+    }
+    return `<span class="solution-variant-group">(${pieces.join(" ")})</span>`;
   }
-  for (; i < zetten.length; i += 2) {
-    const firstPly = i + 1;
-    let part = `${moveNumber}. ${ply(firstPly, moveToNotation(zetten[i]))}`;
-    if (zetten[i + 1]) part += ` ${ply(firstPly + 1, moveToNotation(zetten[i + 1]))}`;
-    parts.push(part);
-    moveNumber++;
+
+  const pieces = [];
+  for (let i = 0; i < zetten.length; i++) {
+    if (plyColor(firstTurn, i) === "white") pieces.push(`${plyMoveNumber(firstTurn, i)}.`);
+    else if (i === 0) pieces.push(`${plyMoveNumber(firstTurn, i)}. ...`);
+    pieces.push(mainPly(i + 1, moveToNotation(zetten[i])));
+    for (const { variant, variantIndex } of perVanaf.get(i) ?? []) pieces.push(variantGroupHtml(variant, variantIndex));
   }
-  return parts.join(" ");
+  for (const { variant, variantIndex } of perVanaf.get(zetten.length) ?? []) pieces.push(variantGroupHtml(variant, variantIndex));
+  return pieces.join(" ");
 }
 
 const PLAY_INTERVAL_MS = 1100;
@@ -46,14 +73,35 @@ const PLAY_INTERVAL_MS = 1100;
 // (solutionInput.js), en `onSolutionChange` geeft elke wijziging door zodat de
 // aanroeper (de detailpagina) die meteen kan opslaan.
 //
+// Zijvarianten: sta je aan het eind van de hoofdlijn en druk je nogmaals op
+// "volgende" (knop of pijltjestoets), dan springt het bord terug naar het
+// aftakkingspunt van de eerste zijvariant en speel je die verder af; na het
+// eind van die variant (indien aanwezig) naar de volgende, enzovoort.
+// "Vorige" vanuit een zijvariant loopt eerst terug door de eigen zetten van die
+// variant, en pas daarna terug naar het aftakkingspunt in de hoofdlijn. Het
+// automatische afspelen (de klok-knop) blijft altijd binnen de hoofdlijn en
+// stopt aan het eind daarvan — zijvarianten bereik je dan alleen handmatig,
+// zodat je nooit per ongeluk denkt dat een zijvariant de hoofdlijn is.
+//
 // `startHidden`: voor de instelling "oplossing verbergen tot ik erop klik"
 // (instellingen -> database). Het bord (de opgave zelf) blijft altijd zichtbaar
 // — verborgen wordt alleen de navigatie en de zettenlijst, want juist dáármee
 // zou je de oplossing per ongeluk al zien voor je zelf hebt kunnen puzzelen.
-export function createSolutionPlayer(container, { board, zetten = [], turn = "white", onSolutionChange, startHidden = false } = {}) {
+export function createSolutionPlayer(
+  container,
+  { board, zetten = [], zijvarianten = [], turn = "white", onSolutionChange, startHidden = false } = {}
+) {
   let currentZetten = zetten.map((m) => ({ ...m }));
-  let snapshots = buildSnapshots();
-  let step = 0;
+  // Defensief: een zijvariant die verwijst naar een punt voorbij het huidige
+  // eind van de hoofdlijn (kan in theorie ontstaan door een "zet ongedaan
+  // maken" ná het toevoegen van een variant) wordt genegeerd in plaats van de
+  // pagina te laten crashen.
+  let currentZijvarianten = zijvarianten
+    .filter((v) => v.vanaf >= 0 && v.vanaf <= currentZetten.length && v.zetten?.length > 0)
+    .map((v) => ({ id: v.id, vanaf: v.vanaf, zetten: v.zetten.map((m) => ({ ...m })) }));
+  let mainSnapshots = buildMainSnapshots();
+  let variantSnapshots = buildVariantSnapshots();
+  let position = { mode: "main", step: 0 };
   let playTimer = null;
   // Niets te verbergen als er nog geen oplossing is ingevoerd — dan moet de
   // "Oplossing invoeren"-link gewoon meteen bereikbaar blijven.
@@ -70,10 +118,66 @@ export function createSolutionPlayer(container, { board, zetten = [], turn = "wh
     }
   }
 
-  function buildSnapshots() {
+  function buildMainSnapshots() {
     const snaps = [board];
     for (const move of currentZetten) snaps.push(applyMove(snaps[snaps.length - 1], move));
     return snaps;
+  }
+
+  function buildVariantSnapshots() {
+    return currentZijvarianten.map((variant) => {
+      const snaps = [mainSnapshots[variant.vanaf]];
+      for (const move of variant.zetten) snaps.push(applyMove(snaps[snaps.length - 1], move));
+      return snaps;
+    });
+  }
+
+  function currentBoard() {
+    return position.mode === "main" ? mainSnapshots[position.step] : variantSnapshots[position.variantIndex][position.vIndex];
+  }
+
+  function canGoNext() {
+    if (position.mode === "main") {
+      if (position.step < currentZetten.length) return true;
+      return currentZijvarianten.length > 0;
+    }
+    const variant = currentZijvarianten[position.variantIndex];
+    if (position.vIndex < variant.zetten.length) return true;
+    return position.variantIndex + 1 < currentZijvarianten.length;
+  }
+
+  function canGoPrev() {
+    if (position.mode === "variant") return true;
+    return position.step > 0;
+  }
+
+  function goNext() {
+    if (position.mode === "main") {
+      if (position.step < currentZetten.length) {
+        position = { mode: "main", step: position.step + 1 };
+      } else if (currentZijvarianten.length > 0) {
+        position = { mode: "variant", variantIndex: 0, vIndex: 1 };
+      }
+      return;
+    }
+    const variant = currentZijvarianten[position.variantIndex];
+    if (position.vIndex < variant.zetten.length) {
+      position = { ...position, vIndex: position.vIndex + 1 };
+    } else if (position.variantIndex + 1 < currentZijvarianten.length) {
+      position = { mode: "variant", variantIndex: position.variantIndex + 1, vIndex: 1 };
+    }
+  }
+
+  function goPrev() {
+    if (position.mode === "variant") {
+      if (position.vIndex > 1) {
+        position = { ...position, vIndex: position.vIndex - 1 };
+      } else {
+        position = { mode: "main", step: currentZijvarianten[position.variantIndex].vanaf };
+      }
+      return;
+    }
+    if (position.step > 0) position = { mode: "main", step: position.step - 1 };
   }
 
   function stopPlaying() {
@@ -115,15 +219,15 @@ export function createSolutionPlayer(container, { board, zetten = [], turn = "wh
 
       prevBtn.addEventListener("click", () => {
         stopPlaying();
-        if (step > 0) {
-          step--;
+        if (canGoPrev()) {
+          goPrev();
           draw();
         }
       });
       nextBtn.addEventListener("click", () => {
         stopPlaying();
-        if (step < currentZetten.length) {
-          step++;
+        if (canGoNext()) {
+          goNext();
           draw();
         }
       });
@@ -133,14 +237,16 @@ export function createSolutionPlayer(container, { board, zetten = [], turn = "wh
           draw();
           return;
         }
-        if (step >= currentZetten.length) step = 0;
+        // Automatisch afspelen blijft altijd binnen de hoofdlijn: begin bij het
+        // begin als je al (voorbij) het eind zit, of nog in een zijvariant staat.
+        if (position.mode !== "main" || position.step >= currentZetten.length) position = { mode: "main", step: 0 };
         playTimer = setInterval(() => {
-          if (step >= currentZetten.length) {
+          if (position.step >= currentZetten.length) {
             stopPlaying();
             draw();
             return;
           }
-          step++;
+          position = { mode: "main", step: position.step + 1 };
           draw();
         }, PLAY_INTERVAL_MS);
         draw();
@@ -161,17 +267,28 @@ export function createSolutionPlayer(container, { board, zetten = [], turn = "wh
     }
 
     function draw() {
-      boardHost.innerHTML = renderDiagramSVG(snapshots[step], { size: 320 });
+      boardHost.innerHTML = renderDiagramSVG(currentBoard(), { size: 320 });
       if (!revealed) {
         notationHost.innerHTML =
           '<span class="solution-empty">Oplossing verborgen — klik op "Oplossing tonen" als je zelf hebt geprobeerd te puzzelen.</span>';
         return;
       }
-      notationHost.innerHTML = buildNotationHTML(currentZetten, turn, step);
+      notationHost.innerHTML = buildNotationHTML(currentZetten, turn, currentZijvarianten, position);
       for (const el of notationHost.querySelectorAll("[data-ply]")) {
         el.addEventListener("click", () => {
           stopPlaying();
-          step = Number.parseInt(el.dataset.ply, 10);
+          position = { mode: "main", step: Number.parseInt(el.dataset.ply, 10) };
+          draw();
+        });
+      }
+      for (const el of notationHost.querySelectorAll("[data-vindex]")) {
+        el.addEventListener("click", () => {
+          stopPlaying();
+          position = {
+            mode: "variant",
+            variantIndex: Number.parseInt(el.dataset.variantIndex, 10),
+            vIndex: Number.parseInt(el.dataset.vindex, 10),
+          };
           draw();
         });
       }
@@ -180,8 +297,8 @@ export function createSolutionPlayer(container, { board, zetten = [], turn = "wh
         e.preventDefault();
         renderEdit();
       });
-      prevBtn.disabled = step === 0;
-      nextBtn.disabled = step === currentZetten.length;
+      prevBtn.disabled = !canGoPrev();
+      nextBtn.disabled = !canGoNext();
       playBtn.disabled = currentZetten.length === 0;
       playBtn.innerHTML = playTimer ? "&#9208;" : "&#9654;";
       playBtn.setAttribute("aria-label", playTimer ? "Pauzeren" : "Automatisch afspelen");
@@ -220,9 +337,14 @@ export function createSolutionPlayer(container, { board, zetten = [], turn = "wh
       board,
       turn,
       initialZetten: currentZetten,
-      onChange: (nieuweZetten) => {
-        currentZetten = nieuweZetten;
-        onSolutionChange?.(currentZetten.map((m) => ({ ...m })));
+      initialZijvarianten: currentZijvarianten,
+      onChange: (state) => {
+        currentZetten = state.zetten;
+        currentZijvarianten = state.zijvarianten;
+        onSolutionChange?.({
+          zetten: currentZetten.map((m) => ({ ...m })),
+          zijvarianten: currentZijvarianten.map((v) => ({ id: v.id, vanaf: v.vanaf, zetten: v.zetten.map((m) => ({ ...m })) })),
+        });
       },
     });
     const doneBtn = document.createElement("button");
@@ -231,8 +353,9 @@ export function createSolutionPlayer(container, { board, zetten = [], turn = "wh
     doneBtn.style.marginTop = "0.75rem";
     doneBtn.textContent = "Klaar";
     doneBtn.addEventListener("click", () => {
-      snapshots = buildSnapshots();
-      step = currentZetten.length;
+      mainSnapshots = buildMainSnapshots();
+      variantSnapshots = buildVariantSnapshots();
+      position = { mode: "main", step: currentZetten.length };
       renderView();
     });
     container.appendChild(doneBtn);

@@ -1,8 +1,8 @@
-import { openDb, tx, promisify, newId } from "./db.js?v=20260917e";
-import { STORE_STANDEN } from "./schema.js?v=20260917e";
-import { parseFen, boardToFen } from "../core/fen.js?v=20260917e";
-import { mirrorBoard } from "../core/board.js?v=20260917e";
-import { formatZetten } from "../core/draughtsMoves.js?v=20260917e";
+import { openDb, tx, promisify, newId } from "./db.js?v=20260917f";
+import { STORE_STANDEN } from "./schema.js?v=20260917f";
+import { parseFen, boardToFen } from "../core/fen.js?v=20260917f";
+import { mirrorBoard } from "../core/board.js?v=20260917f";
+import { formatZettenMetVarianten } from "../core/draughtsMoves.js?v=20260917f";
 
 function canonicalFens(fenString) {
   const { board, turn } = parseFen(fenString);
@@ -19,7 +19,7 @@ export function resolveOplossingTekst(stand) {
   if (stand.oplossing) return stand.oplossing;
   if (stand.zetten && stand.zetten.length > 0) {
     const { turn } = parseFen(stand.fen);
-    return formatZetten(stand.zetten, turn);
+    return formatZettenMetVarianten(stand.zetten, turn, stand.zijvarianten ?? []);
   }
   return "";
 }
@@ -48,6 +48,7 @@ export async function saveStand(input) {
     moeilijkheid: input.moeilijkheid ?? null,
     notities: input.notities ?? "",
     zetten: input.zetten ?? [],
+    zijvarianten: input.zijvarianten ?? [],
     boekstijl: input.boekstijl ?? "",
     foto: input.foto ?? null,
     gebruiktIn: input.gebruiktIn ?? [],

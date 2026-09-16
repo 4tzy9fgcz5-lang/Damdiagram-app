@@ -1,4 +1,4 @@
-import { FIELD_COUNT, PIECE_TYPES, fieldToCoord, coordToField, isKing, cloneBoard } from "./board.js?v=20260917e";
+import { FIELD_COUNT, PIECE_TYPES, fieldToCoord, coordToField, isKing, cloneBoard } from "./board.js?v=20260917f";
 
 const ALL_DIRS = [
   { dr: -1, dc: -1 },
@@ -6,6 +6,10 @@ const ALL_DIRS = [
   { dr: 1, dc: -1 },
   { dr: 1, dc: 1 },
 ];
+
+export function opposite(color) {
+  return color === "white" ? "black" : "white";
+}
 
 export function colorOf(piece) {
   if (piece === PIECE_TYPES.WHITE_PIECE || piece === PIECE_TYPES.WHITE_KING) return "white";
@@ -167,25 +171,76 @@ export function moveToNotation(move) {
   return `${move.van}x${move.pad.join("x")}`;
 }
 
-// Een hele reeks zetten als leesbare damnotatie, bv. "1. 33-28 19-23 2. 38-32 ...".
-// `firstTurn` is de kleur die de eerste zet in `zetten` speelt.
-export function formatZetten(zetten, firstTurn) {
+// Welke kleur zet `ply` (0-based, geteld vanaf het allereerste zet van de hele
+// oplossing) speelt, en welk zetnummer daarbij hoort. Wit is in de standaard-
+// damnotatie altijd de "aankondiger" van een nieuw zetnummer, ongeacht wie de
+// hele reeks begint — vandaar de +1-correctie hieronder als zwart begint.
+export function plyColor(overallStartTurn, ply) {
+  return ply % 2 === 0 ? overallStartTurn : opposite(overallStartTurn);
+}
+
+export function plyMoveNumber(overallStartTurn, ply) {
+  return Math.floor((ply + (overallStartTurn === "black" ? 1 : 0)) / 2) + 1;
+}
+
+// Damnotatie voor een reeks zetten die niet per se bij het begin van de hele
+// oplossing hoeft te beginnen — gebruikt voor zowel de hoofdlijn (startPly 0)
+// als een zijvariant (startPly = het punt in de hoofdlijn waar de variant
+// aftakt). `overallStartTurn` is de kleur die zet 1 van de héle oplossing
+// speelt (nodig om de juiste zetnummers en kleuren te berekenen), niet per se
+// de kleur waarmee `zetten` zelf begint.
+export function formatZettenSequence(zetten, overallStartTurn, startPly = 0) {
   if (!zetten || zetten.length === 0) return "";
   const parts = [];
   let i = 0;
-  let moveNumber = 1;
-  if (firstTurn === "black") {
-    parts.push(`${moveNumber}. ... ${moveToNotation(zetten[0])}`);
+  if (plyColor(overallStartTurn, startPly) === "black") {
+    parts.push(`${plyMoveNumber(overallStartTurn, startPly)}. ... ${moveToNotation(zetten[0])}`);
     i = 1;
-    moveNumber++;
   }
   for (; i < zetten.length; i += 2) {
+    const moveNumber = plyMoveNumber(overallStartTurn, startPly + i);
     const first = moveToNotation(zetten[i]);
     const second = zetten[i + 1] ? ` ${moveToNotation(zetten[i + 1])}` : "";
     parts.push(`${moveNumber}. ${first}${second}`);
-    moveNumber++;
   }
   return parts.join(" ");
+}
+
+// Een hele reeks zetten als leesbare damnotatie, bv. "1. 33-28 19-23 2. 38-32 ...".
+// `firstTurn` is de kleur die de eerste zet in `zetten` speelt.
+export function formatZetten(zetten, firstTurn) {
+  return formatZettenSequence(zetten, firstTurn, 0);
+}
+
+// Zoals formatZetten, maar met eventuele zijvarianten tussen haakjes ingevoegd
+// direct na de hoofdzet waar ze een alternatief voor zijn — bv.
+// "1. 33-28 19-23 2. 38-32 (2. 39-33 14-19) 23-29". Elke variant heeft
+// `{ vanaf, zetten }`: `vanaf` is het 0-based indexnummer in de hoofdlijn-
+// `zetten` van de hoofdzet die de variant vervangt (dus ook toegestaan gelijk
+// aan zetten.length, voor een variant die pas ná de laatste hoofdzet aftakt).
+export function formatZettenMetVarianten(zetten, firstTurn, zijvarianten = []) {
+  const zettenList = zetten ?? [];
+  const perVanaf = new Map();
+  for (const variant of zijvarianten) {
+    const lijst = perVanaf.get(variant.vanaf) ?? [];
+    lijst.push(variant);
+    perVanaf.set(variant.vanaf, lijst);
+  }
+
+  const pieces = [];
+  for (let i = 0; i < zettenList.length; i++) {
+    const color = plyColor(firstTurn, i);
+    if (color === "white") pieces.push(`${plyMoveNumber(firstTurn, i)}.`);
+    else if (i === 0) pieces.push(`${plyMoveNumber(firstTurn, i)}. ...`);
+    pieces.push(moveToNotation(zettenList[i]));
+    for (const variant of perVanaf.get(i) ?? []) {
+      pieces.push(`(${formatZettenSequence(variant.zetten, firstTurn, variant.vanaf)})`);
+    }
+  }
+  for (const variant of perVanaf.get(zettenList.length) ?? []) {
+    pieces.push(`(${formatZettenSequence(variant.zetten, firstTurn, variant.vanaf)})`);
+  }
+  return pieces.join(" ");
 }
 
 // Past een volledige zet (zoals geleverd door getLegalMoves, of eerder opgeslagen) toe op het bord.

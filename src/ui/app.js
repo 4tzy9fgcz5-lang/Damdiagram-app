@@ -1,16 +1,16 @@
-import { renderEditorView } from "./editorView.js?v=20260917e";
-import { renderDatabaseView } from "./databaseView.js?v=20260917e";
-import { renderStandDetailView } from "./standDetailView.js?v=20260917e";
-import { renderStencilsListView } from "./stencilsListView.js?v=20260917e";
-import { renderStencilView, addStandenToStencil } from "./stencilView.js?v=20260917e";
-import { saveStencil } from "../db/stencils.js?v=20260917e";
-import { getLastBackupDate } from "./backupView.js?v=20260917e";
-import { renderSettingsView } from "./settingsView.js?v=20260917e";
-import { renderImportView } from "./importView.js?v=20260917e";
-import { renderPhotoImportView } from "./photoImportView.js?v=20260917e";
-import { renderBulkImportView } from "./bulkImportView.js?v=20260917e";
-import { renderDiagramCapture, cropAroundCorners } from "./diagramCaptureView.js?v=20260917e";
-import { listStanden } from "../db/standen.js?v=20260917e";
+import { renderEditorView } from "./editorView.js?v=20260917f";
+import { renderDatabaseView } from "./databaseView.js?v=20260917f";
+import { renderStandDetailView } from "./standDetailView.js?v=20260917f";
+import { renderStencilsListView } from "./stencilsListView.js?v=20260917f";
+import { renderStencilView, addStandenToStencil } from "./stencilView.js?v=20260917f";
+import { saveStencil } from "../db/stencils.js?v=20260917f";
+import { getLastBackupDate } from "./backupView.js?v=20260917f";
+import { renderSettingsView } from "./settingsView.js?v=20260917f";
+import { renderImportView } from "./importView.js?v=20260917f";
+import { renderPhotoImportView } from "./photoImportView.js?v=20260917f";
+import { renderBulkImportView } from "./bulkImportView.js?v=20260917f";
+import { renderDiagramCapture, cropAroundCorners } from "./diagramCaptureView.js?v=20260917f";
+import { listStanden } from "../db/standen.js?v=20260917f";
 
 const routes = ["nieuw", "foto", "bulk", "bulk-diagram", "database", "stand", "stencils", "stencil", "instellingen", "import"];
 let pendingRecognition = null;
@@ -22,6 +22,12 @@ let bulkQueue = null;
 // opgaveblad), zodat "Terug" naar de juiste plek gaat in plaats van altijd
 // naar de database.
 let standReturnRoute = "#/database";
+// De volgorde van standen zoals die op het moment van openen op de
+// database-pagina te zien was (met de dan geldende filters/sortering) — voor
+// de vooruit/achteruit-knoppen op de standdetailpagina. Alleen gevuld als je
+// er via de database bent gekomen; anders (bv. via een opgaveblad) staan die
+// knoppen er niet.
+let standNavIds = null;
 
 function showToast(message) {
   const toast = document.createElement("div");
@@ -86,8 +92,9 @@ async function render() {
   if (name === "database") {
     const forStencilId = param;
     await renderDatabaseView(app, {
-      onOpenStand: (id) => {
+      onOpenStand: (id, ids) => {
         standReturnRoute = "#/database";
+        standNavIds = ids;
         location.hash = `#/stand/${id}`;
       },
       onAddSelectionToStencil: async (ids) => {
@@ -120,6 +127,7 @@ async function render() {
       stencilId: param,
       onOpenStand: (id) => {
         standReturnRoute = `#/stencil/${param}`;
+        standNavIds = null;
         location.hash = `#/stand/${id}`;
       },
       onGotoDatabaseToAdd: (stencilId) => {
@@ -130,6 +138,7 @@ async function render() {
       },
     });
   } else if (name === "stand") {
+    const navIndex = standNavIds ? standNavIds.indexOf(param) : -1;
     await renderStandDetailView(app, {
       standId: param,
       onEdit: (id) => {
@@ -142,6 +151,19 @@ async function render() {
       onBack: () => {
         location.hash = standReturnRoute;
       },
+      hasNav: standNavIds != null,
+      onPrev:
+        navIndex > 0
+          ? () => {
+              location.hash = `#/stand/${standNavIds[navIndex - 1]}`;
+            }
+          : null,
+      onNext:
+        navIndex >= 0 && navIndex < standNavIds.length - 1
+          ? () => {
+              location.hash = `#/stand/${standNavIds[navIndex + 1]}`;
+            }
+          : null,
     });
   } else if (name === "instellingen") {
     await renderSettingsView(app, {
