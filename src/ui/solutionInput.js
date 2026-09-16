@@ -1,12 +1,14 @@
-import { renderDiagramSVG } from "../diagram/render.js?v=20260917g";
-import { isValidField } from "../core/board.js?v=20260917g";
+import { renderDiagramSVG } from "../diagram/render.js?v=20260917h";
+import { isValidField } from "../core/board.js?v=20260917h";
 import {
   getLegalMoves,
   applyMove,
   opposite,
-  formatZettenMetVarianten,
+  moveToNotation,
+  plyColor,
+  plyMoveNumber,
   formatZettenSequence,
-} from "../core/draughtsMoves.js?v=20260917g";
+} from "../core/draughtsMoves.js?v=20260917h";
 
 function escapeHtml(str) {
   return str.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -38,10 +40,33 @@ export function createSolutionInput(
   let candidates;
   let partialFrom = null;
   let partialPath = [];
+  // Bordstand per hoofdzet (index 0 = beginstand), voor het terugbladeren
+  // hieronder. Wordt herbouwd zodra `zetten` verandert (zie refreshCandidates).
+  let snapshots = [];
+  // Welke stap er nu getoond wordt: 0..zetten.length. Staat 'ie op zetten.length
+  // (de "live" stand), dan is het bord gewoon klikbaar om verder te gaan; staat
+  // 'ie ergens eerder, dan is het bord alleen-lezen (bekijken van een eerdere
+  // zet) — zo kun je door een al ingevoerde oplossing bladeren zonder per se
+  // zetten weg te gooien met "Zet ongedaan maken".
+  let browseStep = 0;
 
   const boardHost = document.createElement("div");
   const statusHost = document.createElement("div");
   statusHost.className = "solution-status";
+  const navRow = document.createElement("div");
+  navRow.className = "solution-nav";
+  navRow.style.justifyContent = "flex-start";
+  const prevBtn = document.createElement("button");
+  prevBtn.type = "button";
+  prevBtn.className = "solution-nav-btn";
+  prevBtn.innerHTML = "&#9664;";
+  prevBtn.setAttribute("aria-label", "Vorige zet bekijken");
+  const nextBtn = document.createElement("button");
+  nextBtn.type = "button";
+  nextBtn.className = "solution-nav-btn";
+  nextBtn.innerHTML = "&#9654;";
+  nextBtn.setAttribute("aria-label", "Volgende zet bekijken");
+  navRow.append(prevBtn, nextBtn);
   const notationHost = document.createElement("div");
   notationHost.className = "solution-notation";
   const variantListHost = document.createElement("div");
@@ -66,7 +91,7 @@ export function createSolutionInput(
   variantHost.style.display = "none";
 
   container.innerHTML = "";
-  container.append(boardHost, statusHost, notationHost, variantListHost, buttonRow, variantHost);
+  container.append(boardHost, statusHost, navRow, notationHost, variantListHost, buttonRow, variantHost);
 
   function notifyChange() {
     onChange?.({
@@ -83,16 +108,32 @@ export function createSolutionInput(
     return zetten.reduce((b, m) => applyMove(b, m), startBoard);
   }
 
+  function buildSnapshots() {
+    const snaps = [startBoard];
+    for (const m of zetten) snaps.push(applyMove(snaps[snaps.length - 1], m));
+    return snaps;
+  }
+
   function resetPartial() {
     partialFrom = null;
     partialPath = [];
   }
 
+  // Na elke wijziging van `zetten` (zet gespeeld, ongedaan gemaakt, gewist):
+  // snapshots herbouwen en teruggaan naar "live" bladeren (de nieuwe laatste
+  // zet), zodat je meteen weer verder kunt klikken.
   function refreshCandidates() {
     liveBoard = replay();
     liveTurn = turnAt(zetten.length);
     candidates = getLegalMoves(liveBoard, liveTurn);
     resetPartial();
+    snapshots = buildSnapshots();
+    browseStep = zetten.length;
+  }
+
+  function candidatesAt(step) {
+    const b = step === zetten.length ? liveBoard : snapshots[step];
+    return getLegalMoves(b, turnAt(step));
   }
 
   function ownFieldsWithMoves() {
@@ -132,31 +173,94 @@ export function createSolutionInput(
     }
   }
 
-  function render() {
-    boardHost.innerHTML = renderDiagramSVG(liveBoard, { size: 320 });
-    const svg = boardHost.querySelector("svg");
-    svg.style.touchAction = "manipulation";
-    svg.style.userSelect = "none";
-    svg.style.cursor = "pointer";
-    svg.addEventListener("click", handleClick);
-    drawMarkers(svg);
+  // Bouwt de notatie met per hoofdzet een aanklikbare <span data-ply> (om
+  // terug/vooruit te bladeren — zie navRow hieronder), plus de zijvarianten
+  // tussen haakjes op hun plek. De zijvarianten zelf zijn hier niet aanklikbaar
+  // — die bewerk je via de lijst eronder (renderVariantList).
+  function buildEntryNotationHTML() {
+    if (zetten.length === 0 && zijvarianten.length === 0) return "";
+    const perVanaf = new Map();
+    for (const v of zijvarianten) {
+      const lijst = perVanaf.get(v.vanaf) ?? [];
+      lijst.push(v);
+      perVanaf.set(v.vanaf, lijst);
+    }
+    const pieces = [];
+    for (let i = 0; i < zetten.length; i++) {
+      if (plyColor(startTurn, i) === "white") pieces.push(`${plyMoveNumber(startTurn, i)}.`);
+      else if (i === 0) pieces.push(`${plyMoveNumber(startTurn, i)}. ...`);
+      const ply = i + 1;
+      pieces.push(
+        `<span class="solution-ply${browseStep === ply ? " current" : ""}" data-ply="${ply}">${escapeHtml(
+          moveToNotation(zetten[i])
+        )}</span>`
+      );
+      for (const v of perVanaf.get(i) ?? []) {
+        pieces.push(
+          `<span class="solution-variant-group">(${escapeHtml(formatZettenSequence(v.zetten, startTurn, v.vanaf))})</span>`
+        );
+      }
+    }
+    for (const v of perVanaf.get(zetten.length) ?? []) {
+      pieces.push(
+        `<span class="solution-variant-group">(${escapeHtml(formatZettenSequence(v.zetten, startTurn, v.vanaf))})</span>`
+      );
+    }
+    return pieces.join(" ");
+  }
 
-    const kleur = liveTurn === "white" ? "wit" : "zwart";
-    if (candidates.length === 0) {
-      statusHost.textContent = `Geen zetten meer mogelijk voor ${kleur} — einde van de oplossing.`;
-    } else if (partialFrom == null && candidates.some((c) => c.geslagen.length > 0)) {
-      statusHost.textContent = `Slaan is verplicht (${kleur} aan zet).`;
-    } else {
-      statusHost.textContent = `${kleur === "wit" ? "Wit" : "Zwart"} aan zet.`;
+  function render() {
+    const live = browseStep === zetten.length;
+    const displayBoard = live ? liveBoard : snapshots[browseStep];
+    boardHost.innerHTML = renderDiagramSVG(displayBoard, { size: 320 });
+    if (live) {
+      const svg = boardHost.querySelector("svg");
+      svg.style.touchAction = "manipulation";
+      svg.style.userSelect = "none";
+      svg.style.cursor = "pointer";
+      svg.addEventListener("click", handleClick);
+      drawMarkers(svg);
     }
 
-    notationHost.textContent =
-      formatZettenMetVarianten(zetten, startTurn, zijvarianten) || "Nog geen zetten ingevoerd.";
-    undoBtn.disabled = zetten.length === 0;
-    clearBtn.disabled = zetten.length === 0;
-    addVariantBtn.disabled = candidates.length === 0;
+    if (!live) {
+      statusHost.textContent = `Zet ${browseStep} van ${zetten.length} bekeken — klik op de laatste zet of op ▶ om verder te gaan met invoeren.`;
+    } else {
+      const kleur = liveTurn === "white" ? "wit" : "zwart";
+      if (candidates.length === 0) {
+        statusHost.textContent = `Geen zetten meer mogelijk voor ${kleur} — einde van de oplossing.`;
+      } else if (partialFrom == null && candidates.some((c) => c.geslagen.length > 0)) {
+        statusHost.textContent = `Slaan is verplicht (${kleur} aan zet).`;
+      } else {
+        statusHost.textContent = `${kleur === "wit" ? "Wit" : "Zwart"} aan zet.`;
+      }
+    }
+
+    notationHost.innerHTML = buildEntryNotationHTML() || "Nog geen zetten ingevoerd.";
+    for (const el of notationHost.querySelectorAll("[data-ply]")) {
+      el.addEventListener("click", () => {
+        browseStep = Number.parseInt(el.dataset.ply, 10);
+        render();
+      });
+    }
+
+    prevBtn.disabled = browseStep === 0;
+    nextBtn.disabled = live;
+    undoBtn.disabled = zetten.length === 0 || !live;
+    clearBtn.disabled = zetten.length === 0 || !live;
+    addVariantBtn.disabled = candidatesAt(browseStep).length === 0;
     renderVariantList();
   }
+
+  prevBtn.addEventListener("click", () => {
+    if (browseStep === 0) return;
+    browseStep -= 1;
+    render();
+  });
+  nextBtn.addEventListener("click", () => {
+    if (browseStep === zetten.length) return;
+    browseStep += 1;
+    render();
+  });
 
   // Lijst van al toegevoegde zijvarianten onder de notatie, met per stuk de
   // mogelijkheid om 'm te bewerken of te verwijderen — los van de doorlopende
@@ -188,19 +292,21 @@ export function createSolutionInput(
     }
   }
 
-  // Opent een geneste, eigen klik-invoer vanaf de huidige (of, bij bewerken, de
-  // opgeslagen) stand — zonder zelf weer een "Zijvariant toevoegen"-knop
-  // (allowVariations: false), want varianten-op-varianten zijn bewust niet
-  // ondersteund. Bij een nieuwe variant is `vanaf` het aantal hoofdzetten dat
-  // nu al is ingevoerd: de variant is dus een alternatief voor de hoofdzet die
-  // hierna komt (nog te spelen, of — bij bewerken — al gespeeld).
+  // Opent een geneste, eigen klik-invoer vanaf de bekeken stap (of, bij
+  // bewerken, de opgeslagen positie) — zonder zelf weer een "Zijvariant
+  // toevoegen"-knop (allowVariations: false), want varianten-op-varianten
+  // zijn bewust niet ondersteund. Bij een nieuwe variant is `vanaf` de stap
+  // die op dat moment bekeken wordt (zie browseStep/navRow hierboven): zo kun
+  // je eerst naar een eerdere zet terugbladeren en daar een variant invoegen
+  // zonder de latere hoofdzetten kwijt te raken.
   function openVariantEditor(existingVariant) {
-    const vanaf = existingVariant ? existingVariant.vanaf : zetten.length;
+    const vanaf = existingVariant ? existingVariant.vanaf : browseStep;
     const branchBoard = zetten.slice(0, vanaf).reduce((b, m) => applyMove(b, m), startBoard);
     const branchTurn = turnAt(vanaf);
 
     boardHost.style.display = "none";
     statusHost.style.display = "none";
+    navRow.style.display = "none";
     notationHost.style.display = "none";
     variantListHost.style.display = "none";
     buttonRow.style.display = "none";
@@ -251,6 +357,7 @@ export function createSolutionInput(
       variantHost.style.display = "none";
       boardHost.style.display = "";
       statusHost.style.display = "";
+      navRow.style.display = "";
       notationHost.style.display = "";
       variantListHost.style.display = "";
       buttonRow.style.display = "";

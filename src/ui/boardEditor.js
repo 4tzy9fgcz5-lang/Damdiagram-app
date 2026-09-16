@@ -1,5 +1,5 @@
-import { renderDiagramSVG, pieceIconSVG } from "../diagram/render.js?v=20260917g";
-import { cloneBoard, PIECE_TYPES, isValidField } from "../core/board.js?v=20260917g";
+import { renderDiagramSVG, pieceIconSVG } from "../diagram/render.js?v=20260917h";
+import { cloneBoard, PIECE_TYPES, isValidField } from "../core/board.js?v=20260917h";
 
 // Dammen komen zelden voor en hebben hun eigen palet-knop; "tikken wisselt" hoeft
 // dus alleen langs leeg/wit/zwart te lopen, niet ook nog langs beide dammen.

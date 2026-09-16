@@ -1,11 +1,11 @@
-import { getStencil, saveStencil } from "../db/stencils.js?v=20260917g";
-import { getStand, saveStand } from "../db/standen.js?v=20260917g";
-import { resolveStencilItems } from "../stencil/compose.js?v=20260917g";
-import { buildStencilPagesHTML, missingOplossingen } from "../stencil/stencilPreview.js?v=20260917g";
-import { buildStencilDocxBlob, downloadBlob } from "../export/docx.js?v=20260917g";
-import { renderDiagramSVG } from "../diagram/render.js?v=20260917g";
-import { parseFen } from "../core/fen.js?v=20260917g";
-import { MAX_DIAGRAMS_PER_PAGE } from "../stencil/layout.js?v=20260917g";
+import { getStencil, saveStencil } from "../db/stencils.js?v=20260917h";
+import { getStand, saveStand } from "../db/standen.js?v=20260917h";
+import { resolveStencilItems } from "../stencil/compose.js?v=20260917h";
+import { buildStencilPagesHTML, missingOplossingen } from "../stencil/stencilPreview.js?v=20260917h";
+import { buildStencilDocxBlob, downloadBlob } from "../export/docx.js?v=20260917h";
+import { renderDiagramSVG } from "../diagram/render.js?v=20260917h";
+import { parseFen } from "../core/fen.js?v=20260917h";
+import { MAX_DIAGRAMS_PER_PAGE } from "../stencil/layout.js?v=20260917h";
 
 export async function renderStencilView(container, { stencilId, onOpenStand, onGotoDatabaseToAdd, onBack } = {}) {
   let stencil = await getStencil(stencilId);
