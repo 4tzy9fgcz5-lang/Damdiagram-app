@@ -1,8 +1,8 @@
-import { renderDiagramSVG } from "../diagram/render.js?v=20260916i";
-import { parseFen } from "../core/fen.js?v=20260916i";
-import { resolveOplossingTekst } from "../db/standen.js?v=20260916i";
-import { getGridLayout } from "./layout.js?v=20260916i";
-import { effectiveOpdracht } from "./compose.js?v=20260916i";
+import { renderDiagramSVG } from "../diagram/render.js?v=20260917a";
+import { parseFen } from "../core/fen.js?v=20260917a";
+import { resolveOplossingTekst } from "../db/standen.js?v=20260917a";
+import { getGridLayout, paginateItems } from "./layout.js?v=20260917a";
+import { effectiveOpdracht } from "./compose.js?v=20260917a";
 
 const PAGE_STYLE = `
   @page { size: A4 portrait; margin: 14mm; }
@@ -29,27 +29,28 @@ const PAGE_STYLE = `
 
 // Club en datum staan niet op het geprinte stencil (alleen relevant voor eigen
 // administratie in de database).
-function headerHTML(stencil, subtitel) {
+function headerHTML(stencil, { titelSuffix = "", toonOpdracht = true } = {}) {
   return `
     <div class="sheet-header">
-      <h1>${escapeHtml(stencil.titel)}${subtitel ? " — " + escapeHtml(subtitel) : ""}</h1>
-      ${subtitel ? "" : `<div class="opdracht">${escapeHtml(stencil.opdrachtregel)}</div>`}
+      <h1>${escapeHtml(stencil.titel)}${titelSuffix}</h1>
+      ${toonOpdracht ? `<div class="opdracht">${escapeHtml(stencil.opdrachtregel)}</div>` : ""}
     </div>
   `;
 }
 
-function opgavenSheetHTML(stencil, items) {
-  const { cols, rows } = getGridLayout(items.length || 1);
-  const cells = items
+function opgavenPaginaHTML(stencil, pageItems, offset, titelSuffix) {
+  const { cols, rows } = getGridLayout(pageItems.length || 1);
+  const cells = pageItems
     .map((item, i) => {
+      const nr = offset + i + 1;
       if (!item.stand) {
-        return `<div class="cell"><span class="nr">${i + 1}.</span><div class="cell-content missing">stand niet gevonden</div></div>`;
+        return `<div class="cell"><span class="nr">${nr}.</span><div class="cell-content missing">stand niet gevonden</div></div>`;
       }
       const { board } = parseFen(item.stand.fen);
       const svg = renderDiagramSVG(board, { size: 260 });
       const tekst = item.opdracht || item.stand.opdracht || "";
       return `<div class="cell">
-        <span class="nr">${i + 1}.</span>
+        <span class="nr">${nr}.</span>
         <div class="cell-content">
           ${svg}
           ${tekst ? `<div class="cell-text">${escapeHtml(tekst)}</div>` : ""}
@@ -58,11 +59,24 @@ function opgavenSheetHTML(stencil, items) {
     })
     .join("");
   return `<div class="sheet">
-    ${headerHTML(stencil)}
+    ${headerHTML(stencil, { titelSuffix })}
     <div class="grid" style="grid-template-columns:repeat(${cols},1fr);grid-template-rows:repeat(${rows},1fr);">
       ${cells}
     </div>
   </div>`;
+}
+
+function opgavenSheetHTML(stencil, items) {
+  const paginas = paginateItems(items);
+  let offset = 0;
+  return paginas
+    .map((pageItems, i) => {
+      const titelSuffix = paginas.length > 1 ? ` (blad ${i + 1} van ${paginas.length})` : "";
+      const html = opgavenPaginaHTML(stencil, pageItems, offset, titelSuffix);
+      offset += pageItems.length;
+      return html;
+    })
+    .join("");
 }
 
 function oplossingenSheetHTML(stencil, items) {
@@ -81,7 +95,7 @@ function oplossingenSheetHTML(stencil, items) {
     })
     .join("");
   return `<div class="sheet">
-    ${headerHTML(stencil, "Oplossingen")}
+    ${headerHTML(stencil, { titelSuffix: " — Oplossingen", toonOpdracht: false })}
     <div class="oplossingen-list">${rows}</div>
   </div>`;
 }

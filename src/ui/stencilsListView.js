@@ -1,15 +1,15 @@
-import { listStencils, saveStencil, deleteStencil } from "../db/stencils.js?v=20260916i";
+import { listStencils, saveStencil, deleteStencil } from "../db/stencils.js?v=20260917a";
 
 export async function renderStencilsListView(container, { onOpenStencil } = {}) {
   container.innerHTML = `
-    <h2>Mijn stencils</h2>
+    <h2>Mijn opgavebladen</h2>
     <div class="card">
       <div class="button-row" style="margin-top:0;">
-        <button type="button" class="primary" data-action="new">Nieuw stencil</button>
+        <button type="button" class="primary" data-action="new">Nieuw opgaveblad</button>
       </div>
       <div data-role="list" style="margin-top:1rem;"></div>
       <div data-role="empty" style="display:none;color:#666;padding:1rem;text-align:center;">
-        Nog geen stencils. Maak er een via het overzicht van je standen.
+        Nog geen opgavebladen. Maak er een via het overzicht van je standen.
       </div>
     </div>
   `;
@@ -42,7 +42,7 @@ export async function renderStencilsListView(container, { onOpenStencil } = {}) 
     `;
     row.querySelector('[data-role="open"]').addEventListener("click", () => onOpenStencil?.(stencil.id));
     row.querySelector('[data-role="del"]').addEventListener("click", async () => {
-      if (!confirm(`Stencil "${stencil.titel}" verwijderen?`)) return;
+      if (!confirm(`Opgaveblad "${stencil.titel}" verwijderen?`)) return;
       await deleteStencil(stencil.id);
       row.remove();
     });

@@ -1,21 +1,21 @@
-import { getStencil, saveStencil } from "../db/stencils.js?v=20260916i";
-import { saveStand } from "../db/standen.js?v=20260916i";
-import { resolveStencilItems } from "../stencil/compose.js?v=20260916i";
-import { buildStencilPagesHTML, missingOplossingen } from "../stencil/stencilPreview.js?v=20260916i";
-import { buildStencilDocxBlob, downloadBlob } from "../export/docx.js?v=20260916i";
-import { renderDiagramSVG } from "../diagram/render.js?v=20260916i";
-import { parseFen } from "../core/fen.js?v=20260916i";
-import { MAX_DIAGRAMS_PER_STENCIL } from "../stencil/layout.js?v=20260916i";
+import { getStencil, saveStencil } from "../db/stencils.js?v=20260917a";
+import { saveStand } from "../db/standen.js?v=20260917a";
+import { resolveStencilItems } from "../stencil/compose.js?v=20260917a";
+import { buildStencilPagesHTML, missingOplossingen } from "../stencil/stencilPreview.js?v=20260917a";
+import { buildStencilDocxBlob, downloadBlob } from "../export/docx.js?v=20260917a";
+import { renderDiagramSVG } from "../diagram/render.js?v=20260917a";
+import { parseFen } from "../core/fen.js?v=20260917a";
+import { MAX_DIAGRAMS_PER_PAGE } from "../stencil/layout.js?v=20260917a";
 
 export async function renderStencilView(container, { stencilId, onOpenStand, onGotoDatabaseToAdd } = {}) {
   let stencil = await getStencil(stencilId);
   if (!stencil) {
-    container.innerHTML = `<p>Stencil niet gevonden.</p>`;
+    container.innerHTML = `<p>Opgaveblad niet gevonden.</p>`;
     return;
   }
 
   container.innerHTML = `
-    <h2>Stencil bewerken</h2>
+    <h2>Opgaveblad bewerken</h2>
     <div class="card">
       <div class="field-row">
         <div>
@@ -54,7 +54,7 @@ export async function renderStencilView(container, { stencilId, onOpenStand, onG
       <div class="button-row">
         <button type="button" class="primary" data-action="docx-opgaven">Word: alleen opgaven</button>
         <button type="button" class="primary" data-action="docx-oplossingen">Word: alleen oplossingen</button>
-        <button type="button" class="primary" data-action="docx-beide">Word: beide (2 pagina's)</button>
+        <button type="button" class="primary" data-action="docx-beide">Word: beide (oplossingen op apart blad)</button>
       </div>
       <p data-role="docx-status" style="color:#666;font-size:0.85rem;"></p>
     </div>
@@ -70,7 +70,7 @@ export async function renderStencilView(container, { stencilId, onOpenStand, onG
   async function persistHeader() {
     stencil = await saveStencil({
       ...stencil,
-      titel: el('[data-field="titel"]').value.trim() || "Opgavenstencil",
+      titel: el('[data-field="titel"]').value.trim() || "Opgaveblad",
       datum: el('[data-field="datum"]').value.trim(),
       club: el('[data-field="club"]').value.trim(),
       opdrachtregel: el('[data-field="opdrachtregel"]').value.trim() || "Wit speelt en wint",
@@ -92,7 +92,7 @@ export async function renderStencilView(container, { stencilId, onOpenStand, onG
     const count = el('[data-role="count"]');
     grid.innerHTML = "";
     const items = await resolveStencilItems(stencil);
-    count.textContent = `${items.length} van maximaal ${MAX_DIAGRAMS_PER_STENCIL} diagrammen.`;
+    count.textContent = `${items.length} diagram(men) (max. ${MAX_DIAGRAMS_PER_PAGE} per A4-pagina).`;
 
     items.forEach((item, i) => {
       const card = document.createElement("div");
@@ -157,7 +157,7 @@ export async function renderStencilView(container, { stencilId, onOpenStand, onG
   async function openPreview(mode) {
     const items = await resolveStencilItems(stencil);
     if (items.length === 0) {
-      alert("Voeg eerst standen toe aan dit stencil.");
+      alert("Voeg eerst standen toe aan dit opgaveblad.");
       return;
     }
     if ((mode === "oplossingen" || mode === "beide") && missingOplossingen(items) > 0) {
@@ -179,7 +179,7 @@ export async function renderStencilView(container, { stencilId, onOpenStand, onG
   async function exportDocx(mode) {
     const items = await resolveStencilItems(stencil);
     if (items.length === 0) {
-      alert("Voeg eerst standen toe aan dit stencil.");
+      alert("Voeg eerst standen toe aan dit opgaveblad.");
       return;
     }
     if ((mode === "oplossingen" || mode === "beide") && missingOplossingen(items) > 0) {
@@ -192,7 +192,7 @@ export async function renderStencilView(container, { stencilId, onOpenStand, onG
     status.textContent = "Word-bestand wordt gemaakt...";
     try {
       const blob = await buildStencilDocxBlob(stencil, items, mode);
-      const naam = `${stencil.titel || "stencil"}-${mode}.docx`.replace(/[^a-z0-9.\-]+/gi, "_");
+      const naam = `${stencil.titel || "opgaveblad"}-${mode}.docx`.replace(/[^a-z0-9.\-]+/gi, "_");
       downloadBlob(blob, naam);
       status.textContent = "Word-bestand gedownload.";
     } catch (err) {
@@ -208,14 +208,12 @@ export async function renderStencilView(container, { stencilId, onOpenStand, onG
 
 export async function addStandenToStencil(stencilId, standIds) {
   const stencil = await getStencil(stencilId);
-  if (!stencil) throw new Error("Stencil niet gevonden.");
+  if (!stencil) throw new Error("Opgaveblad niet gevonden.");
   const existingIds = new Set(stencil.standen.map((s) => s.standId));
   const toAdd = standIds.filter((id) => !existingIds.has(id));
-  const room = MAX_DIAGRAMS_PER_STENCIL - stencil.standen.length;
-  const accepted = toAdd.slice(0, Math.max(0, room));
-  const newStanden = [...stencil.standen, ...accepted.map((standId) => ({ standId, opdracht: "" }))];
+  const newStanden = [...stencil.standen, ...toAdd.map((standId) => ({ standId, opdracht: "" }))];
   await saveStencil({ ...stencil, standen: newStanden });
-  return { added: accepted.length, skipped: toAdd.length - accepted.length };
+  return { added: toAdd.length, skipped: standIds.length - toAdd.length };
 }
 
 function escapeAttr(str) {

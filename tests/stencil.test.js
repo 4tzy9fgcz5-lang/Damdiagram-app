@@ -1,6 +1,6 @@
-import { describe, it, assertEqual, assertThrows } from "./test-runner.js?v=20260916i";
-import { getGridLayout, computeCellRects, MAX_DIAGRAMS_PER_STENCIL } from "../src/stencil/layout.js?v=20260916i";
-import { buildStencilPagesHTML, missingOplossingen } from "../src/stencil/stencilPreview.js?v=20260916i";
+import { describe, it, assertEqual, assertThrows } from "./test-runner.js?v=20260917a";
+import { getGridLayout, computeCellRects, paginateItems, MAX_DIAGRAMS_PER_PAGE } from "../src/stencil/layout.js?v=20260917a";
+import { buildStencilPagesHTML, missingOplossingen } from "../src/stencil/stencilPreview.js?v=20260917a";
 
 describe("stencil: rasterindeling", () => {
   it("gebruikt 3 kolommen x 4 rijen bij 12 diagrammen", () => {
@@ -21,8 +21,18 @@ describe("stencil: rasterindeling", () => {
     assertEqual(rects.length, 6);
     assertEqual(rects[0], { x: 0, y: 0, w: 1 / cols, h: 1 / rows });
   });
-  it("MAX_DIAGRAMS_PER_STENCIL is 12", () => {
-    assertEqual(MAX_DIAGRAMS_PER_STENCIL, 12);
+  it("MAX_DIAGRAMS_PER_PAGE is 12", () => {
+    assertEqual(MAX_DIAGRAMS_PER_PAGE, 12);
+  });
+  it("verdeelt items in pagina's van maximaal 12", () => {
+    const items = Array.from({ length: 14 }, (_, i) => i);
+    const paginas = paginateItems(items);
+    assertEqual(paginas.length, 2);
+    assertEqual(paginas[0].length, 12);
+    assertEqual(paginas[1].length, 2);
+  });
+  it("geeft één lege pagina voor een leeg opgaveblad", () => {
+    assertEqual(paginateItems([]), [[]]);
   });
 });
 

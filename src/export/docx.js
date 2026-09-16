@@ -1,9 +1,9 @@
-import * as docxLib from "../../lib/docx.mjs?v=20260916i";
-import { renderDiagramSVG } from "../diagram/render.js?v=20260916i";
-import { parseFen } from "../core/fen.js?v=20260916i";
-import { getGridLayout } from "../stencil/layout.js?v=20260916i";
-import { svgToPngBytes } from "./rasterize.js?v=20260916i";
-import { resolveOplossingTekst } from "../db/standen.js?v=20260916i";
+import * as docxLib from "../../lib/docx.mjs?v=20260917a";
+import { renderDiagramSVG } from "../diagram/render.js?v=20260917a";
+import { parseFen } from "../core/fen.js?v=20260917a";
+import { getGridLayout, paginateItems } from "../stencil/layout.js?v=20260917a";
+import { svgToPngBytes } from "./rasterize.js?v=20260917a";
+import { resolveOplossingTekst } from "../db/standen.js?v=20260917a";
 
 const {
   Document,
@@ -87,21 +87,21 @@ function pageSection(children, headerNode) {
   };
 }
 
-function buildHeader(stencil, subtitel) {
+function buildHeader(stencil, { titelSuffix = "", toonOpdracht = true } = {}) {
   const titleChildren = [new TextRun({ text: stencil.titel, bold: true, size: 32 })];
-  if (subtitel) titleChildren.push(new TextRun({ text: ` — ${subtitel}`, bold: true, size: 32 }));
+  if (titelSuffix) titleChildren.push(new TextRun({ text: titelSuffix, bold: true, size: 32 }));
 
   const paragraphs = [
     new Paragraph({
       alignment: AlignmentType.LEFT,
-      spacing: tightSpacing({ after: subtitel ? 0 : 40 }),
+      spacing: tightSpacing({ after: toonOpdracht ? 40 : 0 }),
       children: titleChildren,
     }),
   ];
   // Club en datum staan niet op het geprinte stencil (alleen relevant voor eigen
   // administratie in de database) — bespaart ruimte, en de opgaven hoeven dat niet
   // te tonen.
-  if (!subtitel) {
+  if (toonOpdracht) {
     paragraphs.push(
       new Paragraph({
         alignment: AlignmentType.LEFT,
@@ -125,7 +125,7 @@ async function buildImageRun(fen, imagePxDisplay) {
   });
 }
 
-async function buildOpgavenTable(stencil, items) {
+async function buildOpgavenTable(stencil, items, offset = 0) {
   const { cols } = getGridLayout(items.length);
   const usableWidthMm = PAGE_MM.width - 2 * MARGIN_MM;
   const cellWMm = usableWidthMm / cols;
@@ -192,7 +192,7 @@ async function buildOpgavenTable(stencil, items) {
               width: { size: numberColWidthTwip, type: WidthType.DXA },
               margins: NO_MARGIN,
               children: [
-                new Paragraph({ spacing: tightSpacing(), children: [new TextRun({ text: `${i + 1}.`, bold: true, size: 18 })] }),
+                new Paragraph({ spacing: tightSpacing(), children: [new TextRun({ text: `${offset + i + 1}.`, bold: true, size: 18 })] }),
               ],
             }),
             new TableCell({
@@ -283,11 +283,19 @@ export async function buildStencilDocxBlob(stencil, items, mode = "beide") {
   const sections = [];
 
   if (mode === "opgaven" || mode === "beide") {
-    const table = await buildOpgavenTable(stencil, items);
-    sections.push(pageSection([table], buildHeader(stencil)));
+    const paginas = paginateItems(items);
+    let offset = 0;
+    for (let i = 0; i < paginas.length; i++) {
+      const table = await buildOpgavenTable(stencil, paginas[i], offset);
+      const titelSuffix = paginas.length > 1 ? ` (blad ${i + 1} van ${paginas.length})` : "";
+      sections.push(pageSection([table], buildHeader(stencil, { titelSuffix })));
+      offset += paginas[i].length;
+    }
   }
   if (mode === "oplossingen" || mode === "beide") {
-    sections.push(pageSection(oplossingenParagraphs(items), buildHeader(stencil, "Oplossingen")));
+    sections.push(
+      pageSection(oplossingenParagraphs(items), buildHeader(stencil, { titelSuffix: " — Oplossingen", toonOpdracht: false }))
+    );
   }
 
   const doc = new Document({ sections });

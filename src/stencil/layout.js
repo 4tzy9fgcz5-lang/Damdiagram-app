@@ -13,13 +13,26 @@ const GRID_TABLE = {
   12: { cols: 3, rows: 4 },
 };
 
-export const MAX_DIAGRAMS_PER_STENCIL = 12;
+// Een opgaveblad kent geen bovengrens meer aan het totaal aantal diagrammen,
+// maar op één A4-pagina passen er niet meer dan dit aantal (zie paginateItems).
+export const MAX_DIAGRAMS_PER_PAGE = 12;
 
 export function getGridLayout(count) {
-  if (count < 1 || count > MAX_DIAGRAMS_PER_STENCIL) {
-    throw new RangeError(`Een stencil heeft 1 tot ${MAX_DIAGRAMS_PER_STENCIL} diagrammen, niet ${count}.`);
+  if (count < 1 || count > MAX_DIAGRAMS_PER_PAGE) {
+    throw new RangeError(`Een pagina heeft 1 tot ${MAX_DIAGRAMS_PER_PAGE} diagrammen, niet ${count}.`);
   }
   return GRID_TABLE[count];
+}
+
+// Splitst alle items van een opgaveblad in pagina's van elk maximaal
+// MAX_DIAGRAMS_PER_PAGE stuks, voor de opgavenweergave (scherm-voorbeeld en
+// Word-export) — elke pagina krijgt zijn eigen rooster via getGridLayout.
+export function paginateItems(items, pageSize = MAX_DIAGRAMS_PER_PAGE) {
+  const pages = [];
+  for (let i = 0; i < items.length; i += pageSize) {
+    pages.push(items.slice(i, i + pageSize));
+  }
+  return pages.length ? pages : [[]];
 }
 
 // Geeft voor elk item een genormaliseerde positie (0..1) binnen het diagramvlak,

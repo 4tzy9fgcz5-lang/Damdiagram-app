@@ -1,4 +1,4 @@
-import { renderBackupSection, renderTrainingSection } from "./backupView.js?v=20260916i";
+import { renderBackupSection, renderTrainingSection } from "./backupView.js?v=20260917a";
 
 function renderPlaceholder(container) {
   container.innerHTML = `<div class="card"><p style="color:#666;">Hier komt later meer.</p></div>`;
@@ -26,7 +26,7 @@ const SECTIES = [
   {
     slug: "opgavebladen",
     titel: "Opgavebladen",
-    omschrijving: "Voorkeuren voor het samenstellen van opgavebladen (stencils).",
+    omschrijving: "Voorkeuren voor het samenstellen van opgavebladen.",
     render: renderPlaceholder,
   },
   {

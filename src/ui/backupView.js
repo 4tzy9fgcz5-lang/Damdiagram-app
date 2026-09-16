@@ -1,8 +1,8 @@
-import { exportAll, importAll } from "../db/backup.js?v=20260916i";
-import { listStanden } from "../db/standen.js?v=20260916i";
-import { buildCsv, buildPdnText } from "../export/portable.js?v=20260916i";
-import { downloadBlob } from "../export/docx.js?v=20260916i";
-import { buildTrainingZip, countTrainingRecords } from "../export/trainingExport.js?v=20260916i";
+import { exportAll, importAll } from "../db/backup.js?v=20260917a";
+import { listStanden } from "../db/standen.js?v=20260917a";
+import { buildCsv, buildPdnText } from "../export/portable.js?v=20260917a";
+import { downloadBlob } from "../export/docx.js?v=20260917a";
+import { buildTrainingZip, countTrainingRecords } from "../export/trainingExport.js?v=20260917a";
 
 const LAST_BACKUP_KEY = "damstencil_lastBackup";
 
@@ -23,7 +23,7 @@ export async function renderBackupSection(container) {
   container.innerHTML = `
     <div class="card">
       <h2 style="margin-top:0;">Back-up maken</h2>
-      <p>Download je hele verzameling (standen, stencils en eigen lijsten) als één bestand. Bewaar dit ergens veilig, bijvoorbeeld in je e-mail of een cloudmap.</p>
+      <p>Download je hele verzameling (standen, opgavebladen en eigen lijsten) als één bestand. Bewaar dit ergens veilig, bijvoorbeeld in je e-mail of een cloudmap.</p>
       <button type="button" class="primary" data-action="export">Back-up downloaden</button>
       <p data-role="last-backup" style="color:#666;font-size:0.85rem;margin-top:0.5rem;"></p>
     </div>

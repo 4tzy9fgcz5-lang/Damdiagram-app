@@ -1,12 +1,12 @@
-import { createBoardEditor, createPalette } from "./boardEditor.js?v=20260916i";
-import { createSolutionInput } from "./solutionInput.js?v=20260916i";
-import { createEmptyBoard, countPieces, isWhite, isBlack } from "../core/board.js?v=20260916i";
-import { parseFen, boardToFen, FenParseError } from "../core/fen.js?v=20260916i";
-import { parseStandInput, QuickTextParseError } from "../core/quicktext.js?v=20260916i";
-import { validateBoard } from "../core/validate.js?v=20260916i";
-import { saveStand, getStand, findDuplicates } from "../db/standen.js?v=20260916i";
-import { getList, addListValue } from "../db/lijsten.js?v=20260916i";
-import { logHerkenningCorrectie } from "../db/herkenningLog.js?v=20260916i";
+import { createBoardEditor, createPalette } from "./boardEditor.js?v=20260917a";
+import { createSolutionInput } from "./solutionInput.js?v=20260917a";
+import { createEmptyBoard, countPieces, isWhite, isBlack } from "../core/board.js?v=20260917a";
+import { parseFen, boardToFen, FenParseError } from "../core/fen.js?v=20260917a";
+import { parseStandInput, QuickTextParseError } from "../core/quicktext.js?v=20260917a";
+import { validateBoard } from "../core/validate.js?v=20260917a";
+import { saveStand, getStand, findDuplicates } from "../db/standen.js?v=20260917a";
+import { getList, addListValue } from "../db/lijsten.js?v=20260917a";
+import { logHerkenningCorrectie } from "../db/herkenningLog.js?v=20260917a";
 
 const MOEILIJKHEID_MAX = 5;
 
@@ -114,7 +114,7 @@ export async function renderEditorView(
 
         <div class="button-row">
           <button type="button" class="primary" data-action="save">Opslaan in database</button>
-          <button type="button" class="secondary" data-action="save-stencil">Opslaan en toevoegen aan stencil</button>
+          <button type="button" class="secondary" data-action="save-stencil">Opslaan en toevoegen aan opgaveblad</button>
         </div>
       </div>
     </div>
@@ -170,7 +170,7 @@ export async function renderEditorView(
       el('[data-field="publicatie"]').value = existingStand.publicatie;
       el('[data-field="notities"]').value = existingStand.notities;
       if (existingStand.gebruiktIn.length) {
-        gebruiktInHost.textContent = `Gebruikt in ${existingStand.gebruiktIn.length} stencil(s).`;
+        gebruiktInHost.textContent = `Gebruikt in ${existingStand.gebruiktIn.length} opgaveblad(en).`;
       }
     }
   }

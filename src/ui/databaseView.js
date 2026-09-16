@@ -1,9 +1,9 @@
-import { renderDiagramSVG } from "../diagram/render.js?v=20260916i";
-import { parseFen } from "../core/fen.js?v=20260916i";
-import { listStanden, resolveOplossingTekst } from "../db/standen.js?v=20260916i";
-import { getList } from "../db/lijsten.js?v=20260916i";
-import { svgToPngDataUrl } from "../export/rasterize.js?v=20260916i";
-import { downloadBlob } from "../export/docx.js?v=20260916i";
+import { renderDiagramSVG } from "../diagram/render.js?v=20260917a";
+import { parseFen } from "../core/fen.js?v=20260917a";
+import { listStanden, resolveOplossingTekst } from "../db/standen.js?v=20260917a";
+import { getList } from "../db/lijsten.js?v=20260917a";
+import { svgToPngDataUrl } from "../export/rasterize.js?v=20260917a";
+import { downloadBlob } from "../export/docx.js?v=20260917a";
 
 // Onthoudt de filterkeuzes zolang de pagina open staat (niet in IndexedDB),
 // zodat teruggaan vanaf een standdetailpagina niet alle filters wist.
@@ -35,7 +35,7 @@ export async function renderDatabaseView(container, { onOpenStand, onAddSelectio
       </div>
       <div data-role="selectionBar" style="display:none;margin-bottom:0.75rem;">
         <span data-role="selectionCount"></span>
-        <button type="button" class="primary" data-action="add-selection">Toevoegen aan stencil</button>
+        <button type="button" class="primary" data-action="add-selection">Toevoegen aan opgaveblad</button>
         <button type="button" class="secondary" data-action="share-selection">Stuur naar ander apparaat</button>
         <button type="button" class="secondary" data-action="select-all">Alles selecteren</button>
       </div>
@@ -138,16 +138,13 @@ export async function renderDatabaseView(container, { onOpenStand, onAddSelectio
       card.className = "stand-card";
       const { board } = parseFen(stand.fen);
       const svg = renderDiagramSVG(board, { size: 140 });
-      const tags = [...stand.speelsystemen, ...stand.types].join(", ");
       card.innerHTML = `
         <label style="float:left;" data-role="selectLabel">
           <input type="checkbox" data-role="select" ${selected.has(stand.id) ? "checked" : ""} />
         </label>
         ${svg}
         <div class="meta">
-          ${stand.jaartal ? `${stand.jaartal}<br>` : ""}
-          ${tags ? escapeHtml(tags) : ""}
-          ${resolveOplossingTekst(stand) ? "" : '<br><span style="color:#a30000;">geen oplossing</span>'}
+          ${resolveOplossingTekst(stand) ? "" : '<span style="color:#a30000;">geen oplossing</span>'}
         </div>
         <div class="button-row" style="justify-content:center;">
           <button type="button" class="secondary" data-role="png">PNG</button>
@@ -223,7 +220,7 @@ export async function renderDatabaseView(container, { onOpenStand, onAddSelectio
   });
 
   el('[data-action="share-selection"]').addEventListener("click", async () => {
-    const { buildShareData } = await import("../db/backup.js?v=20260916i");
+    const { buildShareData } = await import("../db/backup.js?v=20260917a");
     const data = await buildShareData([...selected]);
     const json = JSON.stringify(data);
     const encoded = btoa(unescape(encodeURIComponent(json)))
@@ -248,8 +245,4 @@ export async function renderDatabaseView(container, { onOpenStand, onAddSelectio
 
   await refresh();
   return { refresh };
-}
-
-function escapeHtml(str) {
-  return str.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }

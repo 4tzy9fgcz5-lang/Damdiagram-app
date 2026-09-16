@@ -1,5 +1,5 @@
-import { openDb, tx, promisify, newId } from "./db.js?v=20260916i";
-import { STORE_STENCILS } from "./schema.js?v=20260916i";
+import { openDb, tx, promisify, newId } from "./db.js?v=20260917a";
+import { STORE_STENCILS } from "./schema.js?v=20260917a";
 
 function nowIso() {
   return new Date().toISOString();
@@ -10,7 +10,7 @@ export async function saveStencil(input) {
   const isNew = !input.id;
   const record = {
     id: input.id ?? newId(),
-    titel: input.titel ?? "Opgavenstencil",
+    titel: input.titel ?? "Opgaveblad",
     club: input.club ?? "",
     datum: input.datum ?? nowIso().slice(0, 10),
     opdrachtregel: input.opdrachtregel ?? "Wit speelt en wint",

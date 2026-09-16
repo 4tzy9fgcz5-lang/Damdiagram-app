@@ -1,15 +1,16 @@
-import { renderEditorView } from "./editorView.js?v=20260916i";
-import { renderDatabaseView } from "./databaseView.js?v=20260916i";
-import { renderStandDetailView } from "./standDetailView.js?v=20260916i";
-import { renderStencilsListView } from "./stencilsListView.js?v=20260916i";
-import { renderStencilView, addStandenToStencil } from "./stencilView.js?v=20260916i";
-import { getLastBackupDate } from "./backupView.js?v=20260916i";
-import { renderSettingsView } from "./settingsView.js?v=20260916i";
-import { renderImportView } from "./importView.js?v=20260916i";
-import { renderPhotoImportView } from "./photoImportView.js?v=20260916i";
-import { renderBulkImportView } from "./bulkImportView.js?v=20260916i";
-import { renderDiagramCapture, cropAroundCorners } from "./diagramCaptureView.js?v=20260916i";
-import { listStanden } from "../db/standen.js?v=20260916i";
+import { renderEditorView } from "./editorView.js?v=20260917a";
+import { renderDatabaseView } from "./databaseView.js?v=20260917a";
+import { renderStandDetailView } from "./standDetailView.js?v=20260917a";
+import { renderStencilsListView } from "./stencilsListView.js?v=20260917a";
+import { renderStencilView, addStandenToStencil } from "./stencilView.js?v=20260917a";
+import { saveStencil } from "../db/stencils.js?v=20260917a";
+import { getLastBackupDate } from "./backupView.js?v=20260917a";
+import { renderSettingsView } from "./settingsView.js?v=20260917a";
+import { renderImportView } from "./importView.js?v=20260917a";
+import { renderPhotoImportView } from "./photoImportView.js?v=20260917a";
+import { renderBulkImportView } from "./bulkImportView.js?v=20260917a";
+import { renderDiagramCapture, cropAroundCorners } from "./diagramCaptureView.js?v=20260917a";
+import { listStanden } from "../db/standen.js?v=20260917a";
 
 const routes = ["nieuw", "foto", "bulk", "bulk-diagram", "database", "stand", "stencils", "stencil", "instellingen", "import"];
 let pendingRecognition = null;
@@ -85,17 +86,22 @@ async function render() {
         location.hash = `#/stand/${id}`;
       },
       onAddSelectionToStencil: async (ids) => {
-        if (!forStencilId) {
-          showToast("Open eerst een stencil en kies daar “Standen toevoegen”.");
-          return;
+        // Vanuit de database kan dit ook zonder al een bestaand opgaveblad open te
+        // hebben: dan wordt er meteen een nieuwe aangemaakt met de geselecteerde
+        // standen erin, in plaats van de gebruiker eerst naar de opgavebladen-
+        // pagina te sturen.
+        let stencilId = forStencilId;
+        if (!stencilId) {
+          const nieuw = await saveStencil({});
+          stencilId = nieuw.id;
         }
-        const { added, skipped } = await addStandenToStencil(forStencilId, ids);
+        const { added, skipped } = await addStandenToStencil(stencilId, ids);
         showToast(
           skipped > 0
-            ? `${added} toegevoegd, ${skipped} niet (stencil vol of al aanwezig).`
-            : `${added} stand(en) toegevoegd aan het stencil.`
+            ? `${added} toegevoegd, ${skipped} stonden er al in.`
+            : `${added} stand(en) toegevoegd aan het opgaveblad.`
         );
-        location.hash = `#/stencil/${forStencilId}`;
+        location.hash = `#/stencil/${stencilId}`;
       },
     });
   } else if (name === "stencils") {
@@ -210,7 +216,7 @@ async function render() {
           }
           return;
         }
-        showToast(addToStencil ? "Opgeslagen. Kies of maak nu een stencil." : "Opgeslagen in de database.");
+        showToast(addToStencil ? "Opgeslagen. Kies of maak nu een opgaveblad." : "Opgeslagen in de database.");
         if (addToStencil) {
           location.hash = "#/stencils";
         } else if (param) {

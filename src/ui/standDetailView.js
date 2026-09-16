@@ -1,6 +1,6 @@
-import { parseFen } from "../core/fen.js?v=20260916i";
-import { getStand, saveStand, deleteStand } from "../db/standen.js?v=20260916i";
-import { createSolutionPlayer } from "./solutionPlayer.js?v=20260916i";
+import { parseFen } from "../core/fen.js?v=20260917a";
+import { getStand, saveStand, deleteStand } from "../db/standen.js?v=20260917a";
+import { createSolutionPlayer } from "./solutionPlayer.js?v=20260917a";
 
 // Focus-weergave van een opgeslagen stand: opgave, bord, oplossing, auteur. Geen
 // invulvelden — bewerken gaat via de knop onderaan naar de gewone invoerpagina.
@@ -18,6 +18,8 @@ export async function renderStandDetailView(container, { standId, onEdit, onDele
   if (stand.auteur) bijschrift.push(escapeHtml(stand.auteur));
   if (stand.jaartal) bijschrift.push(String(stand.jaartal));
   if (stand.publicatie) bijschrift.push(escapeHtml(stand.publicatie));
+  const tags = [...stand.speelsystemen, ...stand.types].join(", ");
+  if (tags) bijschrift.push(escapeHtml(tags));
 
   container.innerHTML = `
     <button type="button" class="secondary" data-action="back" style="margin-bottom:0.75rem;">&#8592; Terug naar overzicht</button>
