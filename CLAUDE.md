@@ -9,7 +9,7 @@
   daadwerkelijk in de browser (zie "Testen tijdens ontwikkeling" hieronder) voor je
   meldt dat iets werkt.
 
-# Status en vervolgstappen (bijgewerkt 2026-09-16b)
+# Status en vervolgstappen (bijgewerkt 2026-09-18)
 
 Dit is een groeiende Nederlandse dam-app (werknaam "Dam-database", eerder
 "Damstencil"): standen verzamelen (handmatig, of via een foto van een boekdiagram),
@@ -28,6 +28,19 @@ server, geen build-stap.
   (`herkenningLog.js` — logt bij elke foto-opslag automatisch: rechtgetrokken
   beeld + uiteindelijke stand + boekstijl, als toekomstig trainingsmateriaal voor
   de fotoherkenning).
+- **Sinds 2026-09-18: filtercategorieën zijn generiek en zelf te beheren.**
+  Speelsysteem en Type zijn niet langer eigen velden op een stand, maar de
+  twee starterswaarden van `src/db/categorieen.js` (leeft in dezelfde
+  `lijsten`-store als voorheen, nu met een `label`-veld — dat onderscheidt een
+  categorie-record van een gewone lijst zoals `boekstijl`). Een stand heeft nu
+  één generiek `categorieen`-veld (`{ [key]: string[] }`) i.p.v. losse
+  `speelsystemen`/`types`-velden; `standen.js` (`normalizeCategorieen`) leidt
+  dat terugwaarts-compatibel af voor oudere, nog niet-gemigreerde records —
+  geen aparte migratiestap nodig. Beheer (toevoegen/hernoemen/verwijderen van
+  een hele categorie) zit in Instellingen -> Database
+  (`renderDatabaseSettingsSection` in `settingsView.js`); de waarden binnen
+  een categorie beheer je nog steeds met "+ nieuw" op het invoerscherm
+  (ongewijzigd, via `lijsten.js`'s `getList`/`addListValue`).
 - **Oplossing wordt niet meer getypt maar aangeklikt.** `src/core/draughtsMoves.js`
   is een eigen, geteste damregels-motor (gewone zetten, slagplicht, de
   meeste-slaan-regel, vliegende dam, en: een schijf die tijdens het slaan over de
