@@ -4,9 +4,9 @@
 // hoeken-stap (diagramCaptureView.js) — hier alleen verwijderen wat niet hoort en
 // zelf toevoegen wat gemist is.
 
-import { loadDrawable, drawableSize, WORKING_MAX_SIDE } from "./imageInput.js?v=20260916h";
-import { detectMultipleBoardCorners } from "../recognition/detectMultiBoard.js?v=20260916h";
-import { getList, addListValue } from "../db/lijsten.js?v=20260916h";
+import { loadDrawable, drawableSize, WORKING_MAX_SIDE } from "./imageInput.js?v=20260916i";
+import { detectMultipleBoardCorners } from "../recognition/detectMultiBoard.js?v=20260916i";
+import { getList, addListValue } from "../db/lijsten.js?v=20260916i";
 
 const COLORS = ["#d1495b", "#1a5c38", "#3a6ea5", "#e0a800", "#8854d0", "#009688"];
 
@@ -54,6 +54,9 @@ export async function renderBulkImportView(container, { onConfirmed } = {}) {
         <button type="button" class="secondary" data-action="restart">Andere foto</button>
       </div>
       <div data-role="list" style="margin-top:0.75rem;display:flex;flex-direction:column;gap:0.4rem;"></div>
+
+      <label style="margin-top:0.75rem;">Auteur (leeg = niet invullen) — geldt voor alle diagrammen op deze pagina</label>
+      <input type="text" data-field="auteur" placeholder="bijv. M. Fabre" />
 
       <label style="margin-top:0.75rem;">Boekstijl (voor training van de fotoherkenning) — geldt voor alle diagrammen op deze pagina</label>
       <div class="tag-list" data-role="boekstijl"></div>
@@ -231,6 +234,7 @@ export async function renderBulkImportView(container, { onConfirmed } = {}) {
     onConfirmed?.({
       drawable,
       boekstijl: selectedBoekstijl,
+      auteur: el('[data-field="auteur"]').value.trim(),
       diagrams: items.map((item) => ({ corners: item.corners, manual: item.manual })),
     });
   });

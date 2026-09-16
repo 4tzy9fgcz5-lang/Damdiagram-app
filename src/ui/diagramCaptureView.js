@@ -3,21 +3,21 @@
 // foto-import als elke stap van de bulk-import (rij-door-diagrammen) precies
 // dezelfde, vertrouwde flow gebruiken.
 
-import { warpToSquareCanvas } from "../recognition/homography.js?v=20260916h";
-import { classifyBoard, CONFIDENCE_THRESHOLD, RECOGNITION_VERSION } from "../recognition/classify.js?v=20260916h";
+import { warpToSquareCanvas } from "../recognition/homography.js?v=20260916i";
+import { classifyBoard, CONFIDENCE_THRESHOLD, RECOGNITION_VERSION } from "../recognition/classify.js?v=20260916i";
 import {
   createClassifier as createNewClassifier,
   FLAG_BELOW as NEW_FLAG_BELOW,
   RECOGNITION_VERSION as NEW_RECOGNITION_VERSION,
-} from "../recognition/newClassify.js?v=20260916h";
+} from "../recognition/newClassify.js?v=20260916i";
 import {
   buildCornersOverlay,
   buildGridOverlay,
   buildFieldCrops,
   buildRawFieldCrops,
-} from "../recognition/debugRender.js?v=20260916h";
-import { FIELD_COUNT, createEmptyBoard, PIECE_TYPES } from "../core/board.js?v=20260916h";
-import { drawableSize, WORKING_MAX_SIDE } from "./imageInput.js?v=20260916h";
+} from "../recognition/debugRender.js?v=20260916i";
+import { FIELD_COUNT, createEmptyBoard, PIECE_TYPES } from "../core/board.js?v=20260916i";
+import { drawableSize, WORKING_MAX_SIDE } from "./imageInput.js?v=20260916i";
 
 // Ligt buiten het bereik van het cache-bust-bompscript (dat kijkt alleen naar JS-
 // imports/HTML-tags) — bij het trainen van een nieuw damscan/weights.json dus ook
@@ -154,7 +154,8 @@ export function renderDiagramCapture(container, { drawable, initialCorners, head
   container.innerHTML = `
     ${heading ? `<h2>${heading}</h2>` : ""}
     <div class="card" data-role="corners">
-      <p>Sleep de 4 puntjes naar de hoeken van het <strong>dambordpatroon zelf</strong> (niet de rand of lijst eromheen).</p>
+      <p>Sleep de 4 puntjes naar de hoeken van het <strong>dambordpatroon zelf</strong> (niet de rand of lijst
+        eromheen) — of sleep ergens binnen het vak om het in één keer te verschuiven.</p>
       <div style="position:relative;display:inline-block;max-width:100%;">
         <canvas data-role="canvas" style="width:100%;max-width:480px;height:auto;display:block;touch-action:none;border-radius:8px;"></canvas>
       </div>
@@ -248,11 +249,13 @@ export function renderDiagramCapture(container, { drawable, initialCorners, head
     ctx.drawImage(drawable, 0, 0, canvas.width, canvas.height);
 
     ctx.save();
+    ctx.fillStyle = "rgba(26, 92, 56, 0.12)";
     ctx.strokeStyle = "#1a5c38";
     ctx.lineWidth = Math.max(2, canvas.width * 0.004);
     ctx.beginPath();
     corners.forEach((p, i) => (i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y)));
     ctx.closePath();
+    ctx.fill();
     ctx.stroke();
 
     corners.forEach((p, i) => {
@@ -281,27 +284,74 @@ export function renderDiagramCapture(container, { drawable, initialCorners, head
     return bestDist <= hitRadiusCanvasUnits ? best : -1;
   }
 
+  // Ray-casting: staat het punt binnen de (mogelijk niet-convexe) vierhoek?
+  function pointInCorners(point) {
+    let inside = false;
+    for (let i = 0, j = corners.length - 1; i < corners.length; j = i++) {
+      const pi = corners[i];
+      const pj = corners[j];
+      const intersects =
+        pi.y > point.y !== pj.y > point.y &&
+        point.x < ((pj.x - pi.x) * (point.y - pi.y)) / (pj.y - pi.y) + pi.x;
+      if (intersects) inside = !inside;
+    }
+    return inside;
+  }
+
+  // 'corner': één hoekpunt fijn afstellen. 'move': het hele vak in één keer
+  // verschuiven (handig als de startpositie ver van het echte diagram af staat,
+  // zoals bij een zelf toegevoegd diagram op de volledige pagina) — daarna kun je
+  // de hoeken nog los bijstellen.
+  let dragMode = null;
+  let moveStart = null;
+  let moveOriginalCorners = null;
+
   function onPointerDown(evt) {
     const point = toCanvasPoint(evt.clientX, evt.clientY);
     const idx = nearestCornerIndex(point);
-    if (idx === -1) return;
-    dragIndex = idx;
-    canvas.setPointerCapture(evt.pointerId);
-    redraw();
-    evt.preventDefault();
+    if (idx !== -1) {
+      dragMode = "corner";
+      dragIndex = idx;
+      canvas.setPointerCapture(evt.pointerId);
+      redraw();
+      evt.preventDefault();
+      return;
+    }
+    if (pointInCorners(point)) {
+      dragMode = "move";
+      moveStart = point;
+      moveOriginalCorners = corners.map((p) => ({ ...p }));
+      canvas.setPointerCapture(evt.pointerId);
+      evt.preventDefault();
+    }
   }
   function onPointerMove(evt) {
-    if (dragIndex === -1) return;
+    if (!dragMode) return;
     const point = toCanvasPoint(evt.clientX, evt.clientY);
-    corners[dragIndex] = {
-      x: Math.max(0, Math.min(canvas.width, point.x)),
-      y: Math.max(0, Math.min(canvas.height, point.y)),
-    };
+    if (dragMode === "corner") {
+      corners[dragIndex] = {
+        x: Math.max(0, Math.min(canvas.width, point.x)),
+        y: Math.max(0, Math.min(canvas.height, point.y)),
+      };
+    } else {
+      // Verschuiving begrenzen zodat geen enkele hoek het canvas uit schiet, maar
+      // de vorm van het vak daarbij niet vervormt (alle hoeken dezelfde dx/dy).
+      const rawDx = point.x - moveStart.x;
+      const rawDy = point.y - moveStart.y;
+      const minDx = Math.max(...moveOriginalCorners.map((p) => -p.x));
+      const maxDx = Math.min(...moveOriginalCorners.map((p) => canvas.width - p.x));
+      const minDy = Math.max(...moveOriginalCorners.map((p) => -p.y));
+      const maxDy = Math.min(...moveOriginalCorners.map((p) => canvas.height - p.y));
+      const dx = Math.max(minDx, Math.min(maxDx, rawDx));
+      const dy = Math.max(minDy, Math.min(maxDy, rawDy));
+      corners = moveOriginalCorners.map((p) => ({ x: p.x + dx, y: p.y + dy }));
+    }
     redraw();
     evt.preventDefault();
   }
   function onPointerUp() {
-    if (dragIndex === -1) return;
+    if (!dragMode) return;
+    dragMode = null;
     dragIndex = -1;
     redraw();
   }

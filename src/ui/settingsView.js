@@ -1,4 +1,4 @@
-import { renderBackupSection, renderTrainingSection } from "./backupView.js?v=20260916h";
+import { renderBackupSection, renderTrainingSection } from "./backupView.js?v=20260916i";
 
 function renderPlaceholder(container) {
   container.innerHTML = `<div class="card"><p style="color:#666;">Hier komt later meer.</p></div>`;

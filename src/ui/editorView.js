@@ -1,12 +1,12 @@
-import { createBoardEditor, createPalette } from "./boardEditor.js?v=20260916h";
-import { createSolutionInput } from "./solutionInput.js?v=20260916h";
-import { createEmptyBoard, countPieces, isWhite, isBlack } from "../core/board.js?v=20260916h";
-import { parseFen, boardToFen, FenParseError } from "../core/fen.js?v=20260916h";
-import { parseStandInput, QuickTextParseError } from "../core/quicktext.js?v=20260916h";
-import { validateBoard } from "../core/validate.js?v=20260916h";
-import { saveStand, getStand, findDuplicates } from "../db/standen.js?v=20260916h";
-import { getList, addListValue } from "../db/lijsten.js?v=20260916h";
-import { logHerkenningCorrectie } from "../db/herkenningLog.js?v=20260916h";
+import { createBoardEditor, createPalette } from "./boardEditor.js?v=20260916i";
+import { createSolutionInput } from "./solutionInput.js?v=20260916i";
+import { createEmptyBoard, countPieces, isWhite, isBlack } from "../core/board.js?v=20260916i";
+import { parseFen, boardToFen, FenParseError } from "../core/fen.js?v=20260916i";
+import { parseStandInput, QuickTextParseError } from "../core/quicktext.js?v=20260916i";
+import { validateBoard } from "../core/validate.js?v=20260916i";
+import { saveStand, getStand, findDuplicates } from "../db/standen.js?v=20260916i";
+import { getList, addListValue } from "../db/lijsten.js?v=20260916i";
+import { logHerkenningCorrectie } from "../db/herkenningLog.js?v=20260916i";
 
 const MOEILIJKHEID_MAX = 5;
 
@@ -21,6 +21,7 @@ export async function renderEditorView(
     photoDataUrl,
     modelVersion,
     initialBoekstijl,
+    initialAuteur,
   } = {}
 ) {
   container.innerHTML = `
@@ -143,6 +144,10 @@ export async function renderEditorView(
   // binnen (zie bulkImportView.js), zodat je die niet per diagram hoeft te
   // herhalen — nog wel per stand aan te passen voor uitzonderingen.
   let selectedBoekstijl = initialBoekstijl || "";
+  // Zelfde bulk-import-gedachte als boekstijl hierboven: éénmalig voor de hele
+  // pagina ingevulde auteur, als startwaarde voor elk diagram — een bestaande
+  // stand (bewerken) overschrijft dit hieronder met zijn eigen auteur.
+  if (initialAuteur) el('[data-field="auteur"]').value = initialAuteur;
 
   if (standId) {
     existingStand = await getStand(standId);
