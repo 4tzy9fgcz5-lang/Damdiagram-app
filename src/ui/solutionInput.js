@@ -1,12 +1,12 @@
-import { renderDiagramSVG } from "../diagram/render.js?v=20260917f";
-import { isValidField } from "../core/board.js?v=20260917f";
+import { renderDiagramSVG } from "../diagram/render.js?v=20260917g";
+import { isValidField } from "../core/board.js?v=20260917g";
 import {
   getLegalMoves,
   applyMove,
   opposite,
   formatZettenMetVarianten,
   formatZettenSequence,
-} from "../core/draughtsMoves.js?v=20260917f";
+} from "../core/draughtsMoves.js?v=20260917g";
 
 function escapeHtml(str) {
   return str.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));

@@ -1,7 +1,7 @@
-import { renderDiagramSVG } from "../diagram/render.js?v=20260917f";
-import { parseFen } from "../core/fen.js?v=20260917f";
-import { listStanden, resolveOplossingTekst } from "../db/standen.js?v=20260917f";
-import { getList } from "../db/lijsten.js?v=20260917f";
+import { renderDiagramSVG } from "../diagram/render.js?v=20260917g";
+import { parseFen } from "../core/fen.js?v=20260917g";
+import { listStanden, resolveOplossingTekst } from "../db/standen.js?v=20260917g";
+import { getList } from "../db/lijsten.js?v=20260917g";
 
 // Onthoudt de filterkeuzes zolang de pagina open staat (niet in IndexedDB),
 // zodat teruggaan vanaf een standdetailpagina niet alle filters wist.
@@ -21,6 +21,7 @@ export async function renderDatabaseView(container, { onOpenStand, onAddSelectio
           <option value="">Alle moeilijkheid</option>
           <option value="1">★</option><option value="2">★★</option><option value="3">★★★</option>
           <option value="4">★★★★</option><option value="5">★★★★★</option>
+          <option value="ongedefinieerd">Niet gedefinieerd</option>
         </select>
         <select data-field="sort">
           <option value="createdAt-desc">Nieuwste eerst</option>
@@ -95,7 +96,9 @@ export async function renderDatabaseView(container, { onOpenStand, onAddSelectio
       search: raw.search.trim(),
       speelsysteem: raw.speelsysteem || undefined,
       type: raw.type || undefined,
-      moeilijkheid: raw.moeilijkheid ? Number.parseInt(raw.moeilijkheid, 10) : undefined,
+      moeilijkheid:
+        raw.moeilijkheid && raw.moeilijkheid !== "ongedefinieerd" ? Number.parseInt(raw.moeilijkheid, 10) : undefined,
+      moeilijkheidOngedefinieerd: raw.moeilijkheid === "ongedefinieerd" ? true : undefined,
       metOplossing: missingOnly ? false : undefined,
       sortBy,
       sortDir,
@@ -210,7 +213,7 @@ export async function renderDatabaseView(container, { onOpenStand, onAddSelectio
   });
 
   el('[data-action="share-selection"]').addEventListener("click", async () => {
-    const { buildShareData } = await import("../db/backup.js?v=20260917f");
+    const { buildShareData } = await import("../db/backup.js?v=20260917g");
     const data = await buildShareData([...selected]);
     const json = JSON.stringify(data);
     const encoded = btoa(unescape(encodeURIComponent(json)))

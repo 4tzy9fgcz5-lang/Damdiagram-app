@@ -1,4 +1,4 @@
-import { FIELD_COUNT, PIECE_TYPES, countPieces, isWhite, isBlack } from "./board.js?v=20260917f";
+import { FIELD_COUNT, PIECE_TYPES, countPieces, isWhite, isBlack } from "./board.js?v=20260917g";
 
 const MAX_PIECES_PER_COLOR = 20;
 

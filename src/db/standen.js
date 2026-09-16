@@ -1,8 +1,8 @@
-import { openDb, tx, promisify, newId } from "./db.js?v=20260917f";
-import { STORE_STANDEN } from "./schema.js?v=20260917f";
-import { parseFen, boardToFen } from "../core/fen.js?v=20260917f";
-import { mirrorBoard } from "../core/board.js?v=20260917f";
-import { formatZettenMetVarianten } from "../core/draughtsMoves.js?v=20260917f";
+import { openDb, tx, promisify, newId } from "./db.js?v=20260917g";
+import { STORE_STANDEN } from "./schema.js?v=20260917g";
+import { parseFen, boardToFen } from "../core/fen.js?v=20260917g";
+import { mirrorBoard } from "../core/board.js?v=20260917g";
+import { formatZettenMetVarianten } from "../core/draughtsMoves.js?v=20260917g";
 
 function canonicalFens(fenString) {
   const { board, turn } = parseFen(fenString);
@@ -97,6 +97,7 @@ function matchesFilters(stand, filters) {
   if (filters.speelsysteem && !stand.speelsystemen.includes(filters.speelsysteem)) return false;
   if (filters.type && !stand.types.includes(filters.type)) return false;
   if (filters.moeilijkheid && stand.moeilijkheid !== filters.moeilijkheid) return false;
+  if (filters.moeilijkheidOngedefinieerd && stand.moeilijkheid != null) return false;
   if (filters.jaartal && stand.jaartal !== filters.jaartal) return false;
   if (filters.metOplossing === true && !resolveOplossingTekst(stand)) return false;
   if (filters.metOplossing === false && resolveOplossingTekst(stand)) return false;

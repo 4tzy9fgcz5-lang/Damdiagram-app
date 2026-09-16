@@ -1,28 +1,23 @@
-import { parseFen } from "../core/fen.js?v=20260917f";
-import { getStand, saveStand, deleteStand } from "../db/standen.js?v=20260917f";
-import { createSolutionPlayer } from "./solutionPlayer.js?v=20260917f";
-import { getVerbergOplossing } from "../db/uiSettings.js?v=20260917f";
-import { renderDiagramSVG } from "../diagram/render.js?v=20260917f";
-import { svgToPngDataUrl } from "../export/rasterize.js?v=20260917f";
-import { downloadBlob } from "../export/docx.js?v=20260917f";
+import { parseFen } from "../core/fen.js?v=20260917g";
+import { getStand, saveStand, deleteStand } from "../db/standen.js?v=20260917g";
+import { createSolutionPlayer } from "./solutionPlayer.js?v=20260917g";
+import { getVerbergOplossing } from "../db/uiSettings.js?v=20260917g";
+import { renderDiagramSVG } from "../diagram/render.js?v=20260917g";
+import { svgToPngDataUrl } from "../export/rasterize.js?v=20260917g";
+import { downloadBlob } from "../export/docx.js?v=20260917g";
 
 function capitalize(str) {
   return str.charAt(0).toUpperCase() + str.slice(1);
 }
 
-function starsHTML(n) {
-  let html = "";
-  for (let i = 1; i <= 5; i++) html += `<span class="star${i <= n ? " filled" : ""}">★</span>`;
-  return html;
-}
-
 // Rijen voor de infotabel onder de oplossing — alleen wat er daadwerkelijk is
-// ingevuld, in een vaste volgorde.
+// ingevuld, in een vaste volgorde. Moeilijkheidsgraad staat er los van (zie
+// renderMoeilijkheidStars): die rij is altijd zichtbaar, ook zonder waarde,
+// en is aanklikbaar.
 function metaRows(stand) {
   const rows = [];
   if (stand.speelsystemen.length) rows.push(["Speelsysteem", escapeHtml(stand.speelsystemen.join(", "))]);
   if (stand.types.length) rows.push(["Speltype", escapeHtml(stand.types.map(capitalize).join(", "))]);
-  if (stand.moeilijkheid) rows.push(["Moeilijkheidsgraad", starsHTML(stand.moeilijkheid)]);
   if (stand.auteur || stand.jaartal) {
     const tekst = [stand.auteur, stand.jaartal ? `(${stand.jaartal})` : ""].filter(Boolean).join(" ");
     rows.push(["Auteur", escapeHtml(tekst)]);
@@ -68,13 +63,10 @@ export async function renderStandDetailView(
     <div class="card" style="text-align:center;">
       <div data-role="player"></div>
       <div data-role="legacyOplossing"></div>
-      ${
-        rows.length
-          ? `<table class="stand-detail-tabel">${rows
-              .map(([label, waarde]) => `<tr><th>${label}</th><td>${waarde}</td></tr>`)
-              .join("")}</table>`
-          : ""
-      }
+      <table class="stand-detail-tabel">
+        <tr><th>Moeilijkheidsgraad</th><td><span class="stars" data-role="moeilijkheidStars"></span></td></tr>
+        ${rows.map(([label, waarde]) => `<tr><th>${label}</th><td>${waarde}</td></tr>`).join("")}
+      </table>
       <div class="button-row" style="justify-content:center;">
         <button type="button" class="secondary" data-action="png">PNG</button>
         <button type="button" class="secondary" data-action="edit">Bewerken</button>
@@ -96,6 +88,25 @@ export async function renderStandDetailView(
       await saveStand(stand);
     },
   });
+
+  // Aanklikbare sterren, ook zonder al gegeven moeilijkheidsgraad — zo hoef je niet
+  // los naar "Bewerken" om standen te kunnen doorlopen en beoordelen. Nogmaals
+  // klikken op de huidige waarde wist 'm weer, net als op het invoerscherm.
+  const starsHost = container.querySelector('[data-role="moeilijkheidStars"]');
+  function renderMoeilijkheidStars() {
+    starsHost.innerHTML = [1, 2, 3, 4, 5]
+      .map((i) => `<span class="star${i <= (stand.moeilijkheid ?? 0) ? " filled" : ""}" data-star="${i}">★</span>`)
+      .join("");
+    for (const el of starsHost.querySelectorAll("[data-star]")) {
+      el.addEventListener("click", async () => {
+        const waarde = Number.parseInt(el.dataset.star, 10);
+        stand.moeilijkheid = stand.moeilijkheid === waarde ? null : waarde;
+        await saveStand(stand);
+        renderMoeilijkheidStars();
+      });
+    }
+  }
+  renderMoeilijkheidStars();
 
   // Een oude, vrij getypte oplossingstekst heeft geen eigen af-te-spelen zetten,
   // dus valt buiten het verbergen/tonen van de speler hierboven — hier apart
