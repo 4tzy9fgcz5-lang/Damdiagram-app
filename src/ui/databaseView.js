@@ -1,7 +1,7 @@
-import { renderDiagramSVG } from "../diagram/render.js?v=20260918e";
-import { parseFen } from "../core/fen.js?v=20260918e";
-import { listStanden, resolveOplossingTekst, bulkAddCategorieWaarde } from "../db/standen.js?v=20260918e";
-import { getAllCategorieen } from "../db/categorieen.js?v=20260918e";
+import { renderDiagramSVG } from "../diagram/render.js?v=20260918f";
+import { parseFen } from "../core/fen.js?v=20260918f";
+import { listStanden, resolveOplossingTekst, bulkAddCategorieWaarde } from "../db/standen.js?v=20260918f";
+import { getAllCategorieen } from "../db/categorieen.js?v=20260918f";
 
 function escapeHtml(str) {
   return str.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -307,7 +307,7 @@ export async function renderDatabaseView(container, { onOpenStand, onAddSelectio
   });
 
   el('[data-action="share-selection"]').addEventListener("click", async () => {
-    const { buildShareData } = await import("../db/backup.js?v=20260918e");
+    const { buildShareData } = await import("../db/backup.js?v=20260918f");
     const data = await buildShareData([...selected]);
     const json = JSON.stringify(data);
     const encoded = btoa(unescape(encodeURIComponent(json)))
