@@ -1,10 +1,10 @@
-import * as docxLib from "../../lib/docx.mjs?v=20260918f";
-import { renderDiagramSVG } from "../diagram/render.js?v=20260918f";
-import { parseFen } from "../core/fen.js?v=20260918f";
-import { getGridLayout, paginateItems } from "../stencil/layout.js?v=20260918f";
-import { opdrachtregelMetOndertitel } from "../stencil/compose.js?v=20260918f";
-import { svgToPngBytes } from "./rasterize.js?v=20260918f";
-import { resolveOplossingTekst } from "../db/standen.js?v=20260918f";
+import * as docxLib from "../../lib/docx.mjs?v=20260918g";
+import { renderDiagramSVG } from "../diagram/render.js?v=20260918g";
+import { parseFen } from "../core/fen.js?v=20260918g";
+import { getGridLayout, paginateItems } from "../stencil/layout.js?v=20260918g";
+import { opdrachtregelMetOndertitel } from "../stencil/compose.js?v=20260918g";
+import { svgToPngBytes } from "./rasterize.js?v=20260918g";
+import { resolveOplossingTekst } from "../db/standen.js?v=20260918g";
 
 const {
   Document,

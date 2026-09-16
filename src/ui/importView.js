@@ -1,14 +1,12 @@
-import { importAll } from "../db/backup.js?v=20260918f";
-import { renderDiagramSVG } from "../diagram/render.js?v=20260918f";
-import { parseFen } from "../core/fen.js?v=20260918f";
+import { importAll } from "../db/backup.js?v=20260918g";
+import { decodeShareData } from "../db/shareLink.js?v=20260918g";
+import { renderDiagramSVG } from "../diagram/render.js?v=20260918g";
+import { parseFen } from "../core/fen.js?v=20260918g";
 
 export async function renderImportView(container, { encoded, onDone } = {}) {
   let data;
   try {
-    let b64 = encoded.replace(/-/g, "+").replace(/_/g, "/");
-    while (b64.length % 4 !== 0) b64 += "=";
-    const json = decodeURIComponent(escape(atob(b64)));
-    data = JSON.parse(json);
+    data = await decodeShareData(encoded);
   } catch {
     container.innerHTML = `<div class="card"><p>Deze link kon niet worden gelezen. Vraag een nieuwe link aan het andere apparaat.</p></div>`;
     return;
