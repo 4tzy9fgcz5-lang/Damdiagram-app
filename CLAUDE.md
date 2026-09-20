@@ -225,6 +225,24 @@ dan de nieuwe. Aanpak en uitkomst:
   is zwak bij beide herkenners (oud 22, nieuw 17 stukken, oneens over 27 van de 50
   velden) — dat is classificatie, geen geometrie. Meetprogramma:
   `tools/meetBulkImport.mjs`.
+- **Test op Jans 5 paginafoto's (IMG_0664/0665/0668/0669/0670, 2026-09-21, alleen
+  de automatische kaders, zonder handmatig slepen; geconverteerd naar
+  `testdata/pages5/*.jpg`, gitignored).** Van 53 volledig zichtbare diagrammen werden
+  er 48 gevonden (gemist: 188 en 189 op 0665, 24/28/32 op 0668; plus half zichtbare
+  diagrammen op de andere pagina) en 1 onzinkader (duim). Van de 48 gevonden staan
+  er 31 goed ingekaderd en foutloos herkend (bordniveau + steekproef per veld); 17
+  (35%) staan verkeerd ingekaderd. **Oorzaak:** (a) het diagramnummer of onderschrift
+  dat de bordrand raakt wordt in de "donkere vlek" opgenomen, waardoor het kader een
+  rij te hoog/laag zit en het raster een rij verschuift (0670: 46, 47, 51, 53, 57;
+  0669: 37, 38, 40, 41; 0668: 33, 37-40 onderschrift); (b) bij een schuin genomen foto
+  is het bord een scheef vierkant (0665: 185, 186, 190) — `detectMultiBoard.js`
+  levert een rechte rechthoek (kleinste omvattende) en `stripBorderToPlayfield`
+  snijdt weer een rechte rechthoek, dus die kan de echte hoeken niet volgen. Bij
+  goed ingekaderde borden was de herkenning door het neurale netwerkje op alle
+  bekeken velden goed. Voorstel: de 4 echte kaderlijnen zoeken (een lang, ononderbroken
+  donker lijnstuk, i.p.v. de omvattende rechthoek van alles wat donker is) zodat tekst
+  buiten het kader en scheefstand geen invloed hebben; opnieuw meten op deze 5 pagina's
+  (doel: 48/48 goed ingekaderd) en op de 33 pagina's uit `~/Downloads/Dammen/Analyses`.
 - **Damlogica uit.** `classifyWithComparison()` past de stand niet meer aan
   (`enforceRules` wordt niet meer aangeroepen) en markeert geen extra velden op
   basis van balans/"dam?". Alleen de waarschuwingen "geen enkel stuk herkend" en
