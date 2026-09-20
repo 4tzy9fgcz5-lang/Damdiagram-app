@@ -1,7 +1,7 @@
-import { renderDiagramSVG } from "../diagram/render.js?v=20260920u";
-import { parseFen } from "../core/fen.js?v=20260920u";
-import { listStanden, resolveOplossingTekst, bulkAddCategorieWaarde } from "../db/standen.js?v=20260920u";
-import { getAllCategorieen } from "../db/categorieen.js?v=20260920u";
+import { renderDiagramSVG } from "../diagram/render.js?v=20260921a";
+import { parseFen } from "../core/fen.js?v=20260921a";
+import { listStanden, resolveOplossingTekst, bulkAddCategorieWaarde } from "../db/standen.js?v=20260921a";
+import { getAllCategorieen } from "../db/categorieen.js?v=20260921a";
 
 function escapeHtml(str) {
   return str.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -307,8 +307,8 @@ export async function renderDatabaseView(container, { onOpenStand, onAddSelectio
   });
 
   el('[data-action="share-selection"]').addEventListener("click", async () => {
-    const { buildShareData } = await import("../db/backup.js?v=20260920u");
-    const { encodeShareData } = await import("../db/shareLink.js?v=20260920u");
+    const { buildShareData } = await import("../db/backup.js?v=20260921a");
+    const { encodeShareData } = await import("../db/shareLink.js?v=20260921a");
     const data = await buildShareData([...selected]);
     const encoded = await encodeShareData(data);
     const url = `${location.origin}${location.pathname}#/import/${encoded}`;

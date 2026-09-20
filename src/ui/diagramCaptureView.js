@@ -3,23 +3,23 @@
 // foto-import als elke stap van de bulk-import (rij-door-diagrammen) precies
 // dezelfde, vertrouwde flow gebruiken.
 
-import { warpToSquareCanvas } from "../recognition/homography.js?v=20260920u";
-import { classifyBoard, CONFIDENCE_THRESHOLD, RECOGNITION_VERSION } from "../recognition/classify.js?v=20260920u";
+import { warpToSquareCanvas } from "../recognition/homography.js?v=20260921a";
+import { classifyBoard, CONFIDENCE_THRESHOLD, RECOGNITION_VERSION } from "../recognition/classify.js?v=20260921a";
 import {
   createClassifier as createNewClassifier,
   FLAG_BELOW as NEW_FLAG_BELOW,
   RECOGNITION_VERSION as NEW_RECOGNITION_VERSION,
-} from "../recognition/newClassify.js?v=20260920u";
-import { refineGrid } from "../recognition/gridRefine.js?v=20260920u";
-import { checkPlausibility, warningFields, enforceRules } from "../recognition/plausibility.js?v=20260920u";
+} from "../recognition/newClassify.js?v=20260921a";
+import { refineGrid } from "../recognition/gridRefine.js?v=20260921a";
+import { checkPlausibility } from "../recognition/plausibility.js?v=20260921a";
 import {
   buildCornersOverlay,
   buildGridOverlay,
   buildFieldCrops,
   buildRawFieldCrops,
-} from "../recognition/debugRender.js?v=20260920u";
-import { FIELD_COUNT, createEmptyBoard, PIECE_TYPES } from "../core/board.js?v=20260920u";
-import { drawableSize, WORKING_MAX_SIDE } from "./imageInput.js?v=20260920u";
+} from "../recognition/debugRender.js?v=20260921a";
+import { FIELD_COUNT, createEmptyBoard, PIECE_TYPES } from "../core/board.js?v=20260921a";
+import { drawableSize, WORKING_MAX_SIDE } from "./imageInput.js?v=20260921a";
 
 // Ligt buiten het bereik van het cache-bust-bompscript (dat kijkt alleen naar JS-
 // imports/HTML-tags) — bij het trainen van een nieuw damscan/weights.json dus ook
@@ -134,40 +134,15 @@ async function classifyWithComparison(useNew, warpedCanvas) {
       if (result.board[f] !== other.board[f]) disagreementFields.push(f);
     }
   }
-  // Damlogica: klopt de materiaalbalans niet, dan worden de goedkoopste velden
-  // aangepast (zie enforceRules in plausibility.js), op basis van de gecombineerde
-  // kansen van beide herkenners. Aangepaste velden worden altijd als onzeker
-  // gemarkeerd en apart gemeld — niets verandert ongezien.
-  const otherProbs = secondary.status === "fulfilled" ? secondary.value.probs : null;
-  const fusedProbs = result.probs.map((p, f) => {
-    const q = otherProbs?.[f];
-    if (!p || !q) return p;
-    return { empty: (p.empty + q.empty) / 2, white: (p.white + q.white) / 2, black: (p.black + q.black) / 2 };
-  });
-  const boardBeforeRules = result.board;
-  const { board, changes } = enforceRules(boardBeforeRules, fusedProbs);
-  const confidences = [...result.confidences];
-  for (const c of changes) confidences[c.square] = 0.5;
-  const warnings = checkPlausibility(board, confidences);
-  if (changes.length) {
-    const word = { empty: "leeg", white: "wit", black: "zwart" };
-    warnings.unshift({
-      type: "corrected",
-      squares: changes.map((c) => c.square),
-      text:
-        `Omdat wit en zwart anders niet in balans waren, heeft de app ${changes.length} veld(en) aangepast: ` +
-        changes.map((c) => `veld ${c.square} (${word[c.from]} → ${word[c.to]})`).join(", ") +
-        ". Controleer die velden (geel gemarkeerd).",
-    });
-  }
-  // Damregel-waarschuwingen met een specifiek veld (bv. "wit op veld 2: dam?")
-  // horen ook bij de onzeker-velden — daar zonder specifiek veld (bv. "21 witte
-  // schijven") kun je niet één veld voor aanwijzen, die komen alleen in de tekst
-  // op het resultatenscherm.
-  const uncertainFields = [...new Set([...result.uncertainFields, ...disagreementFields, ...warningFields(warnings)])].sort(
-    (a, b) => a - b
-  );
-  return { ...result, board, confidences, warnings, uncertainFields, disagreementFields, corrections: changes };
+  // Damlogica (materiaalbalans, "dam?" op de damrij) staat sinds 2026-09-21 UIT: Jan
+  // vond de automatische aanpassingen afleidend en zonder merkbare verbetering. De
+  // code (`enforceRules`, de balans- en promotie-regels in plausibility.js) blijft
+  // bestaan voor later, maar verandert niets meer aan de stand en markeert geen
+  // velden. Alleen de twee waarschuwingen die op echt misgelopen hoeken wijzen
+  // blijven zichtbaar: geen enkel stuk gevonden, of meer dan 20 van één kleur.
+  const warnings = result.warnings.filter((w) => w.type === "none" || w.type === "count");
+  const uncertainFields = [...new Set([...result.uncertainFields, ...disagreementFields])].sort((a, b) => a - b);
+  return { ...result, warnings, uncertainFields, disagreementFields };
 }
 
 // Herkent een al eerder rechtgetrokken foto (de data-URL die bij een stand wordt
@@ -245,10 +220,10 @@ export function renderDiagramCapture(container, { drawable, initialCorners, head
       </div>
       <div class="quick-actions" style="justify-content:flex-start;" data-role="classifier-toggle">
         <label style="display:inline-flex;align-items:center;gap:0.3rem;font-weight:normal;margin:0;">
-          <input type="radio" name="classifier-corners" value="new" checked /> Nieuwe herkenning (aanbevolen)
+          <input type="radio" name="classifier-corners" value="new" /> Nieuwe herkenning (experimenteel)
         </label>
         <label style="display:inline-flex;align-items:center;gap:0.3rem;font-weight:normal;margin:0;">
-          <input type="radio" name="classifier-corners" value="old" /> Oude herkenning
+          <input type="radio" name="classifier-corners" value="old" checked /> Oude herkenning (aanbevolen)
         </label>
       </div>
       <div class="button-row">
@@ -261,10 +236,10 @@ export function renderDiagramCapture(container, { drawable, initialCorners, head
     <div class="card" data-role="results" style="display:none;">
       <div class="quick-actions" style="justify-content:flex-start;" data-role="classifier-toggle">
         <label style="display:inline-flex;align-items:center;gap:0.3rem;font-weight:normal;margin:0;">
-          <input type="radio" name="classifier-results" value="new" checked /> Nieuwe herkenning (aanbevolen)
+          <input type="radio" name="classifier-results" value="new" /> Nieuwe herkenning (experimenteel)
         </label>
         <label style="display:inline-flex;align-items:center;gap:0.3rem;font-weight:normal;margin:0;">
-          <input type="radio" name="classifier-results" value="old" /> Oude herkenning
+          <input type="radio" name="classifier-results" value="old" checked /> Oude herkenning (aanbevolen)
         </label>
       </div>
       <p data-role="summary"></p>
@@ -300,7 +275,9 @@ export function renderDiagramCapture(container, { drawable, initialCorners, head
   let corners = initialCorners.map((p) => ({ x: p.x * scale, y: p.y * scale }));
   let dragIndex = -1;
   let lastRecognition = null;
-  let useNewClassifier = true;
+  // Sinds 2026-09-21 staat de oude herkenning standaard: op Jans testfoto's met
+  // strakke hoeken deed die het duidelijk beter dan de nieuwe (zie CLAUDE.md).
+  let useNewClassifier = false;
 
   // Twee losse exemplaren van dezelfde schakelaar (hoeken-scherm en resultaten-
   // scherm) — eigen `name` per stel (anders vormen ze onbedoeld één radiogroep en

@@ -1,4 +1,5 @@
-import { computeHomography, applyHomography, warpPerspective } from "./homography.js?v=20260920u";
+import { computeHomography, applyHomography, warpPerspective } from "./homography.js?v=20260921a";
+import { gridFitScore } from "./gridFit.js?v=20260921a";
 
 // Automatische hoekdetectie van het dambord op een foto — zonder externe
 // bibliotheken (de app blijft een platte, server-loze website). Gevalideerd
@@ -566,7 +567,7 @@ function findGridAxis(profile, means, size) {
 // in dezelfde coördinaten als `imageData`. Geeft de (mogelijk) naar binnen
 // bijgestelde 4 hoeken terug die het dambordpatroon zelf volgen, of
 // `outerCorners` ongewijzigd terug als er geen patroon te vinden was.
-function stripBorderToPlayfield(imageData, outerCorners) {
+export function stripBorderToPlayfield(imageData, outerCorners) {
   const SIZE = 500;
   const squareCorners = [
     { x: 0, y: 0 },
@@ -596,6 +597,88 @@ function stripBorderToPlayfield(imageData, outerCorners) {
   ].map(({ x, y }) => applyHomography(H, x, y));
 }
 
+// Een alternatief kader moet duidelijk beter bij het dambordpatroon passen dan het
+// gevonden kader om dat te vervangen (`SWITCH_FACTOR`), én zelf een echt patroon
+// laten zien (`MIN_FIT_TO_SWITCH`) — anders blijft het gevonden kader staan.
+const SWITCH_FACTOR = 1.15;
+const MIN_FIT_TO_SWITCH = 0.6;
+// Een gevonden kader dat minder dan dit deel van de foto beslaat is bij een foto
+// van één diagram verdacht (waarschijnlijk maar een stukje van het bord): dan
+// volstaat het dat de hele foto minstens even goed past (`SMALL_REGION_TOLERANCE`).
+const SMALL_REGION_FRACTION = 0.2;
+const SMALL_REGION_TOLERANCE = 0.9;
+// De vaste marge waarmee de app een foto van een bord zonder gevonden rand begon.
+const FALLBACK_MARGIN = 0.12;
+
+function quadArea(c) {
+  let sum = 0;
+  for (let i = 0; i < 4; i++) {
+    const p = c[i];
+    const q = c[(i + 1) % 4];
+    sum += p.x * q.y - q.x * p.y;
+  }
+  return Math.abs(sum) / 2;
+}
+
+// Zuivere rekenkern van de hele hoekdetectie, los van canvas/DOM zodat dit ook
+// buiten de browser te meten is. Zoekt het bord (stap 1), snijdt de rand weg, en
+// controleert daarna met `gridFitScore()` of dat kader echt bij een 10x10-patroon
+// past. Zo niet, dan worden twee alternatieven geprobeerd — de hele foto (een
+// strak bijgesneden diagram, waar stap 1 niets vindt of een klein stuk van het
+// bord aanziet voor het hele bord) en de oude vaste marge — en de beste wint.
+// Geeft { outer, corners, source, scores } terug, of null als niets op een
+// dambordpatroon lijkt.
+export function detectPlayfieldFromImageData(imageData, width, height) {
+  const outer = detectCornersFromImageData(imageData, width, height);
+  const whole = [
+    { x: 0, y: 0 },
+    { x: width, y: 0 },
+    { x: width, y: height },
+    { x: 0, y: height },
+  ];
+  const mx = width * FALLBACK_MARGIN;
+  const my = height * FALLBACK_MARGIN;
+  const margin = [
+    { x: mx, y: my },
+    { x: width - mx, y: my },
+    { x: width - mx, y: height - my },
+    { x: mx, y: height - my },
+  ];
+
+  // De vaste marge is alleen nog een laatste redmiddel als stap 1 niets vond: op
+  // een foto waar het bord het beeld vult snijdt 12% marge ruim één veld per kant
+  // weg (een 8x8-selectie i.p.v. 10x10), dus die mag een gevonden kader nooit
+  // vervangen.
+  const candidates = [];
+  if (outer) candidates.push({ source: "gevonden", corners: stripBorderToPlayfield(imageData, outer) });
+  const wholeCorners = stripBorderToPlayfield(imageData, whole);
+  candidates.push({ source: "hele foto", corners: wholeCorners });
+  if (!outer) {
+    candidates.push({ source: "vaste marge", corners: margin });
+  }
+  for (const c of candidates) c.score = gridFitScore(imageData, c.corners);
+
+  let chosen = outer ? candidates[0] : null;
+  for (const c of candidates) {
+    if (c === chosen) continue;
+    const beats = chosen ? c.score >= MIN_FIT_TO_SWITCH && c.score > chosen.score * SWITCH_FACTOR : c.score >= MIN_FIT_TO_SWITCH;
+    if (beats) chosen = c;
+  }
+  if (chosen === candidates[0] && outer && quadArea(chosen.corners) < SMALL_REGION_FRACTION * width * height) {
+    const wholePhoto = candidates[1];
+    if (wholePhoto.score >= MIN_FIT_TO_SWITCH && wholePhoto.score >= chosen.score * SMALL_REGION_TOLERANCE) {
+      chosen = wholePhoto;
+    }
+  }
+  if (!chosen) return null;
+  return {
+    outer: outer ?? chosen.corners,
+    corners: chosen.corners,
+    source: chosen.source,
+    scores: Object.fromEntries(candidates.map((c) => [c.source, c.score])),
+  };
+}
+
 // drawable: een canvas/bitmap/image met .width/.height, tekenbaar via drawImage.
 // Geeft [{x,y} x4] terug in de coördinaten van `drawable`, of null.
 export function detectBoardCorners(drawable) {
@@ -612,9 +695,7 @@ export function detectBoardCorners(drawable) {
   ctx.drawImage(drawable, 0, 0, workWidth, workHeight);
   const imageData = ctx.getImageData(0, 0, workWidth, workHeight);
 
-  const outerCorners = detectCornersFromImageData(imageData, workWidth, workHeight);
-  if (!outerCorners) return null;
-
-  const corners = stripBorderToPlayfield(imageData, outerCorners);
-  return corners.map(({ x, y }) => ({ x: x / scale, y: y / scale }));
+  const found = detectPlayfieldFromImageData(imageData, workWidth, workHeight);
+  if (!found) return null;
+  return found.corners.map(({ x, y }) => ({ x: x / scale, y: y / scale }));
 }

@@ -9,7 +9,7 @@
   daadwerkelijk in de browser (zie "Testen tijdens ontwikkeling" hieronder) voor je
   meldt dat iets werkt.
 
-# Status en vervolgstappen (bijgewerkt 2026-09-20)
+# Status en vervolgstappen (bijgewerkt 2026-09-21)
 
 Dit is een groeiende Nederlandse dam-app (werknaam "Dam-database", eerder
 "Damstencil"): standen verzamelen (handmatig, of via een foto van een boekdiagram),
@@ -81,7 +81,7 @@ server, geen build-stap.
   die grotendeels "leeg" noemt; dan = donker zwart, duidelijk lichter dan de
   lege velden = wit. Op de 4 testfoto's met bekende stand exact dezelfde
   uitkomst als voorheen. Test: `tests/classify.test.js` (echte meetwaarden).
-- **Nieuw** (sinds 2026-09-15, nu standaard): `src/recognition/newFeatures.js` /
+- **Nieuw** (sinds 2026-09-15; sinds 2026-09-21 NIET meer de standaard, zie "Herkenning-verbeterplan" hieronder): `src/recognition/newFeatures.js` /
   `newModel.js` / `newClassify.js` — ES-module-poort van `damscan/features.js`,
   `damscan/model.js`, `damscan/classify.js`. **Werkt per bord, niet per veld**:
   `classifyBoard(crops)` moet alle 50 velduitsnedes in één keer krijgen, want de
@@ -124,6 +124,55 @@ server, geen build-stap.
   Pages (de data staat niet in git).
 
 ## Openstaand / eerstvolgende stappen
+
+### Correcties na Jans testronde (2026-09-21)
+
+Jan meldde na de Fase 1/2-werkzaamheden: (1) nog steeds vaak een 8x8- i.p.v.
+10x10-selectie, (2) de damlogica-aanpassingen (Fase 2) waren afleidend en
+brachten geen verbetering, (3) de oude herkenning is op veel diagrammen beter
+dan de nieuwe. Aanpak en uitkomst:
+
+- **8x8-selectie — oorzaak gevonden en aangepakt.** Twee bronnen, beide in
+  `detectBoard.js`: (a) als stap 1 niets vindt (strak bijgesneden diagram, dun/
+  licht randje) viel de app terug op een vaste marge van 12% per kant — bij een
+  bord dat het beeld vult snijdt dat ruim één veld per kant weg = precies 8x8;
+  (b) soms pakt stap 1 een klein stukje gearceerde velden aan voor het hele bord.
+  Nieuw: `src/recognition/gridFit.js` (`gridFitScore()`) meet hoe goed een kader
+  bij een 10x10-patroon past (zwakste van de 18 binnenlijnen, gedeeld door de
+  randsterkte tussen de lijnen). `detectPlayfieldFromImageData()` vergelijkt het
+  gevonden kader met "hele foto (rand weggesneden)" en kiest het alternatief
+  alleen als het >15% beter past en zelf een echt patroon laat zien
+  (score >= 0,6); een gevonden kader kleiner dan 20% van de foto wordt alleen
+  behouden als de hele foto niet minstens 90% zo goed past. De vaste 12%-marge
+  telt alleen nog mee als stap 1 NIETS vond, en nooit ten koste van een gevonden
+  kader. **Bewust weggelaten:** een extra "kader per kant bijstellen"-stap
+  (coördinaat-afdaling op dezelfde score) — die sneed op strakke foto's juist te
+  veel weg (nieuwe 8x8-selecties), dus te riskant. Bekende rest: een strak
+  bijgesneden foto met een titelregel erboven krijgt de titelregel mee in het
+  kader (lichte scheefstand van het raster), en foto's met een breed zwart kader
+  om het bord (IMG_1058) vallen terug op de vaste marge.
+- **Bulk-import niet aangepast/gemeten.** `detectMultiBoard.js` levert de
+  buitenrand zonder `stripBorderToPlayfield`/`gridFit`; op paginafoto's van 700px
+  zijn de diagrammen te klein om de score betrouwbaar te meten. Als Jan de 8x8-
+  fout ook in de bulk-route ziet: eerst dáárop meten (volledige resolutie).
+- **Damlogica uit.** `classifyWithComparison()` past de stand niet meer aan
+  (`enforceRules` wordt niet meer aangeroepen) en markeert geen extra velden op
+  basis van balans/"dam?". Alleen de waarschuwingen "geen enkel stuk herkend" en
+  ">20 van één kleur" blijven. De code in `plausibility.js` (+ tests) staat er nog,
+  voor als we het later slimmer willen doen.
+- **Oude herkenning weer de standaard** (hoeken-/resultatenscherm). Meting met
+  de echte app-code op de 6 gelabelde foto's uit `testdata/testfotos/` (fouten
+  oud/nieuw): 0127 2/6, 0497 29/18 (hoeken hier onbruikbaar), 0533 3/7, 0616
+  11/0, 532 0/10, aa9874c2 0/6 — totaal 45 vs 47, maar oud wint op 4 van 6.
+  Ze falen op VERSCHILLENDE plekken: de oude ziet op 0616 alle witte schijven
+  over het hoofd, de nieuwe mist er op 532 juist. "Als één van beide een schijf
+  ziet, neem die" gaf 41 fouten en op één foto een slechter resultaat — niet
+  overgenomen. Het gele onenigheid-randje blijft het vangnet.
+- **Meetprogramma:** `tools/meetHoekdetectie.mjs` (Node, geen browser) draait de
+  detectie op een map PNG's en tekent de gevonden kaders. Gebruikt met Jans 130
+  foto's uit `~/Downloads/Dammen` (bijna alle boekstijlen); zie de kop van het
+  bestand. Draai dit opnieuw bij elke wijziging aan `detectBoard.js`/`gridFit.js`
+  — de losse tests alleen zijn te grof gebleken.
 
 ### Herkenning-verbeterplan (2026-09-20)
 
