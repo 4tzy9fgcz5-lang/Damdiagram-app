@@ -125,7 +125,7 @@ bijgestelde versie (niet de volgorde uit het originele plan):
   achterste rij) werden weggegooid; die worden nu getoond op het
   resultatenscherm van de fotoherkenning én tellen mee als onzeker veld. Zie
   `sanityCheck()` in `newClassify.js`, gebruikt in `diagramCaptureView.js`.
-- **Fase 1 — klaar (2026-09-20), twee delen, na twee mislukte pogingen
+- **Fase 1 — klaar (2026-09-20), twee delen, na vier mislukte pogingen
   onderweg (zie hieronder):**
   1. Kleine correctie ná het rechttrekken (`src/recognition/gridRefine.js`,
      `refineGrid()`) — geen gebruik van de classifier zelf (te traag om
@@ -138,39 +138,46 @@ bijgestelde versie (niet de volgorde uit het originele plan):
      verschil maakte:** de automatische hoekdetectie zelf (`detectBoard.js`)
      pakte de buitenkant van de zwarte rand om het speelveld, niet het
      schaakbordpatroon erbinnen. `stripBorderToPlayfield()` snijdt die rand
-     nu weg via een projectieprofiel: per rij/kolom de Sobel-randsterkte
-     optellen over de HELE breedte/hoogte, en daarin de celbreedte +
-     startpositie zoeken die de 9 interne rasterlijnen het best laat
-     samenvallen met echte randen (`findGridAxis()`). Bij gelijke score de
-     voorkeur voor zo min mogelijk wegsnijden (>3% beter nodig om een kleinere
-     spacing te kiezen) — anders vindt het bij een erg regelmatig schaakbord
-     soms toevallig een net-te-klein raster. Tests: `tests/detectBoard.test.js`.
+     nu weg. **Primair (`findDarkBandInnerEdge()`):** de zwarte rand is een
+     egaal donkere band; de gemiddelde helderheid per rij/kolom van het
+     rechtgetrokken beeld springt aan de binnenkant ervan steil omhoog — die
+     plek (steilste stijging) is de patroonrand. Werkt ook op donkere/vage
+     foto's. Alleen gebruikt als de band duidelijk donker genoeg is
+     (`DARK_BAND_RATIO` 0.6 t.o.v. het midden van het bord) en niet
+     onbegrijpelijk ver van de grove schatting ligt. **Terugval:** grove
+     gekoppelde schatting van celbreedte+start uit een randsterkte-
+     projectieprofiel (`findGridAxisRough()`), per kant gepreciseerd naar de
+     dichtstbijzijnde echte piek (`refineEdge()`, met een marge van 40% van
+     een cel, de uiterste 1,5% van het beeld overgeslagen, en samenvoegen of
+     onderscheiden van pieken via een "vallei" ertussen). Tests:
+     `tests/detectBoard.test.js`.
   Beide draaien automatisch bij elke herkenning (ook bulk-import), zichtbaar/
   toegepast vóór classificatie. Geverifieerd met Jans eigen testfoto's in
-  `testdata/` (niet alleen synthetische plaatjes) — zie de twee mislukte
-  tussenstappen hieronder, die zijn precies daarom verworpen. Bewust NIET
-  gedaan: "aanpak B" uit het plan (voorspelde vs. gecorrigeerde hoekpunten
-  loggen voor een toekomstig hoek-model) — blijft openstaan.
-  - *Mislukte poging 1:* per-rij/kolom-**variantie** i.p.v. randsterkte-som —
-    een rand met wat drukstructuur/scanruis werd daarmee soms al als
-    "patroon" herkend, dus bleef er nog een zichtbare rand over. Dit was de
-    eerste versie die Jan testte en terecht afkeurde ("nog steeds rand
-    meegenomen").
-  - *Mislukte poging 2:* `gridRefine.js`'s eigen aanpak (kleine translatie/
-    schaal/rotatie, score = randsterkte-som) met een veel breder zoekbereik
-    toepassen op de ONgestripte hoeken, in de hoop dat één brede zoektocht
-    alles in één keer zou oplossen — liep vast op periodieke aliasing (een
-    verkeerd geschaald/verschoven raster kan bij een herhalend
-    schaakbordpatroon toevallig ook goed scoren). Vandaar de two-stage aanpak
-    hierboven: eerst grof met een projectieprofiel (ongevoelig voor die
-    aliasing omdat het over de hele rij/kolom optelt), dan pas de bestaande,
-    kleine `gridRefine`-correctie als laatste polijststap.
+  `testdata/` (niet alleen synthetische plaatjes), door de gevonden hoeken
+  als overlay op de foto te tekenen. Bewust NIET gedaan: "aanpak B" uit het
+  plan (voorspelde vs. gecorrigeerde hoekpunten loggen voor een toekomstig
+  hoek-model) — blijft openstaan.
+  - *Mislukte pogingen onderweg (allemaal door Jan of eigen tests afgekeurd):*
+    (a) per-rij/kolom-**variantie** (ruis in de rand telde als patroon);
+    (b) `gridRefine`-aanpak met een breed zoekbereik (periodieke aliasing);
+    (c) projectieprofiel dat de score van 9 interne lijnen maximaliseert —
+    kiest bij bijna-gelijke scores een plek nog binnen de rand (Jan: "nauwelijks
+    verbetering"), en één gekoppelde celbreedte over beide kanten laat een
+    rand die links dikker is dan rechts niet toe; (d) puur de sterkste
+    randpiek nemen — de buitenkant van de rand (papier→rand) is vaak
+    sterker dan de binnenkant (rand→patroon).
+  - **Belangrijke bevinding (2026-09-20), nog niet opgelost:** met de strakke
+    hoeken haalt de OUDE classifier op de 4 testfoto's met bekende stand
+    (`testdata/testfotos/standen.txt`; IMG_0377 = de "532"-foto) samen maar
+    5 fouten (0/1/3/1), de NIEUWE classifier 23 (was 11 bij de vorige,
+    ruimere hoeken). De uitsneden zelf zijn schoon en gecentreerd; de nieuwe
+    classifier mist witte schijven op donkere velden met 97-100% "leeg". De
+    nieuwe classifier is dus gevoelig voor de hoek-geometrie waarop hij
+    getraind is. Vervolg: hertrainen op strakke crops (export uit stap 1
+    hieronder), of tijdelijk de oude classifier als standaard.
   - **Bekende resterende beperking:** op sommige foto's blijft aan één kant
-    (meestal rechts/onder) nog een dun streepje rand over, ook na beide
-    correcties — geen volledige oplossing, wel een forse verbetering t.o.v.
-    "de hele rand werd als bord gezien". Niet verder achtervolgd: kans op
-    overfitten op deze paar testfoto's, en de rest van de pijplijn (fase 0/2/3)
-    kan hier prima mee leven.
+    (meestal rechts/onder) nog een dun streepje rand over — bij gekromde
+    pagina's kan één rechthoek niet overal perfect passen.
   - `testdata/IMG_532.jpeg` (gitignored, alleen lokaal) is de exacte foto
     waarmee Jan dit meldde — een goede "moeilijke" foto om een volgende keer
     weer tegenaan te testen bij wijzigingen aan `detectBoard.js`/
