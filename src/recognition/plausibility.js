@@ -1,4 +1,4 @@
-import { FIELD_COUNT, PIECE_TYPES, isWhite, isBlack } from "../core/board.js?v=20260920m";
+import { FIELD_COUNT, PIECE_TYPES, EMPTY, isWhite, isBlack } from "../core/board.js?v=20260920p";
 
 // Damlogica als vangnet op de fotoherkenning, los van welke herkenner draaide.
 // Corrigeert niets stilzwijgend: geeft waarschuwingen terug (en velden die het
@@ -85,4 +85,63 @@ export function warningFields(warnings) {
     for (const f of w.squares ?? []) fields.add(f);
   }
   return [...fields];
+}
+
+const labelOf = (piece) => (isWhite(piece) ? "white" : isBlack(piece) ? "black" : "empty");
+const PIECE_OF = { white: PIECE_TYPES.WHITE_PIECE, black: PIECE_TYPES.BLACK_PIECE };
+const MIN_PROBABILITY = 1e-6;
+
+// Past de stand aan zodat de materiaalbalans klopt (verschil hooguit 1, hooguit 20
+// per kleur), door zo weinig mogelijk en zo goedkoop mogelijk velden om te zetten.
+// `probs[veld]` = { empty, white, black }: hoe waarschijnlijk elk antwoord per veld
+// is volgens de herkenner(s). De "kosten" van een aanpassing is hoeveel minder
+// waarschijnlijk het nieuwe antwoord is dan het huidige (log-verhouding); de
+// goedkoopste aanpassing per stuk verschil dat het oplost gaat eerst. Zo verandert
+// bijvoorbeeld een leeg veld waar de herkenner ook een wit stuk mogelijk vond
+// vóór een veld waar het heel zeker leeg was.
+// Geeft { board, changes } terug; `changes` = [{ square, from, to }]. Dammen en
+// velden waar een aanpassing een onmogelijke gewone schijf op de damrij zou geven
+// blijven ongemoeid.
+export function enforceRules(board, probs) {
+  const result = [...board];
+  const changes = [];
+  const changed = new Set();
+  const p = (f, label) => Math.max(probs?.[f]?.[label] ?? 0, MIN_PROBABILITY);
+  const cost = (f, to) => Math.log(p(f, labelOf(result[f]))) - Math.log(p(f, to));
+  const allowed = (f, to) =>
+    !changed.has(f) &&
+    !(result[f] === PIECE_TYPES.WHITE_KING || result[f] === PIECE_TYPES.BLACK_KING) &&
+    !(to === "white" && f <= 5) &&
+    !(to === "black" && f >= 46);
+
+  for (let guard = 0; guard < FIELD_COUNT; guard++) {
+    let nW = 0;
+    let nB = 0;
+    for (let f = 1; f <= FIELD_COUNT; f++) {
+      if (isWhite(result[f])) nW++;
+      else if (isBlack(result[f])) nB++;
+    }
+    const balanced = Math.abs(nW - nB) <= MAX_BALANCE_DIFFERENCE && nW <= MAX_PIECES_PER_COLOR && nB <= MAX_PIECES_PER_COLOR;
+    if (balanced) break;
+
+    const surplus = nW > nB ? "white" : "black";
+    const deficient = surplus === "white" ? "black" : "white";
+    let best = null;
+    for (let f = 1; f <= FIELD_COUNT; f++) {
+      const cur = labelOf(result[f]);
+      const options = [];
+      if (cur === "empty") options.push([deficient, 1]);
+      if (cur === surplus) options.push(["empty", 1], [deficient, 2]);
+      for (const [to, gain] of options) {
+        if (!allowed(f, to)) continue;
+        const score = cost(f, to) / gain;
+        if (!best || score < best.score) best = { f, to, score };
+      }
+    }
+    if (!best) break;
+    changes.push({ square: best.f, from: labelOf(result[best.f]), to: best.to });
+    result[best.f] = best.to === "empty" ? EMPTY : PIECE_OF[best.to];
+    changed.add(best.f);
+  }
+  return { board: result, changes };
 }

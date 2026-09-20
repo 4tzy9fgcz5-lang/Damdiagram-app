@@ -189,15 +189,27 @@ bijgestelde versie (niet de volgorde uit het originele plan):
   `diagramCaptureView.js` de eigen `sanityCheck()` van de nieuwe herkenner
   (die blijft bestaan maar wordt daar niet meer gebruikt). Regels: geen enkel
   stuk herkend (waarschijnlijk foute hoeken), >20 van één kleur, gewone
-  schijf op de eigen damrij ("dam?"), en **materiaalbalans**: verschil van
-  meer dan 1 stuk tussen wit en zwart geeft een waarschuwing en markeert
-  (verschil − 1) lege velden als onzeker, de minst zekere eerst — het vaakst
-  is er een stuk gemist. Bevestigd door Jan: in ~95% van zijn opgaven is het
-  aantal gelijk, enige normale afwijking is 1 stuk. Corrigeert niets
-  stilzwijgend. Tests: `tests/plausibility.test.js`. Op de "532"-testfoto
-  (nieuwe herkenning: wit 4, zwart 13, echt 13/13) wees dit 8 velden aan,
-  waarvan 6 inderdaad gemiste witte schijven. Géén aparte confidence voor
-  "dam" (dammen worden nooit automatisch herkend, zie classify.js).
+  schijf op de eigen damrij ("dam?") — die blijven waarschuwingen — en
+  **materiaalbalans**. Bevestigd door Jan: in ~95% van zijn opgaven is het
+  aantal wit/zwart gelijk, enige normale afwijking is 1 stuk.
+  **Sinds dezelfde dag corrigeert de balansregel ook actief** (Jan wilde meer
+  dan een waarschuwing): `enforceRules(board, probs)` zet zo weinig en zo
+  goedkoop mogelijk velden om tot het verschil ≤ 1 is (leeg→stuk van de
+  kleur met te weinig, stuk→leeg, of stuk→andere kleur), kosten = log-verhouding
+  van de kansen per veld; nooit een gewone schijf op de eigen damrij, dammen
+  blijven ongemoeid. De kansen per veld zijn het gemiddelde van beide
+  herkenners (de oude levert alleen een gekozen antwoord + zekerheid, de rest
+  wordt gelijk verdeeld: `probsFromConfidences`). Aangepaste velden worden
+  altijd als onzeker (geel) gemarkeerd en apart gemeld in de waarschuwing
+  ("heeft de app 8 veld(en) aangepast: veld 47 (leeg → wit), …"), zichtbaar
+  in `diagramCaptureView.js` (`classifyWithComparison`). Meting op de 4
+  testfoto's met goede hoeken en bekende stand: nieuwe herkenning 23 → 6
+  fouten, oude 5 → 5 (twee foto's 1 beter, één 1 slechter). Foto IMG_0497
+  (hoekdetectie stap 1 vindt niets, dus standaardhoeken) is onbruikbaar ~
+  13-20 fouten; niet door dit opgelost. Tests: `tests/plausibility.test.js`.
+  Op de "532"-testfoto: nieuwe herkenning wit 4/zwart 13 → 8 velden
+  aangepast → 25 van 26 goed. Géén aparte confidence voor "dam" (dammen
+  worden nooit automatisch herkend, zie classify.js).
 - **Fase 3 — daarna:** onzekerheid tegen schaduw/boekstijl. De nieuwe
   classifier is al vanaf het begin ontworpen om ongevoelig te zijn voor
   drukstijl/belichting (lokale kenmerken per veld + normalisatie over de 50

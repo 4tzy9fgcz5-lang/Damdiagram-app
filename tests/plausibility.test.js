@@ -1,6 +1,6 @@
-import { describe, it, assertEqual, assertTrue } from "./test-runner.js?v=20260920m";
-import { checkPlausibility, warningFields } from "../src/recognition/plausibility.js?v=20260920m";
-import { createEmptyBoard, PIECE_TYPES } from "../src/core/board.js?v=20260920m";
+import { describe, it, assertEqual, assertTrue } from "./test-runner.js?v=20260920p";
+import { checkPlausibility, warningFields, enforceRules } from "../src/recognition/plausibility.js?v=20260920p";
+import { createEmptyBoard, PIECE_TYPES } from "../src/core/board.js?v=20260920p";
 
 function boardWith(whites, blacks) {
   const b = createEmptyBoard();
@@ -66,5 +66,66 @@ describe("plausibiliteit: damlogica op de herkenning", () => {
       { type: "count", text: "" },
     ]);
     assertEqual(fields.sort((a, b) => a - b), [3, 27, 28]);
+  });
+});
+
+// Kansen die precies bij het bord passen: elk veld is voor 98% wat er staat.
+function probsFor(board) {
+  return board.map((piece) =>
+    piece === "wp" || piece === "wk"
+      ? { empty: 0.01, white: 0.98, black: 0.01 }
+      : piece === "bp" || piece === "bk"
+      ? { empty: 0.01, white: 0.01, black: 0.98 }
+      : { empty: 0.98, white: 0.01, black: 0.01 }
+  );
+}
+
+describe("plausibiliteit: stand aanpassen naar de materiaalbalans", () => {
+  it("laat een stand die al klopt ongemoeid", () => {
+    const board = boardWith(range(31, 39), range(12, 20));
+    const { board: out, changes } = enforceRules(board, probsFor(board));
+    assertEqual(changes, []);
+    assertEqual(out, board);
+  });
+
+  it("zet de lege velden om waar de herkenner een stuk van de andere kleur het meest mogelijk vond", () => {
+    const board = boardWith(range(31, 40), range(12, 17)); // 10 wit, 6 zwart
+    const probs = probsFor(board);
+    for (const f of [27, 28, 29]) probs[f] = { empty: 0.6, white: 0.05, black: 0.35 };
+    probs[30] = { empty: 0.9, white: 0.01, black: 0.09 };
+    const { board: out, changes } = enforceRules(board, probs);
+    assertEqual(changes.map((c) => c.square).sort((a, b) => a - b), [27, 28, 29]);
+    assertTrue(changes.every((c) => c.from === "empty" && c.to === "black"));
+    assertEqual(out[27], "bp");
+    assertEqual(out[30], null);
+  });
+
+  it("kiest een stuk van de teveel-kleur omzetten als dat goedkoper is dan een nieuw stuk zetten", () => {
+    const board = boardWith(range(31, 38), range(12, 17)); // 8 wit, 6 zwart
+    const probs = probsFor(board);
+    probs[33] = { empty: 0.05, white: 0.5, black: 0.45 };
+    const { board: out, changes } = enforceRules(board, probs);
+    assertEqual(changes.length, 1);
+    assertEqual(changes[0], { square: 33, from: "white", to: "black" });
+    assertEqual(out[33], "bp");
+  });
+
+  it("maakt nooit een gewone schijf op de eigen damrij (wit op 1-5, zwart op 46-50)", () => {
+    const board = boardWith(range(31, 34), []);
+    const probs = probsFor(board);
+    probs[3] = { empty: 0.05, white: 0.05, black: 0.9 }; // veld 3: zwart mag wel
+    probs[48] = { empty: 0.05, white: 0.05, black: 0.9 }; // veld 48: zwart NIET toegestaan
+    probs[20] = { empty: 0.5, white: 0.01, black: 0.49 };
+    const { changes } = enforceRules(board, probs);
+    assertTrue(!changes.some((c) => c.square === 48), "veld 48 hoort ongemoeid te blijven");
+  });
+
+  it("laat dammen ongemoeid", () => {
+    const board = boardWith([31, 32, 33, 34], []);
+    board[31] = PIECE_TYPES.WHITE_KING;
+    const probs = probsFor(board);
+    probs[31] = { empty: 0.01, white: 0.01, black: 0.98 };
+    const { board: out } = enforceRules(board, probs);
+    assertEqual(out[31], PIECE_TYPES.WHITE_KING);
   });
 });

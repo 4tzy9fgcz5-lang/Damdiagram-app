@@ -3,23 +3,23 @@
 // foto-import als elke stap van de bulk-import (rij-door-diagrammen) precies
 // dezelfde, vertrouwde flow gebruiken.
 
-import { warpToSquareCanvas } from "../recognition/homography.js?v=20260920m";
-import { classifyBoard, CONFIDENCE_THRESHOLD, RECOGNITION_VERSION } from "../recognition/classify.js?v=20260920m";
+import { warpToSquareCanvas } from "../recognition/homography.js?v=20260920p";
+import { classifyBoard, CONFIDENCE_THRESHOLD, RECOGNITION_VERSION } from "../recognition/classify.js?v=20260920p";
 import {
   createClassifier as createNewClassifier,
   FLAG_BELOW as NEW_FLAG_BELOW,
   RECOGNITION_VERSION as NEW_RECOGNITION_VERSION,
-} from "../recognition/newClassify.js?v=20260920m";
-import { refineGrid } from "../recognition/gridRefine.js?v=20260920m";
-import { checkPlausibility, warningFields } from "../recognition/plausibility.js?v=20260920m";
+} from "../recognition/newClassify.js?v=20260920p";
+import { refineGrid } from "../recognition/gridRefine.js?v=20260920p";
+import { checkPlausibility, warningFields, enforceRules } from "../recognition/plausibility.js?v=20260920p";
 import {
   buildCornersOverlay,
   buildGridOverlay,
   buildFieldCrops,
   buildRawFieldCrops,
-} from "../recognition/debugRender.js?v=20260920m";
-import { FIELD_COUNT, createEmptyBoard, PIECE_TYPES } from "../core/board.js?v=20260920m";
-import { drawableSize, WORKING_MAX_SIDE } from "./imageInput.js?v=20260920m";
+} from "../recognition/debugRender.js?v=20260920p";
+import { FIELD_COUNT, createEmptyBoard, PIECE_TYPES } from "../core/board.js?v=20260920p";
+import { drawableSize, WORKING_MAX_SIDE } from "./imageInput.js?v=20260920p";
 
 // Ligt buiten het bereik van het cache-bust-bompscript (dat kijkt alleen naar JS-
 // imports/HTML-tags) — bij het trainen van een nieuw damscan/weights.json dus ook
@@ -38,6 +38,20 @@ function getNewClassifier() {
       .then((weights) => createNewClassifier(weights));
   }
   return newClassifierPromise;
+}
+
+// De oude herkenning geeft per veld alleen het gekozen antwoord + hoe zeker; de
+// overige kans wordt gelijk over de twee andere antwoorden verdeeld, zodat ze
+// dezelfde vorm heeft als de kansen van de nieuwe herkenning.
+function probsFromConfidences(board, confidences) {
+  const probs = new Array(FIELD_COUNT + 1).fill(null);
+  for (let f = 1; f <= FIELD_COUNT; f++) {
+    const label = board[f] === PIECE_TYPES.WHITE_PIECE ? "white" : board[f] === PIECE_TYPES.BLACK_PIECE ? "black" : "empty";
+    const c = Math.min(0.999, Math.max(0.34, confidences[f] ?? 0.5));
+    const rest = (1 - c) / 2;
+    probs[f] = { empty: rest, white: rest, black: rest, [label]: c };
+  }
+  return probs;
 }
 
 // Herkent één rechtgetrokken bord met de gekozen classifier. Geeft altijd hetzelfde
@@ -59,9 +73,11 @@ async function classifyWith(useNew, warpedCanvas) {
     const { squares } = clf.classifyBoard(cropInputs);
     const board = createEmptyBoard();
     const confidences = new Array(FIELD_COUNT + 1).fill(1);
+    const probs = new Array(FIELD_COUNT + 1).fill(null);
     const uncertainFields = [];
     for (const sq of squares) {
       confidences[sq.square] = sq.confidence;
+      probs[sq.square] = sq.probs;
       if (sq.label === "white") board[sq.square] = PIECE_TYPES.WHITE_PIECE;
       else if (sq.label === "black") board[sq.square] = PIECE_TYPES.BLACK_PIECE;
       if (sq.confidence < NEW_FLAG_BELOW) uncertainFields.push(sq.square);
@@ -74,6 +90,7 @@ async function classifyWith(useNew, warpedCanvas) {
       uncertainFields,
       modelVersion: NEW_RECOGNITION_VERSION,
       warnings: checkPlausibility(board, confidences),
+      probs,
     };
   }
 
@@ -90,6 +107,7 @@ async function classifyWith(useNew, warpedCanvas) {
     uncertainFields,
     modelVersion: RECOGNITION_VERSION,
     warnings: checkPlausibility(board, confidences),
+    probs: probsFromConfidences(board, confidences),
   };
 }
 
@@ -116,14 +134,40 @@ async function classifyWithComparison(useNew, warpedCanvas) {
       if (result.board[f] !== other.board[f]) disagreementFields.push(f);
     }
   }
+  // Damlogica: klopt de materiaalbalans niet, dan worden de goedkoopste velden
+  // aangepast (zie enforceRules in plausibility.js), op basis van de gecombineerde
+  // kansen van beide herkenners. Aangepaste velden worden altijd als onzeker
+  // gemarkeerd en apart gemeld — niets verandert ongezien.
+  const otherProbs = secondary.status === "fulfilled" ? secondary.value.probs : null;
+  const fusedProbs = result.probs.map((p, f) => {
+    const q = otherProbs?.[f];
+    if (!p || !q) return p;
+    return { empty: (p.empty + q.empty) / 2, white: (p.white + q.white) / 2, black: (p.black + q.black) / 2 };
+  });
+  const boardBeforeRules = result.board;
+  const { board, changes } = enforceRules(boardBeforeRules, fusedProbs);
+  const confidences = [...result.confidences];
+  for (const c of changes) confidences[c.square] = 0.5;
+  const warnings = checkPlausibility(board, confidences);
+  if (changes.length) {
+    const word = { empty: "leeg", white: "wit", black: "zwart" };
+    warnings.unshift({
+      type: "corrected",
+      squares: changes.map((c) => c.square),
+      text:
+        `Omdat wit en zwart anders niet in balans waren, heeft de app ${changes.length} veld(en) aangepast: ` +
+        changes.map((c) => `veld ${c.square} (${word[c.from]} → ${word[c.to]})`).join(", ") +
+        ". Controleer die velden (geel gemarkeerd).",
+    });
+  }
   // Damregel-waarschuwingen met een specifiek veld (bv. "wit op veld 2: dam?")
   // horen ook bij de onzeker-velden — daar zonder specifiek veld (bv. "21 witte
   // schijven") kun je niet één veld voor aanwijzen, die komen alleen in de tekst
   // op het resultatenscherm.
-  const uncertainFields = [...new Set([...result.uncertainFields, ...disagreementFields, ...warningFields(result.warnings)])].sort(
+  const uncertainFields = [...new Set([...result.uncertainFields, ...disagreementFields, ...warningFields(warnings)])].sort(
     (a, b) => a - b
   );
-  return { ...result, uncertainFields, disagreementFields };
+  return { ...result, board, confidences, warnings, uncertainFields, disagreementFields, corrections: changes };
 }
 
 // Herkent een al eerder rechtgetrokken foto (de data-URL die bij een stand wordt
