@@ -1,9 +1,9 @@
 // Losse foto-import van één diagram. De hoeken/herkenning/resultaten-stap zelf
 // zit in diagramCaptureView.js, gedeeld met de bulk-import (zie CLAUDE.md-plan).
 
-import { detectBoardCorners } from "../recognition/detectBoard.js?v=20260918g";
-import { renderDiagramCapture } from "./diagramCaptureView.js?v=20260918g";
-import { loadDrawable, drawableSize } from "./imageInput.js?v=20260918g";
+import { detectBoardCorners } from "../recognition/detectBoard.js?v=20260920a";
+import { renderDiagramCapture } from "./diagramCaptureView.js?v=20260920a";
+import { loadDrawable, drawableSize } from "./imageInput.js?v=20260920a";
 
 function defaultCorners(width, height) {
   const mx = width * 0.12;

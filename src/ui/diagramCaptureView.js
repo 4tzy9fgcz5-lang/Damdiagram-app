@@ -3,21 +3,21 @@
 // foto-import als elke stap van de bulk-import (rij-door-diagrammen) precies
 // dezelfde, vertrouwde flow gebruiken.
 
-import { warpToSquareCanvas } from "../recognition/homography.js?v=20260918g";
-import { classifyBoard, CONFIDENCE_THRESHOLD, RECOGNITION_VERSION } from "../recognition/classify.js?v=20260918g";
+import { warpToSquareCanvas } from "../recognition/homography.js?v=20260920a";
+import { classifyBoard, CONFIDENCE_THRESHOLD, RECOGNITION_VERSION } from "../recognition/classify.js?v=20260920a";
 import {
   createClassifier as createNewClassifier,
   FLAG_BELOW as NEW_FLAG_BELOW,
   RECOGNITION_VERSION as NEW_RECOGNITION_VERSION,
-} from "../recognition/newClassify.js?v=20260918g";
+} from "../recognition/newClassify.js?v=20260920a";
 import {
   buildCornersOverlay,
   buildGridOverlay,
   buildFieldCrops,
   buildRawFieldCrops,
-} from "../recognition/debugRender.js?v=20260918g";
-import { FIELD_COUNT, createEmptyBoard, PIECE_TYPES } from "../core/board.js?v=20260918g";
-import { drawableSize, WORKING_MAX_SIDE } from "./imageInput.js?v=20260918g";
+} from "../recognition/debugRender.js?v=20260920a";
+import { FIELD_COUNT, createEmptyBoard, PIECE_TYPES } from "../core/board.js?v=20260920a";
+import { drawableSize, WORKING_MAX_SIDE } from "./imageInput.js?v=20260920a";
 
 // Ligt buiten het bereik van het cache-bust-bompscript (dat kijkt alleen naar JS-
 // imports/HTML-tags) — bij het trainen van een nieuw damscan/weights.json dus ook
@@ -54,7 +54,7 @@ async function classifyWith(useNew, warpedCanvas) {
       const d = canvas.getContext("2d").getImageData(0, 0, canvas.width, canvas.height);
       return { data: d.data, width: d.width, height: d.height };
     });
-    const { squares } = clf.classifyBoard(cropInputs);
+    const { squares, warnings } = clf.classifyBoard(cropInputs);
     const board = createEmptyBoard();
     const confidences = new Array(FIELD_COUNT + 1).fill(1);
     const uncertainFields = [];
@@ -64,7 +64,7 @@ async function classifyWith(useNew, warpedCanvas) {
       else if (sq.label === "black") board[sq.square] = PIECE_TYPES.BLACK_PIECE;
       if (sq.confidence < NEW_FLAG_BELOW) uncertainFields.push(sq.square);
     }
-    return { board, confidences, uncertainFields, modelVersion: NEW_RECOGNITION_VERSION };
+    return { board, confidences, uncertainFields, modelVersion: NEW_RECOGNITION_VERSION, warnings };
   }
 
   const size = warpedCanvas.width;
@@ -74,7 +74,10 @@ async function classifyWith(useNew, warpedCanvas) {
   for (let f = 1; f <= FIELD_COUNT; f++) {
     if (confidences[f] < CONFIDENCE_THRESHOLD) uncertainFields.push(f);
   }
-  return { board, confidences, uncertainFields, modelVersion: RECOGNITION_VERSION };
+  // De oude herkenning heeft geen eigen damregel-controle (sanityCheck bestaat
+  // alleen bij de nieuwe) — lege lijst, zodat de rest van deze pagina niet per
+  // classifier hoeft te onderscheiden of warnings er wel of niet zijn.
+  return { board, confidences, uncertainFields, modelVersion: RECOGNITION_VERSION, warnings: [] };
 }
 
 // Herkent met de gekozen classifier (die de weergegeven stand levert), en laat op
@@ -100,7 +103,14 @@ async function classifyWithComparison(useNew, warpedCanvas) {
       if (result.board[f] !== other.board[f]) disagreementFields.push(f);
     }
   }
-  const uncertainFields = [...new Set([...result.uncertainFields, ...disagreementFields])].sort((a, b) => a - b);
+  // Damregel-waarschuwingen met een specifiek veld (bv. "wit op veld 2: dam?")
+  // horen ook bij de onzeker-velden — daar zonder specifiek veld (bv. "21 witte
+  // schijven") kun je niet één veld voor aanwijzen, die komen alleen in de tekst
+  // op het resultatenscherm.
+  const warningFields = (result.warnings ?? []).filter((w) => typeof w.square === "number").map((w) => w.square);
+  const uncertainFields = [...new Set([...result.uncertainFields, ...disagreementFields, ...warningFields])].sort(
+    (a, b) => a - b
+  );
   return { ...result, uncertainFields, disagreementFields };
 }
 
@@ -202,6 +212,7 @@ export function renderDiagramCapture(container, { drawable, initialCorners, head
         </label>
       </div>
       <p data-role="summary"></p>
+      <div data-role="warnings"></div>
       <div class="button-row" style="margin-top:0;">
         <button type="button" class="primary" data-action="goto-editor">Ga naar editor</button>
         <button type="button" class="secondary" data-action="toggle-debug">Toon herkenningsstappen</button>
@@ -426,7 +437,7 @@ export function renderDiagramCapture(container, { drawable, initialCorners, head
     }
   }
 
-  function renderResults({ board, confidences, uncertainFields, disagreementFields }) {
+  function renderResults({ board, confidences, uncertainFields, disagreementFields, warnings }) {
     let occupied = 0;
     for (let f = 1; f <= FIELD_COUNT; f++) {
       if (board[f]) occupied++;
@@ -436,6 +447,13 @@ export function renderDiagramCapture(container, { drawable, initialCorners, head
       text += ` Daarvan ${disagreementFields.length} omdat de oude en nieuwe herkenning het niet met elkaar eens zijn.`;
     }
     el('[data-role="summary"]').textContent = text;
+
+    const warningsHost = el('[data-role="warnings"]');
+    warningsHost.innerHTML = warnings?.length
+      ? `<div class="warnings"><strong>Let op, controleer dit voor je verdergaat:</strong><ul>${warnings
+          .map((w) => `<li>${w.text}</li>`)
+          .join("")}</ul></div>`
+      : "";
   }
 
   function renderDebug({ board, confidences, uncertainFields, warpedCanvas, fullResCorners }) {
