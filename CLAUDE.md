@@ -177,6 +177,20 @@ bijgestelde versie (niet de volgorde uit het originele plan):
     rand die links dikker is dan rechts niet toe; (d) puur de sterkste
     randpiek nemen — de buitenkant van de rand (papier→rand) is vaak
     sterker dan de binnenkant (rand→patroon).
+  - **Terugval gevonden door Jan (2026-09-20) en opgelost:** bij losse foto's
+    pakte de automatische selectie soms een 8x8-raster i.p.v. 10x10 (een of
+    twee cellen per kant te veel weggesneden). Oorzaak: `findGridAxisRough()`
+    mocht een celbreedte van 0,72 t.o.v. het bord kiezen (aliasing op het
+    schaakbordpatroon), en de randdetectie had geen bovengrens. Fix:
+    `MAX_BORDER_FRACTION` = 8% — een rand is per kant nooit meer dan dat
+    (gemeten op echte foto's: tot ~6,5%, een hele cel is 10%), gebruikt in de
+    grove zoektocht, bij de donkere-band-methode en als laatste klem.
+    **Testmethode die dit vond:** de 5 bulk-paginafoto's in
+    `testdata/bulkpages/` geven ~45 losse diagrammen; die uitsnijden (zoals
+    `cropAroundCorners`) en door `detectCornersFromImageData` +
+    `stripBorderToPlayfield` halen en de inset per kant uitrekenen. Vóór de fix
+    13 van 45 met een kant >8% (tot 27%), erna 0 (grootste 8,0%). Tip voor
+    toekomstige wijzigingen aan `detectBoard.js`: draai dit opnieuw.
   - **Belangrijke bevinding (2026-09-20), nog niet opgelost:** met de strakke
     hoeken haalt de OUDE classifier op de 4 testfoto's met bekende stand
     (`testdata/testfotos/standen.txt`; IMG_0377 = de "532"-foto) samen maar

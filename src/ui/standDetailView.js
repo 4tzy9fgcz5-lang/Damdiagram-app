@@ -1,11 +1,11 @@
-import { parseFen } from "../core/fen.js?v=20260920t";
-import { getStand, saveStand, deleteStand } from "../db/standen.js?v=20260920t";
-import { getAllCategorieen } from "../db/categorieen.js?v=20260920t";
-import { createSolutionPlayer } from "./solutionPlayer.js?v=20260920t";
-import { getVerbergOplossing } from "../db/uiSettings.js?v=20260920t";
-import { renderDiagramSVG } from "../diagram/render.js?v=20260920t";
-import { svgToPngDataUrl } from "../export/rasterize.js?v=20260920t";
-import { downloadBlob } from "../export/docx.js?v=20260920t";
+import { parseFen } from "../core/fen.js?v=20260920u";
+import { getStand, saveStand, deleteStand } from "../db/standen.js?v=20260920u";
+import { getAllCategorieen } from "../db/categorieen.js?v=20260920u";
+import { createSolutionPlayer } from "./solutionPlayer.js?v=20260920u";
+import { getVerbergOplossing } from "../db/uiSettings.js?v=20260920u";
+import { renderDiagramSVG } from "../diagram/render.js?v=20260920u";
+import { svgToPngDataUrl } from "../export/rasterize.js?v=20260920u";
+import { downloadBlob } from "../export/docx.js?v=20260920u";
 
 function capitalize(str) {
   return str.charAt(0).toUpperCase() + str.slice(1);

@@ -1,4 +1,4 @@
-import { computeHomography, applyHomography, warpPerspective } from "./homography.js?v=20260920t";
+import { computeHomography, applyHomography, warpPerspective } from "./homography.js?v=20260920u";
 
 // Automatische hoekdetectie van het dambord op een foto — zonder externe
 // bibliotheken (de app blijft een platte, server-loze website). Gevalideerd
@@ -349,10 +349,15 @@ function findGridAxisRough(profile, size) {
   // duidelijk (>3%) beter scoort, niet bij een marginaal verschil (voorkomt
   // toevalstreffers op een erg regelmatig bord).
   for (let spacing = spacingMax; spacing >= spacingMin; spacing -= 0.5) {
-    const offsetMax = Math.min(size * 0.2, size - spacing * 10);
+    // Een rand is nooit meer dan MAX_BORDER_FRACTION van het bord per kant: een
+    // raster dat aan één kant meer weglaat is geen rand meer maar een hele cel
+    // (1 of 2 cellen wegsnijden gaf een 8x8- of 6x6-selectie i.p.v. 10x10).
+    const offsetMin = Math.max(0, size * (1 - MAX_BORDER_FRACTION) - 10 * spacing);
+    const offsetMax = Math.min(size * MAX_BORDER_FRACTION, size - spacing * 10);
+    if (offsetMin > offsetMax) continue;
     let bestForSpacing = null;
     let bestScoreForSpacing = -1;
-    for (let offset = 0; offset <= offsetMax; offset += 1) {
+    for (let offset = offsetMin; offset <= offsetMax; offset += 1) {
       let score = 0;
       for (let k = 1; k <= 9; k++) score += sampleProfile(profile, size, offset + k * spacing);
       if (score > bestScoreForSpacing) {
@@ -382,6 +387,9 @@ function findGridAxisRough(profile, size) {
 // celbreedte zelf (niet een vast deel van het beeld): bij een bord zonder rand
 // (het patroon vult de buitenkant al) mag de zoektocht nooit zo ver komen dat hij
 // per ongeluk een hele cel verderop, op een gewone interne rasterlijn, uitkomt.
+// Een bordrand is per kant nooit meer dan dit deel van de breedte/hoogte van het
+// (rechtgetrokken) beeld. Op echte foto's gemeten: tot ~6,5%; een hele cel is 10%.
+const MAX_BORDER_FRACTION = 0.08;
 const REFINE_RADIUS_CELL_FRACTION = 0.4;
 // Op alle 4 kanten kan, als de hoeken uit stap 1 al vlak tegen de bordrand
 // aanzaten, een extra, nóg sterkere randpiek vlak bij de uiterste rand van het
@@ -532,14 +540,24 @@ function findGridAxis(profile, means, size) {
   if (!rough) return null;
   const roughEnd = rough.offset + 10 * rough.spacing;
   const maxShift = rough.spacing * 1.2;
+  const maxInset = size * MAX_BORDER_FRACTION;
+  const clampStart = (v) => Math.min(Math.max(v, 0), maxInset);
+  const clampEnd = (v) => Math.max(Math.min(v, size), size - maxInset);
   // De donkere-band-methode is leidend; ligt zijn uitkomst onbegrijpelijk ver van
-  // de grove schatting, dan vertrouwen we hem niet en vallen we terug op de
-  // piekmethode.
-  const dark = (edge, roughPos) => (edge != null && Math.abs(edge - roughPos) <= maxShift ? edge : null);
-  const start = dark(findDarkBandInnerEdge(means, size, true), rough.offset)
-    ?? refineEdge(profile, size, rough.offset, rough.spacing, true);
-  const end = dark(findDarkBandInnerEdge(means, size, false), roughEnd)
-    ?? refineEdge(profile, size, roughEnd, rough.spacing, false);
+  // de grove schatting of dieper dan een rand kan zijn, dan vertrouwen we hem niet
+  // en vallen we terug op de piekmethode.
+  const dark = (edge, roughPos, fromStart) =>
+    edge != null && Math.abs(edge - roughPos) <= maxShift && (fromStart ? edge <= maxInset : edge >= size - maxInset)
+      ? edge
+      : null;
+  const start = clampStart(
+    dark(findDarkBandInnerEdge(means, size, true), rough.offset, true) ??
+      refineEdge(profile, size, rough.offset, rough.spacing, true)
+  );
+  const end = clampEnd(
+    dark(findDarkBandInnerEdge(means, size, false), roughEnd, false) ??
+      refineEdge(profile, size, roughEnd, rough.spacing, false)
+  );
   if (end - start < size * 0.5) return null;
   return { offset: start, spacing: (end - start) / 10 };
 }

@@ -1,5 +1,5 @@
-import { describe, it, assertTrue } from "./test-runner.js?v=20260920t";
-import { detectBoardCorners } from "../src/recognition/detectBoard.js?v=20260920t";
+import { describe, it, assertTrue } from "./test-runner.js?v=20260920u";
+import { detectBoardCorners } from "../src/recognition/detectBoard.js?v=20260920u";
 
 function approxEqual(a, b, eps) {
   return Math.abs(a - b) < eps;
@@ -137,5 +137,36 @@ describe("automatische hoekdetectie: rand wegsnijden tot het patroon", () => {
     const ys = corners.map((p) => p.y);
     assertTrue(approxEqual(Math.min(...xs), playfield.x0, 20), `linkerkant week te veel af: ${Math.min(...xs)}`);
     assertTrue(approxEqual(Math.max(...xs), playfield.x1, 20), `rechterkant week te veel af: ${Math.max(...xs)}`);
+  });
+
+  it("snijdt nooit meer dan een randbreedte weg, ook niet als het patroon verderop lijkt te beginnen", () => {
+    // Een kader van 20% (veel dikker dan een echte bordrand): het raster mag hooguit
+    // 8% per kant naar binnen schuiven, nooit een hele cel — anders krijg je een
+    // 8x8-selectie in plaats van 10x10.
+    const size = 700;
+    const frame = { x0: 100, y0: 100, x1: 600, y1: 600 };
+    const playfield = { x0: 200, y0: 200, x1: 500, y1: 500 };
+    const cell = (playfield.x1 - playfield.x0) / 10;
+    const canvas = document.createElement("canvas");
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext("2d");
+    ctx.fillStyle = "#e8dcc0";
+    ctx.fillRect(0, 0, size, size);
+    ctx.fillStyle = "#000000";
+    ctx.fillRect(frame.x0, frame.y0, frame.x1 - frame.x0, frame.y1 - frame.y0);
+    for (let row = 0; row < 10; row++) {
+      for (let col = 0; col < 10; col++) {
+        ctx.fillStyle = (row + col) % 2 === 0 ? "#3a2a18" : "#c9b183";
+        ctx.fillRect(playfield.x0 + col * cell, playfield.y0 + row * cell, cell, cell);
+      }
+    }
+    const corners = detectBoardCorners(canvas);
+    assertTrue(corners !== null, "verwachtte een gevonden bord");
+    const maxInset = (frame.x1 - frame.x0) * 0.08 + 6;
+    assertTrue(Math.min(...corners.map((p) => p.x)) <= frame.x0 + maxInset, "links te ver naar binnen");
+    assertTrue(Math.max(...corners.map((p) => p.x)) >= frame.x1 - maxInset, "rechts te ver naar binnen");
+    assertTrue(Math.min(...corners.map((p) => p.y)) <= frame.y0 + maxInset, "boven te ver naar binnen");
+    assertTrue(Math.max(...corners.map((p) => p.y)) >= frame.y1 - maxInset, "onder te ver naar binnen");
   });
 });

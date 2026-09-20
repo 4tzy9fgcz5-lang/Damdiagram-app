@@ -1,5 +1,5 @@
-import { describe, it, assertTrue } from "./test-runner.js?v=20260920t";
-import { refineGrid } from "../src/recognition/gridRefine.js?v=20260920t";
+import { describe, it, assertTrue } from "./test-runner.js?v=20260920u";
+import { refineGrid } from "../src/recognition/gridRefine.js?v=20260920u";
 
 // Bouwt een schaakbordpatroon van `size + 200` op een apart canvas en snijdt daar
 // een venster van `size` uit, verschoven met (shiftX, shiftY) t.o.v. het midden.
