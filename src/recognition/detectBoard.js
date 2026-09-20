@@ -1,5 +1,5 @@
-import { computeHomography, applyHomography, warpPerspective } from "./homography.js?v=20260921a";
-import { gridFitScore } from "./gridFit.js?v=20260921a";
+import { computeHomography, applyHomography, warpPerspective } from "./homography.js?v=20260921b";
+import { gridFitScore } from "./gridFit.js?v=20260921b";
 
 // Automatische hoekdetectie van het dambord op een foto — zonder externe
 // bibliotheken (de app blijft een platte, server-loze website). Gevalideerd
@@ -677,6 +677,48 @@ export function detectPlayfieldFromImageData(imageData, width, height) {
     source: chosen.source,
     scores: Object.fromEntries(candidates.map((c) => [c.source, c.score])),
   };
+}
+
+// Voor de bulk-import: `detectMultiBoard.js` levert per diagram de buitenrand
+// (inclusief de zwarte bordrand), waardoor het 10x10-raster tot een halve veld naast
+// de echte velden ligt. Dit snijdt die rand weg (zelfde stap als bij een losse foto,
+// met dezelfde begrenzing van 8% per kant, dus nooit een 8x8-selectie) en behoudt
+// het oorspronkelijke kader alleen als dat duidelijk beter bij het patroon past.
+// Zuivere kern: `imageData` en `corners` in dezelfde coördinaten.
+export function tightenCornersToPlayfield(imageData, corners) {
+  const tight = stripBorderToPlayfield(imageData, corners);
+  const keepOriginal = gridFitScore(imageData, corners) > gridFitScore(imageData, tight) * SWITCH_FACTOR;
+  return keepOriginal ? corners : tight;
+}
+
+// Browser-variant: `drawable` is de volledige (paginafoto), `corners` in de
+// coördinaten daarvan. Werkt op een uitsnede rond het diagram (max. ~1000px) zodat
+// het snel blijft, ook bij een foto van 12 megapixel.
+const TIGHTEN_CROP_PADDING = 0.1;
+const TIGHTEN_MAX_SIDE = 1000;
+export function tightenCornersOnDrawable(drawable, corners) {
+  const fullWidth = drawable.width ?? drawable.naturalWidth;
+  const fullHeight = drawable.height ?? drawable.naturalHeight;
+  const xs = corners.map((p) => p.x);
+  const ys = corners.map((p) => p.y);
+  const padX = (Math.max(...xs) - Math.min(...xs)) * TIGHTEN_CROP_PADDING;
+  const padY = (Math.max(...ys) - Math.min(...ys)) * TIGHTEN_CROP_PADDING;
+  const x0 = Math.max(0, Math.floor(Math.min(...xs) - padX));
+  const y0 = Math.max(0, Math.floor(Math.min(...ys) - padY));
+  const x1 = Math.min(fullWidth, Math.ceil(Math.max(...xs) + padX));
+  const y1 = Math.min(fullHeight, Math.ceil(Math.max(...ys) + padY));
+  const cropWidth = Math.max(1, x1 - x0);
+  const cropHeight = Math.max(1, y1 - y0);
+  const scale = Math.min(1, TIGHTEN_MAX_SIDE / Math.max(cropWidth, cropHeight));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.round(cropWidth * scale));
+  canvas.height = Math.max(1, Math.round(cropHeight * scale));
+  const ctx = canvas.getContext("2d");
+  ctx.drawImage(drawable, x0, y0, cropWidth, cropHeight, 0, 0, canvas.width, canvas.height);
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const local = corners.map((p) => ({ x: (p.x - x0) * scale, y: (p.y - y0) * scale }));
+  const result = tightenCornersToPlayfield(imageData, local);
+  return result.map((p) => ({ x: p.x / scale + x0, y: p.y / scale + y0 }));
 }
 
 // drawable: een canvas/bitmap/image met .width/.height, tekenbaar via drawImage.

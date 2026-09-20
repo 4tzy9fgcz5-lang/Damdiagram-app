@@ -151,10 +151,24 @@ dan de nieuwe. Aanpak en uitkomst:
   bijgesneden foto met een titelregel erboven krijgt de titelregel mee in het
   kader (lichte scheefstand van het raster), en foto's met een breed zwart kader
   om het bord (IMG_1058) vallen terug op de vaste marge.
-- **Bulk-import niet aangepast/gemeten.** `detectMultiBoard.js` levert de
-  buitenrand zonder `stripBorderToPlayfield`/`gridFit`; op paginafoto's van 700px
-  zijn de diagrammen te klein om de score betrouwbaar te meten. Als Jan de 8x8-
-  fout ook in de bulk-route ziet: eerst dáárop meten (volledige resolutie).
+- **Bulk-import (gemeten 2026-09-21 op volle resolutie, 107 kandidaten uit 33
+  paginafoto's).** Geen 8x8 in deze route, maar `detectMultiBoard.js` levert de
+  buitenrand mét zwarte bordrand: het 10x10-raster lag daardoor tot een halve
+  veldbreedte naast de velden (`refineGrid` corrigeert maar ±1,2% verschuiving/±3%
+  schaal, dat is te weinig voor een rand van 5-13%). Nu snijdt
+  `bulkImportView.js` per gevonden diagram de rand weg met
+  `tightenCornersOnDrawable()` (`detectBoard.js`; dezelfde `stripBorderToPlayfield`,
+  dus max. 8% per kant, en het oorspronkelijke kader blijft alleen staan als dat
+  >15% beter bij het patroon past). Op de meetplaatjes staat het raster daarna in
+  vrijwel alle gevallen op de velden. Let op: de detectie in de app draait op 1600px
+  (`detectMultiBoard.js`, `WORKING_SIZE`), NIET op 700px zoals bij een losse foto —
+  op 700px lijken tekstblokken op diagrammen. Bekende rest: tekstblokken/foto's
+  worden soms als "diagram" gevonden (Jan verwijdert die in het overzicht), en een
+  foto waarop het bord maar ~25% van het beeld beslaat (IMG_1056) geeft in de bulk-
+  detectie kleine onzin-kaders. Herkenning op de oranje/sepia stijl (pagina 855108d9)
+  is zwak bij beide herkenners (oud 22, nieuw 17 stukken, oneens over 27 van de 50
+  velden) — dat is classificatie, geen geometrie. Meetprogramma:
+  `tools/meetBulkImport.mjs`.
 - **Damlogica uit.** `classifyWithComparison()` past de stand niet meer aan
   (`enforceRules` wordt niet meer aangeroepen) en markeert geen extra velden op
   basis van balans/"dam?". Alleen de waarschuwingen "geen enkel stuk herkend" en

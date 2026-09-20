@@ -1,6 +1,6 @@
-import { describe, it, assertEqual, assertTrue } from "./test-runner.js?v=20260921a";
-import { buildGridOverlay, buildFieldCrops, buildRawFieldCrops } from "../src/recognition/debugRender.js?v=20260921a";
-import { createEmptyBoard, PIECE_TYPES } from "../src/core/board.js?v=20260921a";
+import { describe, it, assertEqual, assertTrue } from "./test-runner.js?v=20260921b";
+import { buildGridOverlay, buildFieldCrops, buildRawFieldCrops } from "../src/recognition/debugRender.js?v=20260921b";
+import { createEmptyBoard, PIECE_TYPES } from "../src/core/board.js?v=20260921b";
 
 function makeWarpedCanvas(size = 300) {
   const canvas = document.createElement("canvas");

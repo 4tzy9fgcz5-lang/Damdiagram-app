@@ -3,23 +3,23 @@
 // foto-import als elke stap van de bulk-import (rij-door-diagrammen) precies
 // dezelfde, vertrouwde flow gebruiken.
 
-import { warpToSquareCanvas } from "../recognition/homography.js?v=20260921a";
-import { classifyBoard, CONFIDENCE_THRESHOLD, RECOGNITION_VERSION } from "../recognition/classify.js?v=20260921a";
+import { warpToSquareCanvas } from "../recognition/homography.js?v=20260921b";
+import { classifyBoard, CONFIDENCE_THRESHOLD, RECOGNITION_VERSION } from "../recognition/classify.js?v=20260921b";
 import {
   createClassifier as createNewClassifier,
   FLAG_BELOW as NEW_FLAG_BELOW,
   RECOGNITION_VERSION as NEW_RECOGNITION_VERSION,
-} from "../recognition/newClassify.js?v=20260921a";
-import { refineGrid } from "../recognition/gridRefine.js?v=20260921a";
-import { checkPlausibility } from "../recognition/plausibility.js?v=20260921a";
+} from "../recognition/newClassify.js?v=20260921b";
+import { refineGrid } from "../recognition/gridRefine.js?v=20260921b";
+import { checkPlausibility } from "../recognition/plausibility.js?v=20260921b";
 import {
   buildCornersOverlay,
   buildGridOverlay,
   buildFieldCrops,
   buildRawFieldCrops,
-} from "../recognition/debugRender.js?v=20260921a";
-import { FIELD_COUNT, createEmptyBoard, PIECE_TYPES } from "../core/board.js?v=20260921a";
-import { drawableSize, WORKING_MAX_SIDE } from "./imageInput.js?v=20260921a";
+} from "../recognition/debugRender.js?v=20260921b";
+import { FIELD_COUNT, createEmptyBoard, PIECE_TYPES } from "../core/board.js?v=20260921b";
+import { drawableSize, WORKING_MAX_SIDE } from "./imageInput.js?v=20260921b";
 
 // Ligt buiten het bereik van het cache-bust-bompscript (dat kijkt alleen naar JS-
 // imports/HTML-tags) — bij het trainen van een nieuw damscan/weights.json dus ook

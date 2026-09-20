@@ -4,9 +4,10 @@
 // hoeken-stap (diagramCaptureView.js) — hier alleen verwijderen wat niet hoort en
 // zelf toevoegen wat gemist is.
 
-import { loadDrawable, drawableSize, WORKING_MAX_SIDE } from "./imageInput.js?v=20260921a";
-import { detectMultipleBoardCorners } from "../recognition/detectMultiBoard.js?v=20260921a";
-import { getList, addListValue } from "../db/lijsten.js?v=20260921a";
+import { loadDrawable, drawableSize, WORKING_MAX_SIDE } from "./imageInput.js?v=20260921b";
+import { detectMultipleBoardCorners } from "../recognition/detectMultiBoard.js?v=20260921b";
+import { tightenCornersOnDrawable } from "../recognition/detectBoard.js?v=20260921b";
+import { getList, addListValue } from "../db/lijsten.js?v=20260921b";
 
 const COLORS = ["#d1495b", "#1a5c38", "#3a6ea5", "#e0a800", "#8854d0", "#009688"];
 
@@ -191,6 +192,16 @@ export async function renderBulkImportView(container, { onConfirmed } = {}) {
       } catch {
         detected = [];
       }
+      // De gevonden buitenrand bevat nog de zwarte bordrand; snijd die per diagram
+      // weg zodat het raster op de echte velden ligt. Lukt dat niet, dan blijft het
+      // oorspronkelijke kader staan.
+      detected = detected.map((corners) => {
+        try {
+          return tightenCornersOnDrawable(drawable, corners);
+        } catch {
+          return corners;
+        }
+      });
       items = detected.map((corners) => ({ id: nextId++, corners, manual: false }));
 
       status.textContent =
