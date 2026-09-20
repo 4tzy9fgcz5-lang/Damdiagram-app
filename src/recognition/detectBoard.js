@@ -1,5 +1,5 @@
-import { computeHomography, applyHomography, warpPerspective } from "./homography.js?v=20260921b";
-import { gridFitScore } from "./gridFit.js?v=20260921b";
+import { computeHomography, applyHomography, warpPerspective } from "./homography.js?v=20260921c";
+import { gridFitScore } from "./gridFit.js?v=20260921c";
 
 // Automatische hoekdetectie van het dambord op een foto — zonder externe
 // bibliotheken (de app blijft een platte, server-loze website). Gevalideerd

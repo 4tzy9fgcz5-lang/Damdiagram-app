@@ -182,6 +182,28 @@ dan de nieuwe. Aanpak en uitkomst:
   over het hoofd, de nieuwe mist er op 532 juist. "Als één van beide een schijf
   ziet, neem die" gaf 41 fouten en op één foto een slechter resultaat — niet
   overgenomen. Het gele onenigheid-randje blijft het vangnet.
+- **Hertraining op Jans export van 140 diagrammen (2026-09-21) — geen winst.**
+  Werkwijze (vanuit de project-root, dit overschrijft niets als je de export in een
+  aparte map uitpakt): (1) `#/backup` → "Trainingsmateriaal" → ZIP; (2) uitpakken in
+  een lege map; eventueel de oude `labels.txt` eraan plakken en `crops/` samenvoegen;
+  (3) `node damscan/train.js <map>/labels.txt <map>/crops <map>/weights_nieuw.json`
+  (duurt ~4 min bij 164 diagrammen; alleen de kandidaat-gewichten worden
+  weggeschreven, `damscan/weights.json` blijft ongemoeid); (4) pas na een gunstige
+  meting `weights_nieuw.json` naar `damscan/weights.json` kopiëren en
+  `WEIGHTS_VERSION` in `diagramCaptureView.js` ophogen. Toetsen op ongeziene data:
+  `node damscan/evaluate.js labels.txt crops weights.json`. Uitkomst: 164 diagrammen
+  (13 "stijlen"), eerlijke meting op een onbekende stijl 92,2% (variant "beide");
+  het HUIDIGE model (getraind op 24) haalt op de 140 nieuwe, ongeziene diagrammen al
+  92,4% — dus 140 extra voorbeelden lossen de fouten niet op (het model, een
+  logistische regressie op 14 kenmerken, zit tegen zijn grens; fouten zijn gelijk
+  verdeeld: buitenrand-velden 9,2%, binnenste 6,7%). Niet geïnstalleerd. Volgende
+  stap zou een sterker model zijn (bv. klein neuraal netwerkje op de 8200 gelabelde
+  velduitsneden), niet meer data. Let op bij de data: 68 van de 140 diagrammen
+  hebben geen boekstijl (tellen als één stijl "onbekend"), en "Kovrizjkin" en
+  "Kovrizkin" zijn twee spellingen van dezelfde stijl (tellen als twee).
+  **Export-fout hersteld:** een boekstijl met een spatie ("Damspel Kleingoed") gaf
+  een ongeldige regel in `labels.txt` waardoor `train.js` direct stopte;
+  `boardToLabelLine()` (`labelFormat.js`) zet spaties nu om in `_`.
 - **Meetprogramma:** `tools/meetHoekdetectie.mjs` (Node, geen browser) draait de
   detectie op een map PNG's en tekent de gevonden kaders. Gebruikt met Jans 130
   foto's uit `~/Downloads/Dammen` (bijna alle boekstijlen); zie de kop van het

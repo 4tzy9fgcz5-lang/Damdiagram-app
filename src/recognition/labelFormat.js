@@ -1,4 +1,4 @@
-import { FIELD_COUNT, PIECE_TYPES } from "../core/board.js?v=20260921b";
+import { FIELD_COUNT, PIECE_TYPES } from "../core/board.js?v=20260921c";
 
 // Schrijft één regel in het labels.txt-formaat dat damscan/labels.js verwacht
 // (zie daar `parseLabelFile`/`formatLabelLine` — dit is bewust dezelfde
@@ -36,6 +36,9 @@ export function boardToLabelLine(photo, board, style) {
     if (piece === PIECE_TYPES.WHITE_PIECE || piece === PIECE_TYPES.WHITE_KING) white.push(f);
     else if (piece === PIECE_TYPES.BLACK_PIECE || piece === PIECE_TYPES.BLACK_KING) black.push(f);
   }
-  const tag = style ? ` @${style}` : "";
+  // Het label-formaat (damscan/labels.js) kent maar één woord per stijl: een
+  // boekstijl als "Damspel Kleingoed" met een spatie maakte de hele regel ongeldig
+  // en liet `damscan/train.js` er in zijn geheel op vastlopen. Spaties worden dus "_".
+  const tag = style ? ` @${style.trim().replace(/\s+/g, "_")}` : "";
   return `${photo}${tag}  W: ${groupRanges(white)}  Z: ${groupRanges(black)}`;
 }

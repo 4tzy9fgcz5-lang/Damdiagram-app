@@ -1,6 +1,6 @@
-import { describe, it, assertEqual } from "./test-runner.js?v=20260921b";
-import { boardToLabelLine } from "../src/recognition/labelFormat.js?v=20260921b";
-import { createEmptyBoard } from "../src/core/board.js?v=20260921b";
+import { describe, it, assertEqual } from "./test-runner.js?v=20260921c";
+import { boardToLabelLine } from "../src/recognition/labelFormat.js?v=20260921c";
+import { createEmptyBoard } from "../src/core/board.js?v=20260921c";
 
 function boardFrom(whiteFields, blackFields) {
   const board = createEmptyBoard();
@@ -24,6 +24,11 @@ describe("labels.txt-regel voor damscan", () => {
   it("laat de @stijl-tag weg als die niet is opgegeven", () => {
     const line = boardToLabelLine("diag02", boardFrom([1], []), "");
     assertEqual(line, "diag02  W: 1  Z: -");
+  });
+
+  it("vervangt spaties in een boekstijl door '_' (anders is de regel ongeldig voor train.js)", () => {
+    const line = boardToLabelLine("diag05", boardFrom([1], [2]), "Damspel Kleingoed");
+    assertEqual(line, "diag05 @Damspel_Kleingoed  W: 1  Z: 2");
   });
 
   it("telt een dam mee als zijn gewone kleur (geen aparte damnotatie)", () => {
