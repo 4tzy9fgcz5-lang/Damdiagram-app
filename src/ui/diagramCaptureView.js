@@ -3,23 +3,28 @@
 // foto-import als elke stap van de bulk-import (rij-door-diagrammen) precies
 // dezelfde, vertrouwde flow gebruiken.
 
-import { warpToSquareCanvas } from "../recognition/homography.js?v=20260921c";
-import { classifyBoard, CONFIDENCE_THRESHOLD, RECOGNITION_VERSION } from "../recognition/classify.js?v=20260921c";
+import { warpToSquareCanvas } from "../recognition/homography.js?v=20260921e";
+import { classifyBoard, CONFIDENCE_THRESHOLD, RECOGNITION_VERSION } from "../recognition/classify.js?v=20260921e";
 import {
   createClassifier as createNewClassifier,
   FLAG_BELOW as NEW_FLAG_BELOW,
   RECOGNITION_VERSION as NEW_RECOGNITION_VERSION,
-} from "../recognition/newClassify.js?v=20260921c";
-import { refineGrid } from "../recognition/gridRefine.js?v=20260921c";
-import { checkPlausibility } from "../recognition/plausibility.js?v=20260921c";
+} from "../recognition/newClassify.js?v=20260921e";
+import {
+  createCnnClassifier,
+  CNN_FLAG_BELOW,
+  CNN_RECOGNITION_VERSION,
+} from "../recognition/cnnClassify.js?v=20260921e";
+import { refineGrid } from "../recognition/gridRefine.js?v=20260921e";
+import { checkPlausibility } from "../recognition/plausibility.js?v=20260921e";
 import {
   buildCornersOverlay,
   buildGridOverlay,
   buildFieldCrops,
   buildRawFieldCrops,
-} from "../recognition/debugRender.js?v=20260921c";
-import { FIELD_COUNT, createEmptyBoard, PIECE_TYPES } from "../core/board.js?v=20260921c";
-import { drawableSize, WORKING_MAX_SIDE } from "./imageInput.js?v=20260921c";
+} from "../recognition/debugRender.js?v=20260921e";
+import { FIELD_COUNT, createEmptyBoard, PIECE_TYPES } from "../core/board.js?v=20260921e";
+import { drawableSize, WORKING_MAX_SIDE } from "./imageInput.js?v=20260921e";
 
 // Ligt buiten het bereik van het cache-bust-bompscript (dat kijkt alleen naar JS-
 // imports/HTML-tags) — bij het trainen van een nieuw damscan/weights.json dus ook
@@ -40,6 +45,32 @@ function getNewClassifier() {
   return newClassifierPromise;
 }
 
+// Zelfde verhaal voor het neurale netwerkje (damscan/cnn_weights.json): na elke
+// hertraining hier met de hand ophogen.
+const CNN_WEIGHTS_VERSION = "20260921a";
+
+let cnnClassifierPromise = null;
+function getCnnClassifier() {
+  if (!cnnClassifierPromise) {
+    cnnClassifierPromise = fetch(`damscan/cnn_weights.json?v=${CNN_WEIGHTS_VERSION}`)
+      .then((r) => {
+        if (!r.ok) throw new Error("kon damscan/cnn_weights.json niet laden");
+        return r.json();
+      })
+      .then((weights) => createCnnClassifier(weights));
+  }
+  return cnnClassifierPromise;
+}
+
+// Zet de 50 veld-uitsneden van een rechtgetrokken bord om naar pixeldata voor een
+// bord-classifier (nieuwe herkenning en neuraal netwerkje gebruiken dezelfde invoer).
+function boardCropInputs(warpedCanvas) {
+  return buildRawFieldCrops(warpedCanvas).map(({ canvas }) => {
+    const d = canvas.getContext("2d").getImageData(0, 0, canvas.width, canvas.height);
+    return { data: d.data, width: d.width, height: d.height };
+  });
+}
+
 // De oude herkenning geeft per veld alleen het gekozen antwoord + hoe zeker; de
 // overige kans wordt gelijk over de twee andere antwoorden verdeeld, zodat ze
 // dezelfde vorm heeft als de kansen van de nieuwe herkenning.
@@ -57,20 +88,16 @@ function probsFromConfidences(board, confidences) {
 // Herkent één rechtgetrokken bord met de gekozen classifier. Geeft altijd hetzelfde
 // vorm terug (board/confidences/uncertainFields/modelVersion), zodat de rest van
 // deze pagina niet hoeft te weten welke classifier er precies draaide.
-async function classifyWith(useNew, warpedCanvas) {
-  if (useNew) {
+async function classifyWith(kind, warpedCanvas) {
+  if (kind === "cnn" || kind === "new") {
     let clf;
     try {
-      clf = await getNewClassifier();
+      clf = kind === "cnn" ? await getCnnClassifier() : await getNewClassifier();
     } catch (err) {
-      throw new Error(`nieuwe herkenning kon niet laden (${err.message}) — probeer de oude via de schakelaar`);
+      throw new Error(`deze herkenning kon niet laden (${err.message}) — probeer een andere via de schakelaar`);
     }
-    const rawCrops = buildRawFieldCrops(warpedCanvas);
-    const cropInputs = rawCrops.map(({ canvas }) => {
-      const d = canvas.getContext("2d").getImageData(0, 0, canvas.width, canvas.height);
-      return { data: d.data, width: d.width, height: d.height };
-    });
-    const { squares } = clf.classifyBoard(cropInputs);
+    const { squares } = clf.classifyBoard(boardCropInputs(warpedCanvas));
+    const flagBelow = kind === "cnn" ? CNN_FLAG_BELOW : NEW_FLAG_BELOW;
     const board = createEmptyBoard();
     const confidences = new Array(FIELD_COUNT + 1).fill(1);
     const probs = new Array(FIELD_COUNT + 1).fill(null);
@@ -80,15 +107,13 @@ async function classifyWith(useNew, warpedCanvas) {
       probs[sq.square] = sq.probs;
       if (sq.label === "white") board[sq.square] = PIECE_TYPES.WHITE_PIECE;
       else if (sq.label === "black") board[sq.square] = PIECE_TYPES.BLACK_PIECE;
-      if (sq.confidence < NEW_FLAG_BELOW) uncertainFields.push(sq.square);
+      if (sq.confidence < flagBelow) uncertainFields.push(sq.square);
     }
-    // De damregel-controle is voor beide herkenners gelijk en zit in plausibility.js
-    // (de eigen sanityCheck van de nieuwe herkenner blijft ongebruikt hier).
     return {
       board,
       confidences,
       uncertainFields,
-      modelVersion: NEW_RECOGNITION_VERSION,
+      modelVersion: kind === "cnn" ? CNN_RECOGNITION_VERSION : NEW_RECOGNITION_VERSION,
       warnings: checkPlausibility(board, confidences),
       probs,
     };
@@ -119,19 +144,27 @@ async function classifyWith(useNew, warpedCanvas) {
 // dekken, groter dan wat elke methode voor zichzelf al als onzeker herkent. Als de
 // andere classifier om wat voor reden dan ook niet laadt, gaat de herkenning
 // gewoon door zonder die extra vergelijking.
-async function classifyWithComparison(useNew, warpedCanvas) {
+async function classifyWithComparison(kind, warpedCanvas) {
+  // Het neurale netwerkje is zo veel nauwkeuriger dan de oude herkenning (98,8% tegen
+  // circa 90% op onbekende boekstijlen) dat vergelijken met de oude vooral ruis
+  // oplevert: het markeert dan alleen wat het zelf onzeker vindt.
+  if (kind === "cnn") {
+    const result = await classifyWith("cnn", warpedCanvas);
+    return { ...result, warnings: result.warnings.filter((w) => w.type === "none" || w.type === "count"), disagreementFields: [] };
+  }
+  const other = kind === "new" ? "old" : "new";
   const [primary, secondary] = await Promise.allSettled([
-    classifyWith(useNew, warpedCanvas),
-    classifyWith(!useNew, warpedCanvas),
+    classifyWith(kind, warpedCanvas),
+    classifyWith(other, warpedCanvas),
   ]);
   if (primary.status === "rejected") throw primary.reason;
   const result = primary.value;
 
   const disagreementFields = [];
   if (secondary.status === "fulfilled") {
-    const other = secondary.value;
+    const otherResult = secondary.value;
     for (let f = 1; f <= FIELD_COUNT; f++) {
-      if (result.board[f] !== other.board[f]) disagreementFields.push(f);
+      if (result.board[f] !== otherResult.board[f]) disagreementFields.push(f);
     }
   }
   // Damlogica (materiaalbalans, "dam?" op de damrij) staat sinds 2026-09-21 UIT: Jan
@@ -149,7 +182,7 @@ async function classifyWithComparison(useNew, warpedCanvas) {
 // opgeslagen) nogmaals, met de gekozen classifier — voor de schakelaar op het
 // correctiescherm (editorView.js): daar wil je soms alsnog van classifier kunnen
 // wisselen zonder terug te gaan naar de hoeken/resultaten-stap.
-export async function reclassifyFromDataUrl(photoDataUrl, useNew) {
+export async function reclassifyFromDataUrl(photoDataUrl, kind) {
   const img = new Image();
   await new Promise((resolve, reject) => {
     img.onload = () => resolve();
@@ -160,7 +193,7 @@ export async function reclassifyFromDataUrl(photoDataUrl, useNew) {
   canvas.width = img.naturalWidth;
   canvas.height = img.naturalHeight;
   canvas.getContext("2d").drawImage(img, 0, 0);
-  return classifyWithComparison(useNew, canvas);
+  return classifyWithComparison(kind, canvas);
 }
 
 const WARP_SIZE = 500;
@@ -220,10 +253,13 @@ export function renderDiagramCapture(container, { drawable, initialCorners, head
       </div>
       <div class="quick-actions" style="justify-content:flex-start;" data-role="classifier-toggle">
         <label style="display:inline-flex;align-items:center;gap:0.3rem;font-weight:normal;margin:0;">
-          <input type="radio" name="classifier-corners" value="new" /> Nieuwe herkenning (experimenteel)
+          <input type="radio" name="classifier-corners" value="cnn" checked /> Neuraal netwerk (aanbevolen)
         </label>
         <label style="display:inline-flex;align-items:center;gap:0.3rem;font-weight:normal;margin:0;">
-          <input type="radio" name="classifier-corners" value="old" checked /> Oude herkenning (aanbevolen)
+          <input type="radio" name="classifier-corners" value="old" /> Oude herkenning
+        </label>
+        <label style="display:inline-flex;align-items:center;gap:0.3rem;font-weight:normal;margin:0;">
+          <input type="radio" name="classifier-corners" value="new" /> Nieuwe herkenning (experimenteel)
         </label>
       </div>
       <div class="button-row">
@@ -236,10 +272,13 @@ export function renderDiagramCapture(container, { drawable, initialCorners, head
     <div class="card" data-role="results" style="display:none;">
       <div class="quick-actions" style="justify-content:flex-start;" data-role="classifier-toggle">
         <label style="display:inline-flex;align-items:center;gap:0.3rem;font-weight:normal;margin:0;">
-          <input type="radio" name="classifier-results" value="new" /> Nieuwe herkenning (experimenteel)
+          <input type="radio" name="classifier-results" value="cnn" checked /> Neuraal netwerk (aanbevolen)
         </label>
         <label style="display:inline-flex;align-items:center;gap:0.3rem;font-weight:normal;margin:0;">
-          <input type="radio" name="classifier-results" value="old" checked /> Oude herkenning (aanbevolen)
+          <input type="radio" name="classifier-results" value="old" /> Oude herkenning
+        </label>
+        <label style="display:inline-flex;align-items:center;gap:0.3rem;font-weight:normal;margin:0;">
+          <input type="radio" name="classifier-results" value="new" /> Nieuwe herkenning (experimenteel)
         </label>
       </div>
       <p data-role="summary"></p>
@@ -275,9 +314,9 @@ export function renderDiagramCapture(container, { drawable, initialCorners, head
   let corners = initialCorners.map((p) => ({ x: p.x * scale, y: p.y * scale }));
   let dragIndex = -1;
   let lastRecognition = null;
-  // Sinds 2026-09-21 staat de oude herkenning standaard: op Jans testfoto's met
-  // strakke hoeken deed die het duidelijk beter dan de nieuwe (zie CLAUDE.md).
-  let useNewClassifier = false;
+  // Sinds 2026-09-21 is het neurale netwerkje de standaard (98,8% goed op onbekende
+  // boekstijlen; de oude herkenning en de nieuwe blijven kiesbaar, zie CLAUDE.md).
+  let classifierKind = "cnn";
 
   // Twee losse exemplaren van dezelfde schakelaar (hoeken-scherm en resultaten-
   // scherm) — eigen `name` per stel (anders vormen ze onbedoeld één radiogroep en
@@ -294,7 +333,7 @@ export function renderDiagramCapture(container, { drawable, initialCorners, head
   for (const toggle of classifierToggles) {
     toggle.addEventListener("change", (e) => {
       if (e.target.name.indexOf("classifier-") !== 0 || !e.target.checked) return;
-      useNewClassifier = e.target.value === "new";
+      classifierKind = e.target.value;
       syncClassifierToggles(e.target.value);
       if (lastRecognition && resultsCard.style.display !== "none") reclassify();
     });
@@ -445,7 +484,7 @@ export function renderDiagramCapture(container, { drawable, initialCorners, head
       const gridRefine = refineGrid(roughWarpedCanvas);
       const warpedCanvas = gridRefine.canvas;
       const photoDataUrl = warpedCanvas.toDataURL("image/jpeg", 0.85);
-      const result = await classifyWithComparison(useNewClassifier, warpedCanvas);
+      const result = await classifyWithComparison(classifierKind, warpedCanvas);
 
       lastRecognition = { ...result, photoDataUrl, warpedCanvas, scaleUp, fullResCorners, gridRefine };
       renderResults(lastRecognition);
@@ -466,7 +505,7 @@ export function renderDiagramCapture(container, { drawable, initialCorners, head
     summary.textContent = "Bezig met herkennen...";
     try {
       const { warpedCanvas, photoDataUrl, scaleUp, fullResCorners, gridRefine } = lastRecognition;
-      const result = await classifyWithComparison(useNewClassifier, warpedCanvas);
+      const result = await classifyWithComparison(classifierKind, warpedCanvas);
       lastRecognition = { ...result, photoDataUrl, warpedCanvas, scaleUp, fullResCorners, gridRefine };
       renderResults(lastRecognition);
       if (el('[data-role="debug"]').style.display !== "none") renderDebug(lastRecognition);

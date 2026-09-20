@@ -4,10 +4,10 @@
 // hoeken-stap (diagramCaptureView.js) — hier alleen verwijderen wat niet hoort en
 // zelf toevoegen wat gemist is.
 
-import { loadDrawable, drawableSize, WORKING_MAX_SIDE } from "./imageInput.js?v=20260921c";
-import { detectMultipleBoardCorners } from "../recognition/detectMultiBoard.js?v=20260921c";
-import { tightenCornersOnDrawable } from "../recognition/detectBoard.js?v=20260921c";
-import { getList, addListValue } from "../db/lijsten.js?v=20260921c";
+import { loadDrawable, drawableSize, WORKING_MAX_SIDE } from "./imageInput.js?v=20260921e";
+import { detectMultipleBoardCorners } from "../recognition/detectMultiBoard.js?v=20260921e";
+import { tightenCornersOnDrawable } from "../recognition/detectBoard.js?v=20260921e";
+import { getList, addListValue } from "../db/lijsten.js?v=20260921e";
 
 const COLORS = ["#d1495b", "#1a5c38", "#3a6ea5", "#e0a800", "#8854d0", "#009688"];
 

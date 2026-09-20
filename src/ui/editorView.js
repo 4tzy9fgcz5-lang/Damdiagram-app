@@ -1,15 +1,16 @@
-import { createBoardEditor, createPalette } from "./boardEditor.js?v=20260921c";
-import { createSolutionInput } from "./solutionInput.js?v=20260921c";
-import { createEmptyBoard, countPieces, isWhite, isBlack } from "../core/board.js?v=20260921c";
-import { parseFen, boardToFen, FenParseError } from "../core/fen.js?v=20260921c";
-import { parseStandInput, QuickTextParseError } from "../core/quicktext.js?v=20260921c";
-import { validateBoard } from "../core/validate.js?v=20260921c";
-import { saveStand, getStand, findDuplicates } from "../db/standen.js?v=20260921c";
-import { getList, addListValue } from "../db/lijsten.js?v=20260921c";
-import { getAllCategorieen } from "../db/categorieen.js?v=20260921c";
-import { logHerkenningCorrectie } from "../db/herkenningLog.js?v=20260921c";
-import { reclassifyFromDataUrl } from "./diagramCaptureView.js?v=20260921c";
-import { RECOGNITION_VERSION as NEW_MODEL_VERSION } from "../recognition/newClassify.js?v=20260921c";
+import { createBoardEditor, createPalette } from "./boardEditor.js?v=20260921e";
+import { createSolutionInput } from "./solutionInput.js?v=20260921e";
+import { createEmptyBoard, countPieces, isWhite, isBlack } from "../core/board.js?v=20260921e";
+import { parseFen, boardToFen, FenParseError } from "../core/fen.js?v=20260921e";
+import { parseStandInput, QuickTextParseError } from "../core/quicktext.js?v=20260921e";
+import { validateBoard } from "../core/validate.js?v=20260921e";
+import { saveStand, getStand, findDuplicates } from "../db/standen.js?v=20260921e";
+import { getList, addListValue } from "../db/lijsten.js?v=20260921e";
+import { getAllCategorieen } from "../db/categorieen.js?v=20260921e";
+import { logHerkenningCorrectie } from "../db/herkenningLog.js?v=20260921e";
+import { reclassifyFromDataUrl } from "./diagramCaptureView.js?v=20260921e";
+import { RECOGNITION_VERSION as NEW_MODEL_VERSION } from "../recognition/newClassify.js?v=20260921e";
+import { CNN_RECOGNITION_VERSION as CNN_MODEL_VERSION } from "../recognition/cnnClassify.js?v=20260921e";
 
 const MOEILIJKHEID_MAX = 5;
 
@@ -49,10 +50,13 @@ export async function renderEditorView(
                   <img src="${photoDataUrl}" style="width:100%;border-radius:8px;border:1px solid #d0d0d0;display:block;" />
                   <div class="quick-actions" style="justify-content:flex-start;margin-top:0.5rem;">
                     <label style="display:inline-flex;align-items:center;gap:0.3rem;font-weight:normal;margin:0;">
-                      <input type="radio" name="editor-classifier" value="new" /> Nieuwe herkenning
+                      <input type="radio" name="editor-classifier" value="cnn" /> Neuraal netwerk
                     </label>
                     <label style="display:inline-flex;align-items:center;gap:0.3rem;font-weight:normal;margin:0;">
                       <input type="radio" name="editor-classifier" value="old" /> Oude herkenning
+                    </label>
+                    <label style="display:inline-flex;align-items:center;gap:0.3rem;font-weight:normal;margin:0;">
+                      <input type="radio" name="editor-classifier" value="new" /> Nieuwe herkenning
                     </label>
                   </div>
                   <p style="font-size:0.8rem;color:#666;margin:0.2rem 0 0;">
@@ -219,23 +223,26 @@ export async function renderEditorView(
   // correcties tot dat moment gaan daarbij verloren (vandaar de bevestiging).
   if (photoDataUrl) {
     const classifierRadios = container.querySelectorAll('input[name="editor-classifier"]');
-    const isCurrentlyNew = modelVersion === NEW_MODEL_VERSION;
-    for (const radio of classifierRadios) {
-      radio.checked = radio.value === (isCurrentlyNew ? "new" : "old");
-    }
+    const kindOf = (version) => (version === CNN_MODEL_VERSION ? "cnn" : version === NEW_MODEL_VERSION ? "new" : "old");
+    let currentKind = kindOf(modelVersion);
+    const showKind = () => {
+      for (const radio of classifierRadios) radio.checked = radio.value === currentKind;
+    };
+    showKind();
     for (const radio of classifierRadios) {
       radio.addEventListener("change", async (e) => {
         if (!e.target.checked) return;
-        const useNew = e.target.value === "new";
+        const kind = e.target.value;
         const doorgaan = confirm(
           "Dit herkent dezelfde foto opnieuw en vervangt het bord. Eigen correcties die je al gemaakt hebt, gaan daarbij verloren. Doorgaan?"
         );
         if (!doorgaan) {
-          for (const r of classifierRadios) r.checked = r.value === (useNew ? "old" : "new");
+          showKind();
           return;
         }
         try {
-          const result = await reclassifyFromDataUrl(photoDataUrl, useNew);
+          const result = await reclassifyFromDataUrl(photoDataUrl, kind);
+          currentKind = kind;
           initialBoard = result.board;
           confidences = result.confidences;
           uncertainFields = result.uncertainFields;
@@ -244,6 +251,7 @@ export async function renderEditorView(
           boardEditor.setHighlights(uncertainFields);
         } catch (err) {
           alert("Opnieuw herkennen is mislukt: " + err.message);
+          showKind();
         }
       });
     }

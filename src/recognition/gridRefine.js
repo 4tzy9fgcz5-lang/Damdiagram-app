@@ -18,8 +18,8 @@
 // juist de fouten probeert te verkleinen) — dit is een volledig aparte,
 // classifier-onafhankelijke stap.
 
-import { toGray } from "./newFeatures.js?v=20260921c";
-import { computeHomography, warpPerspective } from "./homography.js?v=20260921c";
+import { toGray } from "./newFeatures.js?v=20260921e";
+import { computeHomography, warpPerspective } from "./homography.js?v=20260921e";
 
 function gradientMagnitude(gray, w, h) {
   const mag = new Float32Array(w * h);
@@ -135,7 +135,9 @@ export function refineGrid(warpedCanvas) {
     { x: 0, y: size },
   ];
   const H = computeHomography(squareCorners, dstCorners);
-  const correctedImageData = warpPerspective(imageData, H, size, size);
+  // Randherhaling i.p.v. wit: de bijstelling schuift het beeld een paar pixels, en een
+  // witte band langs de rand liet de herkenners de onderste/buitenste velden missen.
+  const correctedImageData = warpPerspective(imageData, H, size, size, true);
   const correctedCanvas = document.createElement("canvas");
   correctedCanvas.width = size;
   correctedCanvas.height = size;

@@ -49,13 +49,19 @@ export function applyHomography(H, x, y) {
   return { x: X / W, y: Y / W };
 }
 
-function samplePixel(src, sw, sh, sx, sy, outIdx, out) {
+function samplePixel(src, sw, sh, sx, sy, outIdx, out, clampEdges) {
   if (sx < 0 || sy < 0 || sx > sw - 1 || sy > sh - 1) {
-    out.data[outIdx] = 255;
-    out.data[outIdx + 1] = 255;
-    out.data[outIdx + 2] = 255;
-    out.data[outIdx + 3] = 255;
-    return;
+    if (clampEdges) {
+      // Buiten de bron: de dichtstbijzijnde beeldpixel (randherhaling).
+      sx = Math.min(sw - 1, Math.max(0, sx));
+      sy = Math.min(sh - 1, Math.max(0, sy));
+    } else {
+      out.data[outIdx] = 255;
+      out.data[outIdx + 1] = 255;
+      out.data[outIdx + 2] = 255;
+      out.data[outIdx + 3] = 255;
+      return;
+    }
   }
   const x0 = Math.floor(sx);
   const y0 = Math.floor(sy);
@@ -75,7 +81,9 @@ function samplePixel(src, sw, sh, sx, sy, outIdx, out) {
 }
 
 // H moet output-coördinaten afbeelden op bron-coördinaten (dus: computeHomography(outputHoeken, bronHoeken)).
-export function warpPerspective(sourceImageData, H, outWidth, outHeight) {
+// Buiten de bron wordt standaard wit ingevuld; met `clampEdges` de dichtstbijzijnde
+// beeldpixel (zonder witte band langs de rand, die een herkenner kan verwarren).
+export function warpPerspective(sourceImageData, H, outWidth, outHeight, clampEdges = false) {
   const out = new ImageData(outWidth, outHeight);
   const sw = sourceImageData.width;
   const sh = sourceImageData.height;
@@ -83,7 +91,7 @@ export function warpPerspective(sourceImageData, H, outWidth, outHeight) {
   for (let oy = 0; oy < outHeight; oy++) {
     for (let ox = 0; ox < outWidth; ox++) {
       const { x: sx, y: sy } = applyHomography(H, ox + 0.5, oy + 0.5);
-      samplePixel(src, sw, sh, sx, sy, (oy * outWidth + ox) * 4, out);
+      samplePixel(src, sw, sh, sx, sy, (oy * outWidth + ox) * 4, out, clampEdges);
     }
   }
   return out;

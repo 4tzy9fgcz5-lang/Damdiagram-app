@@ -1,5 +1,5 @@
-import { openDb, tx, promisify } from "./db.js?v=20260921c";
-import { STORE_LIJSTEN } from "./schema.js?v=20260921c";
+import { openDb, tx, promisify } from "./db.js?v=20260921e";
+import { STORE_LIJSTEN } from "./schema.js?v=20260921e";
 
 export async function getList(naam) {
   const db = await openDb();

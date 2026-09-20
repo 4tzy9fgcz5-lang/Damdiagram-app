@@ -9,7 +9,7 @@
   daadwerkelijk in de browser (zie "Testen tijdens ontwikkeling" hieronder) voor je
   meldt dat iets werkt.
 
-# Status en vervolgstappen (bijgewerkt 2026-09-21)
+# Status en vervolgstappen (bijgewerkt 2026-09-21, nacht)
 
 Dit is een groeiende Nederlandse dam-app (werknaam "Dam-database", eerder
 "Damstencil"): standen verzamelen (handmatig, of via een foto van een boekdiagram),
@@ -66,7 +66,12 @@ server, geen build-stap.
   `standDetailView.js` daarmee "Vorige"/"Volgende"-knoppen. Vanuit een
   opgaveblad geopend: geen navigatie (nog niet ondersteund).
 
-## Veldherkenning: twee classifiers naast elkaar
+## Veldherkenning: drie classifiers naast elkaar (standaard: neuraal netwerkje, sinds 2026-09-21)
+
+- **Neuraal netwerkje (standaard)**: `src/recognition/cnnModel.js` (rekenkern, puur JS,
+  exact dezelfde code in de browser en in Node) + `cnnClassify.js` (koppeling) +
+  `damscan/cnn_weights.json` (3 netwerkjes, kansen gemiddeld). Zie "Neuraal netwerkje"
+  hieronder voor werkwijze, meting en hertrainen.
 
 - **Oud**: `src/recognition/classify.js` — handgetunede heuristiek (kmeans-
   splitsing, lichthelling-correctie). `CONFIDENCE_THRESHOLD = 0.65`.
@@ -125,6 +130,57 @@ server, geen build-stap.
 
 ## Openstaand / eerstvolgende stappen
 
+### Neuraal netwerkje (2026-09-21) — nu de standaardherkenner
+
+Aanleiding: hertrainen van de oude logistische regressie (`damscan/`) op Jans 140
+nieuwe diagrammen gaf geen winst (92,2%). Daarom een sterker model gebouwd op
+dezelfde gelabelde velduitsneden.
+
+- **Model:** 2 conv-lagen (3x3, 8 en 16 filters) + 2 dichte lagen, ~14.000
+  gewichten, invoer 2 kanalen van 26x26 per veld (kanaal 0: helderheid genormaliseerd
+  t.o.v. alle 50 velden van HETZELFDE diagram, dus ongevoelig voor drukstijl/
+  belichting; kanaal 1: dezelfde uitsnede binnen het veld zelf genormaliseerd = vorm
+  los van contrast). Drie netwerkjes (andere startwaarden) worden gemiddeld, elk met
+  terugspiegelen (TTA); ~1,2 s per bord in de browser. Getraind met Adam, 24 rondes,
+  willekeurige verstoringen (verschuiven ±2px, spiegelen, contrast/helderheid).
+- **Eerlijke meting (6 meetrondes, steeds een groep boekstijlen buiten de training):
+  98,8% goed, 98 fout op 8200 velden, 142/164 borden foutloos, gemiddeld 0,6 fout
+  per bord** — de logistische regressie haalt op dezelfde data 92,2% (640 fout).
+  Langer trainen (40 rondes) gaf niets (98,7%). Per stijl: Jermakov 100%, Boezjinski
+  98,6%, Kovrizjkin 99,6%, Damspel_Kleingoed 100%, **Koeperman 94,5% (zwakste)**;
+  diagrammen zonder stijl ("onbekend", 68 stuks) zijn per diagram verdeeld over de
+  rondes, dat cijfer (98,4%) is dus iets optimistischer. Gele rand bij zekerheid
+  < 0,95 (`CNN_FLAG_BELOW`): ~5% van de velden gemarkeerd, vangt 56% van de fouten
+  (0,98: 7% / 68%). Op de 6 testfoto's met bekende stand in de echte app: 13 fouten
+  (oud 45, nieuw 47), 0 op 5 van de 6; alleen IMG_0497 (hoekdetectie vindt geen bord)
+  gaat mis, met 41 gele velden. NB: een deel van die 6 foto's kan in de trainingsdata
+  zitten, dit is een controle op de koppeling, niet de meting zelf.
+- **Bij dit werk gevonden en opgelost:** `gridRefine.js` vulde na de kleine
+  verschuiving het stuk buiten de foto met WIT (band van ~6px langs de rand), waardoor
+  de netwerkjes de witte schijven op de onderste rij (46-50) misten. Nu randherhaling
+  (`warpPerspective(..., clampEdges = true)`); alleen daar, de rest van de detectie
+  gebruikt nog het witte invulgedrag.
+- **Herkenner kiezen:** schakelaar op het hoeken-/resultatenscherm en in het
+  correctiescherm (drie opties). Bij "Neuraal netwerk" is er geen vergelijking met de
+  oude herkenning (die levert alleen ruis: de oude is veel minder nauwkeurig) — alleen
+  de eigen zekerheid < 0,95 markeert. Bij "Oude"/"Nieuwe" blijft het onenigheid-randje.
+- **Hertrainen** (nieuwe export via `#/backup`; ook in `tools/cnn/train.mjs` beschreven):
+  1) export uitpakken in een LEGE map (labels.txt + crops/), eventueel eerdere data
+  eraan toevoegen; 2) `tools/cnn/run-all.sh labels.txt crops uitvoermap` = 6
+  meetrondes parallel (~1 min op 10 kernen) + rapport; 3) `node tools/cnn/train.mjs
+  final labels.txt crops uitvoermap <seed>` voor seed 1, 2, 3 (parallel, ~1 min);
+  4) de drie `cnn_weights_seedN.json` samenvoegen tot `damscan/cnn_weights.json`
+  (`{ beschrijving, getraind_op, meting_onbekende_stijl, models: [..3..] }`);
+  5) `CNN_WEIGHTS_VERSION` in `diagramCaptureView.js` met de hand ophogen (buiten het
+  cache-bust-script). `train.mjs` heeft ook `gradcheck` (terugweg vs. numerieke
+  schatting). De boekstijlgroepen per meetronde staan bovenin `train.mjs`
+  (`STYLE_FOLD`): een nieuwe stijl moet daar in een groep, anders valt hij bij
+  "onbekend".
+- **Nog te doen / ideeën:** Koeperman is de zwakste stijl (meer voorbeelden helpen
+  hier waarschijnlijk wel); dammen (schijf met dam) worden nog steeds niet herkend
+  (labels tellen ze als gewone schijf); bord-vergelijking van snelheid: 600 doorlopen per
+  bord, TTA kan naar 2 spiegelingen als 1,2 s te traag voelt.
+
 ### Correcties na Jans testronde (2026-09-21)
 
 Jan meldde na de Fase 1/2-werkzaamheden: (1) nog steeds vaak een 8x8- i.p.v.
@@ -174,7 +230,7 @@ dan de nieuwe. Aanpak en uitkomst:
   basis van balans/"dam?". Alleen de waarschuwingen "geen enkel stuk herkend" en
   ">20 van één kleur" blijven. De code in `plausibility.js` (+ tests) staat er nog,
   voor als we het later slimmer willen doen.
-- **Oude herkenning weer de standaard** (hoeken-/resultatenscherm). Meting met
+- **Oude herkenning weer de standaard** (hoeken-/resultatenscherm; sinds later diezelfde nacht ingehaald door het neurale netwerkje, zie boven). Meting met
   de echte app-code op de 6 gelabelde foto's uit `testdata/testfotos/` (fouten
   oud/nieuw): 0127 2/6, 0497 29/18 (hoeken hier onbruikbaar), 0533 3/7, 0616
   11/0, 532 0/10, aa9874c2 0/6 — totaal 45 vs 47, maar oud wint op 4 van 6.

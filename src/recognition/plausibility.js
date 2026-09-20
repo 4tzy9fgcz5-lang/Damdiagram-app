@@ -1,4 +1,4 @@
-import { FIELD_COUNT, PIECE_TYPES, EMPTY, isWhite, isBlack } from "../core/board.js?v=20260921c";
+import { FIELD_COUNT, PIECE_TYPES, EMPTY, isWhite, isBlack } from "../core/board.js?v=20260921e";
 
 // Damlogica als vangnet op de fotoherkenning, los van welke herkenner draaide.
 // Corrigeert niets stilzwijgend: geeft waarschuwingen terug (en velden die het
