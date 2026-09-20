@@ -90,6 +90,14 @@ server, geen build-stap.
   samengevoegd met de eigen onzeker-velden van de gekozen classifier) — dit bleek
   uit de vergelijking veruit de grootste resterende foutenbron te dekken, groter
   dan wat elke classifier voor zichzelf al als onzeker herkent.
+- **Sinds 2026-09-20: automatische rastercorrectie vóór classificatie.**
+  `refineGrid()` in `src/recognition/gridRefine.js` draait in
+  `diagramCaptureView.js` direct na het rechttrekken, voor beide classifiers:
+  zoekt een kleine translatie/schaal/rotatie van het 10x10-raster die de
+  randsterkte langs de rasterlijnen maximaliseert (het bordpatroon zelf is
+  altijd een schaakbord, ongeacht de stukken erop), en trekt het beeld met die
+  correctie nogmaals recht. Vangt op dat de 4 aangewezen hoekpunten net niet
+  exact op de speelveldrand zaten. Zichtbaar onder "Toon herkenningsstappen".
 - `damscan/` is een los Node/CommonJS-trainingspijplijn (inmiddels in git
   getrackt). Vanuit de project-root: `node damscan/train.js labels.txt crops
   damscan/weights.json`. `labels.txt`, `crops/`, `check/` zijn gitignored
@@ -113,11 +121,21 @@ bijgestelde versie (niet de volgorde uit het originele plan):
   achterste rij) werden weggegooid; die worden nu getoond op het
   resultatenscherm van de fotoherkenning én tellen mee als onzeker veld. Zie
   `sanityCheck()` in `newClassify.js`, gebruikt in `diagramCaptureView.js`.
-- **Fase 1 — nog te doen:** automatisch het raster verfijnen na de
-  hoekpunten (kleine translatie/schaal/rotatie optimaliseren op basis van hoe
-  goed schijven gecentreerd liggen), plus als bijvangst voorspelde vs.
-  gecorrigeerde hoekpunten loggen (nieuw veld, `herkenningLog.js` bewaart nu
-  alleen de bordstand, geen hoekpunten) voor een toekomstig hoek-model.
+- **Fase 1 — klaar (2026-09-20), alleen "aanpak A":** automatisch het raster
+  verfijnen na het rechttrekken. Zie `src/recognition/gridRefine.js`
+  (`refineGrid()`) — geen gebruik van de classifier zelf (te traag om
+  tientallen keren per foto te draaien), maar van de vaststelling dat het
+  bordpatroon zelf altijd een schaakbordpatroon is: score = opgetelde
+  Sobel-randsterkte langs de 18 rasterlijnen, kleine translatie/schaal/rotatie
+  daarop geoptimaliseerd (coördinaat-afdaling, geen volledige combinatorische
+  zoektocht — ruim onder de 50ms per foto). Gewapend met eigen tests
+  (`tests/gridRefine.test.js`) op een synthetisch verschoven schaakbord.
+  Aangesloten in `diagramCaptureView.js`: draait automatisch bij elke
+  herkenning, vóór classificatie, en de toegepaste correctie (indien van
+  toepassing) is zichtbaar onder "Toon herkenningsstappen". Bewust NIET
+  gedaan: "aanpak B" uit het plan (voorspelde vs. gecorrigeerde hoekpunten
+  loggen voor een toekomstig hoek-model) — dat blijft openstaan, geen haast
+  bij tenzij aanpak A in de praktijk toch tekortschiet.
 - **Fase 2 — daarna:** een volwaardige plausibiliteitslaag met damlogica,
   bovenop wat Fase 0 al doet. **Belangrijk, bevestigd door Jan:** in zijn
   opgaven-database is het aantal schijven wit/zwart in ~95% van de gevallen

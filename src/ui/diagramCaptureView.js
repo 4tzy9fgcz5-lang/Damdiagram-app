@@ -3,21 +3,22 @@
 // foto-import als elke stap van de bulk-import (rij-door-diagrammen) precies
 // dezelfde, vertrouwde flow gebruiken.
 
-import { warpToSquareCanvas } from "../recognition/homography.js?v=20260920a";
-import { classifyBoard, CONFIDENCE_THRESHOLD, RECOGNITION_VERSION } from "../recognition/classify.js?v=20260920a";
+import { warpToSquareCanvas } from "../recognition/homography.js?v=20260920b";
+import { classifyBoard, CONFIDENCE_THRESHOLD, RECOGNITION_VERSION } from "../recognition/classify.js?v=20260920b";
 import {
   createClassifier as createNewClassifier,
   FLAG_BELOW as NEW_FLAG_BELOW,
   RECOGNITION_VERSION as NEW_RECOGNITION_VERSION,
-} from "../recognition/newClassify.js?v=20260920a";
+} from "../recognition/newClassify.js?v=20260920b";
+import { refineGrid } from "../recognition/gridRefine.js?v=20260920b";
 import {
   buildCornersOverlay,
   buildGridOverlay,
   buildFieldCrops,
   buildRawFieldCrops,
-} from "../recognition/debugRender.js?v=20260920a";
-import { FIELD_COUNT, createEmptyBoard, PIECE_TYPES } from "../core/board.js?v=20260920a";
-import { drawableSize, WORKING_MAX_SIDE } from "./imageInput.js?v=20260920a";
+} from "../recognition/debugRender.js?v=20260920b";
+import { FIELD_COUNT, createEmptyBoard, PIECE_TYPES } from "../core/board.js?v=20260920b";
+import { drawableSize, WORKING_MAX_SIDE } from "./imageInput.js?v=20260920b";
 
 // Ligt buiten het bereik van het cache-bust-bompscript (dat kijkt alleen naar JS-
 // imports/HTML-tags) — bij het trainen van een nieuw damscan/weights.json dus ook
@@ -221,6 +222,7 @@ export function renderDiagramCapture(container, { drawable, initialCorners, head
         <h3 style="font-size:0.9rem;">1. Aangewezen hoeken op de foto</h3>
         <div data-role="debug-corners"></div>
         <h3 style="font-size:0.9rem;">2. Rechtgetrokken met 10×10-raster</h3>
+        <p data-role="debug-grid-refine" style="font-size:0.8rem;color:#666;"></p>
         <div data-role="debug-grid"></div>
         <h3 style="font-size:0.9rem;">3. Elk veld apart, met herkenning en betrouwbaarheid</h3>
         <div data-role="debug-crops" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(64px,1fr));gap:0.4rem;"></div>
@@ -404,11 +406,16 @@ export function renderDiagramCapture(container, { drawable, initialCorners, head
       // verkleind), dus terugschalen naar de resolutie van de originele foto.
       const scaleUp = fullWidth / canvas.width;
       const fullResCorners = corners.map((p) => ({ x: p.x * scaleUp, y: p.y * scaleUp }));
-      const warpedCanvas = warpToSquareCanvas(drawable, fullResCorners, WARP_SIZE);
+      const roughWarpedCanvas = warpToSquareCanvas(drawable, fullResCorners, WARP_SIZE);
+      // Klein automatisch bijstelrasterje (zie gridRefine.js) — vangt het geval op
+      // waarbij de 4 aangewezen hoeken net niet exact op de speelveldrand zitten,
+      // zodat je dat zelf niet meer op de pixel nauwkeurig hoeft te slepen.
+      const gridRefine = refineGrid(roughWarpedCanvas);
+      const warpedCanvas = gridRefine.canvas;
       const photoDataUrl = warpedCanvas.toDataURL("image/jpeg", 0.85);
       const result = await classifyWithComparison(useNewClassifier, warpedCanvas);
 
-      lastRecognition = { ...result, photoDataUrl, warpedCanvas, scaleUp, fullResCorners };
+      lastRecognition = { ...result, photoDataUrl, warpedCanvas, scaleUp, fullResCorners, gridRefine };
       renderResults(lastRecognition);
       status.textContent = "";
       cornersCard.style.display = "none";
@@ -426,9 +433,9 @@ export function renderDiagramCapture(container, { drawable, initialCorners, head
     const prevText = summary.textContent;
     summary.textContent = "Bezig met herkennen...";
     try {
-      const { warpedCanvas, photoDataUrl, scaleUp, fullResCorners } = lastRecognition;
+      const { warpedCanvas, photoDataUrl, scaleUp, fullResCorners, gridRefine } = lastRecognition;
       const result = await classifyWithComparison(useNewClassifier, warpedCanvas);
-      lastRecognition = { ...result, photoDataUrl, warpedCanvas, scaleUp, fullResCorners };
+      lastRecognition = { ...result, photoDataUrl, warpedCanvas, scaleUp, fullResCorners, gridRefine };
       renderResults(lastRecognition);
       if (el('[data-role="debug"]').style.display !== "none") renderDebug(lastRecognition);
     } catch (err) {
@@ -456,12 +463,18 @@ export function renderDiagramCapture(container, { drawable, initialCorners, head
       : "";
   }
 
-  function renderDebug({ board, confidences, uncertainFields, warpedCanvas, fullResCorners }) {
+  function renderDebug({ board, confidences, uncertainFields, warpedCanvas, fullResCorners, gridRefine }) {
     const debugCorners = el('[data-role="debug-corners"]');
     const debugGrid = el('[data-role="debug-grid"]');
+    const debugGridRefine = el('[data-role="debug-grid-refine"]');
     const debugCrops = el('[data-role="debug-crops"]');
     debugCorners.innerHTML = "";
     debugGrid.innerHTML = "";
+    debugGridRefine.textContent = gridRefine?.improved
+      ? `Automatisch bijgesteld: ${gridRefine.dx.toFixed(1)}px opzij, ${gridRefine.dy.toFixed(1)}px omlaag, ${(
+          gridRefine.scale * 100
+        ).toFixed(1)}% schaal, ${gridRefine.rotationDeg.toFixed(1)}° rotatie — dit raster staat hieronder.`
+      : "Geen bijstelling nodig, het raster paste al goed op het bord.";
     debugCrops.innerHTML = "";
 
     const cornersCanvas = buildCornersOverlay(drawable, fullResCorners, 1, 400);
