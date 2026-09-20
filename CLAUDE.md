@@ -9,7 +9,7 @@
   daadwerkelijk in de browser (zie "Testen tijdens ontwikkeling" hieronder) voor je
   meldt dat iets werkt.
 
-# Status en vervolgstappen (bijgewerkt 2026-09-18)
+# Status en vervolgstappen (bijgewerkt 2026-09-20)
 
 Dit is een groeiende Nederlandse dam-app (werknaam "Dam-database", eerder
 "Damstencil"): standen verzamelen (handmatig, of via een foto van een boekdiagram),
@@ -76,14 +76,14 @@ server, geen build-stap.
   `classifyBoard(crops)` moet alle 50 velduitsnedes in één keer krijgen, want de
   kenmerken worden genormaliseerd t.o.v. de andere velden van hetzelfde diagram.
   `FLAG_BELOW = 0.9`. Gewichten komen uit `damscan/weights.json`, opgehaald via
-  `fetch()` in `photoImportView.js` (`WEIGHTS_VERSION`-constante — **na elke
+  `fetch()` in `diagramCaptureView.js` (`WEIGHTS_VERSION`-constante — **na elke
   hertraining met de hand ophogen**, dit valt buiten het cache-bust-script
   hieronder).
-- Schakelaar zit in `src/ui/photoImportView.js` (hoeken-scherm én resultaten-
+- Schakelaar zit in `src/ui/diagramCaptureView.js` (hoeken-scherm én resultaten-
   scherm, altijd gesynchroniseerd). Wisselen op het resultatenscherm herclassificeert
   dezelfde, al rechtgetrokken foto opnieuw — geen hoeken opnieuw nodig.
 - **Sinds 2026-09-16: automatische vergelijking, ongeacht welke classifier
-  gekozen is.** `classifyWithComparison()` in `photoImportView.js` laat bij elke
+  gekozen is.** `classifyWithComparison()` in `diagramCaptureView.js` laat bij elke
   herkenning ook de andere classifier op de achtergrond meekijken (puur ter
   vergelijking, de gekozen classifier blijft bepalend voor de getoonde stand) en
   markeert velden waar ze een ander stuk zien als onzeker (`disagreementFields`,
@@ -101,6 +101,42 @@ server, geen build-stap.
   Pages (de data staat niet in git).
 
 ## Openstaand / eerstvolgende stappen
+
+### Herkenning-verbeterplan (2026-09-20)
+
+Extern plan van Jan (`~/Downloads/damdiagram_verbeterplan.md`, niet in git). Ik
+heb het gereviewd tegen de bestaande code; onderstaande volgorde is de
+bijgestelde versie (niet de volgorde uit het originele plan):
+
+- **Fase 0 — klaar (2026-09-20):** de damregel-controles die de nieuwe
+  classifier al berekende (te veel stukken van één kleur, gewone schijf op de
+  achterste rij) werden weggegooid; die worden nu getoond op het
+  resultatenscherm van de fotoherkenning én tellen mee als onzeker veld. Zie
+  `sanityCheck()` in `newClassify.js`, gebruikt in `diagramCaptureView.js`.
+- **Fase 1 — nog te doen:** automatisch het raster verfijnen na de
+  hoekpunten (kleine translatie/schaal/rotatie optimaliseren op basis van hoe
+  goed schijven gecentreerd liggen), plus als bijvangst voorspelde vs.
+  gecorrigeerde hoekpunten loggen (nieuw veld, `herkenningLog.js` bewaart nu
+  alleen de bordstand, geen hoekpunten) voor een toekomstig hoek-model.
+- **Fase 2 — daarna:** een volwaardige plausibiliteitslaag met damlogica,
+  bovenop wat Fase 0 al doet. **Belangrijk, bevestigd door Jan:** in zijn
+  opgaven-database is het aantal schijven wit/zwart in ~95% van de gevallen
+  precies gelijk; de enige normale afwijking is een verschil van exact 1
+  schijf. Dat mag dus direct als automatische regel (verhoog verdachtheid bij
+  een groter verschil), geen aparte validatie op de eigen dataset nodig. Géén
+  aparte confidence voor "dam" toevoegen — dammen worden bewust nooit
+  automatisch herkend (zie classify.js), dus deze laag werkt met alleen
+  leeg/wit/zwart.
+- **Fase 3 — daarna:** onzekerheid tegen schaduw/boekstijl. De nieuwe
+  classifier is al vanaf het begin ontworpen om ongevoelig te zijn voor
+  drukstijl/belichting (lokale kenmerken per veld + normalisatie over de 50
+  velden van hetzelfde bord, zie `newFeatures.js`) — het plan zijn voorstel
+  (CLAHE-achtige lokale contrastcorrectie) overlapt daar grotendeels mee. Wat
+  wél nieuw en waarschijnlijk het proberen waard is: tijdens trainen
+  kunstmatig variaties toevoegen (donkerder/lichter, wazig, vergeeld) —
+  `damscan/train.js` doet dat nu niet.
+- Hertrainen op de ~150 gescande diagrammen (stap 4 uit het plan) kan al, via
+  de exportknop uit stap 1 hieronder.
 
 0. Jan wil een **instellingen-pagina** (nog te maken) met een subheader
    "database". Daar moet de aanname "alle standen in de database hebben een
@@ -120,7 +156,9 @@ server, geen build-stap.
    in de praktijk te zien hoeveel dit daadwerkelijk scheelt zodra Jan er een tijd
    mee gescand heeft.
 3. Na elke nieuwe `damscan/weights.json`: `WEIGHTS_VERSION` in
-   `src/ui/photoImportView.js` met de hand ophogen.
+   `src/ui/diagramCaptureView.js` met de hand ophogen (dit bestand heette
+   eerder `photoImportView.js`, inmiddels losgetrokken zodat foto-import en
+   bulk-import dezelfde hoeken/herken-stap delen).
 4. Zwakke stijlen uit de laatste training (Kovrizkin, Koeperman) zouden het meest
    baat hebben bij een paar extra gescande diagrammen uit precies die boeken —
    makkelijker nu de export uit stap 1 er is.
