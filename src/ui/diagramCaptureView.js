@@ -3,22 +3,23 @@
 // foto-import als elke stap van de bulk-import (rij-door-diagrammen) precies
 // dezelfde, vertrouwde flow gebruiken.
 
-import { warpToSquareCanvas } from "../recognition/homography.js?v=20260920k";
-import { classifyBoard, CONFIDENCE_THRESHOLD, RECOGNITION_VERSION } from "../recognition/classify.js?v=20260920k";
+import { warpToSquareCanvas } from "../recognition/homography.js?v=20260920m";
+import { classifyBoard, CONFIDENCE_THRESHOLD, RECOGNITION_VERSION } from "../recognition/classify.js?v=20260920m";
 import {
   createClassifier as createNewClassifier,
   FLAG_BELOW as NEW_FLAG_BELOW,
   RECOGNITION_VERSION as NEW_RECOGNITION_VERSION,
-} from "../recognition/newClassify.js?v=20260920k";
-import { refineGrid } from "../recognition/gridRefine.js?v=20260920k";
+} from "../recognition/newClassify.js?v=20260920m";
+import { refineGrid } from "../recognition/gridRefine.js?v=20260920m";
+import { checkPlausibility, warningFields } from "../recognition/plausibility.js?v=20260920m";
 import {
   buildCornersOverlay,
   buildGridOverlay,
   buildFieldCrops,
   buildRawFieldCrops,
-} from "../recognition/debugRender.js?v=20260920k";
-import { FIELD_COUNT, createEmptyBoard, PIECE_TYPES } from "../core/board.js?v=20260920k";
-import { drawableSize, WORKING_MAX_SIDE } from "./imageInput.js?v=20260920k";
+} from "../recognition/debugRender.js?v=20260920m";
+import { FIELD_COUNT, createEmptyBoard, PIECE_TYPES } from "../core/board.js?v=20260920m";
+import { drawableSize, WORKING_MAX_SIDE } from "./imageInput.js?v=20260920m";
 
 // Ligt buiten het bereik van het cache-bust-bompscript (dat kijkt alleen naar JS-
 // imports/HTML-tags) — bij het trainen van een nieuw damscan/weights.json dus ook
@@ -55,7 +56,7 @@ async function classifyWith(useNew, warpedCanvas) {
       const d = canvas.getContext("2d").getImageData(0, 0, canvas.width, canvas.height);
       return { data: d.data, width: d.width, height: d.height };
     });
-    const { squares, warnings } = clf.classifyBoard(cropInputs);
+    const { squares } = clf.classifyBoard(cropInputs);
     const board = createEmptyBoard();
     const confidences = new Array(FIELD_COUNT + 1).fill(1);
     const uncertainFields = [];
@@ -65,7 +66,15 @@ async function classifyWith(useNew, warpedCanvas) {
       else if (sq.label === "black") board[sq.square] = PIECE_TYPES.BLACK_PIECE;
       if (sq.confidence < NEW_FLAG_BELOW) uncertainFields.push(sq.square);
     }
-    return { board, confidences, uncertainFields, modelVersion: NEW_RECOGNITION_VERSION, warnings };
+    // De damregel-controle is voor beide herkenners gelijk en zit in plausibility.js
+    // (de eigen sanityCheck van de nieuwe herkenner blijft ongebruikt hier).
+    return {
+      board,
+      confidences,
+      uncertainFields,
+      modelVersion: NEW_RECOGNITION_VERSION,
+      warnings: checkPlausibility(board, confidences),
+    };
   }
 
   const size = warpedCanvas.width;
@@ -75,10 +84,13 @@ async function classifyWith(useNew, warpedCanvas) {
   for (let f = 1; f <= FIELD_COUNT; f++) {
     if (confidences[f] < CONFIDENCE_THRESHOLD) uncertainFields.push(f);
   }
-  // De oude herkenning heeft geen eigen damregel-controle (sanityCheck bestaat
-  // alleen bij de nieuwe) — lege lijst, zodat de rest van deze pagina niet per
-  // classifier hoeft te onderscheiden of warnings er wel of niet zijn.
-  return { board, confidences, uncertainFields, modelVersion: RECOGNITION_VERSION, warnings: [] };
+  return {
+    board,
+    confidences,
+    uncertainFields,
+    modelVersion: RECOGNITION_VERSION,
+    warnings: checkPlausibility(board, confidences),
+  };
 }
 
 // Herkent met de gekozen classifier (die de weergegeven stand levert), en laat op
@@ -108,8 +120,7 @@ async function classifyWithComparison(useNew, warpedCanvas) {
   // horen ook bij de onzeker-velden — daar zonder specifiek veld (bv. "21 witte
   // schijven") kun je niet één veld voor aanwijzen, die komen alleen in de tekst
   // op het resultatenscherm.
-  const warningFields = (result.warnings ?? []).filter((w) => typeof w.square === "number").map((w) => w.square);
-  const uncertainFields = [...new Set([...result.uncertainFields, ...disagreementFields, ...warningFields])].sort(
+  const uncertainFields = [...new Set([...result.uncertainFields, ...disagreementFields, ...warningFields(result.warnings)])].sort(
     (a, b) => a - b
   );
   return { ...result, uncertainFields, disagreementFields };

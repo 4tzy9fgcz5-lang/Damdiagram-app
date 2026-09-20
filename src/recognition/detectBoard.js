@@ -1,4 +1,4 @@
-import { computeHomography, applyHomography, warpPerspective } from "./homography.js?v=20260920k";
+import { computeHomography, applyHomography, warpPerspective } from "./homography.js?v=20260920m";
 
 // Automatische hoekdetectie van het dambord op een foto — zonder externe
 // bibliotheken (de app blijft een platte, server-loze website). Gevalideerd

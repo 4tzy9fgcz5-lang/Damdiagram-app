@@ -183,15 +183,21 @@ bijgestelde versie (niet de volgorde uit het originele plan):
     weer tegenaan te testen bij wijzigingen aan `detectBoard.js`/
     `gridRefine.js`. `testdata/testfotos/` had 'm al staan (identiek bestand,
     ander diagram dan waar de map oorspronkelijk voor bedoeld was).
-- **Fase 2 — daarna:** een volwaardige plausibiliteitslaag met damlogica,
-  bovenop wat Fase 0 al doet. **Belangrijk, bevestigd door Jan:** in zijn
-  opgaven-database is het aantal schijven wit/zwart in ~95% van de gevallen
-  precies gelijk; de enige normale afwijking is een verschil van exact 1
-  schijf. Dat mag dus direct als automatische regel (verhoog verdachtheid bij
-  een groter verschil), geen aparte validatie op de eigen dataset nodig. Géén
-  aparte confidence voor "dam" toevoegen — dammen worden bewust nooit
-  automatisch herkend (zie classify.js), dus deze laag werkt met alleen
-  leeg/wit/zwart.
+- **Fase 2 — klaar (2026-09-20):** `src/recognition/plausibility.js`
+  (`checkPlausibility(board, confidences)` + `warningFields()`), voor BEIDE
+  herkenners gelijk (de oude had voorheen geen damregel-controle); vervangt in
+  `diagramCaptureView.js` de eigen `sanityCheck()` van de nieuwe herkenner
+  (die blijft bestaan maar wordt daar niet meer gebruikt). Regels: geen enkel
+  stuk herkend (waarschijnlijk foute hoeken), >20 van één kleur, gewone
+  schijf op de eigen damrij ("dam?"), en **materiaalbalans**: verschil van
+  meer dan 1 stuk tussen wit en zwart geeft een waarschuwing en markeert
+  (verschil − 1) lege velden als onzeker, de minst zekere eerst — het vaakst
+  is er een stuk gemist. Bevestigd door Jan: in ~95% van zijn opgaven is het
+  aantal gelijk, enige normale afwijking is 1 stuk. Corrigeert niets
+  stilzwijgend. Tests: `tests/plausibility.test.js`. Op de "532"-testfoto
+  (nieuwe herkenning: wit 4, zwart 13, echt 13/13) wees dit 8 velden aan,
+  waarvan 6 inderdaad gemiste witte schijven. Géén aparte confidence voor
+  "dam" (dammen worden nooit automatisch herkend, zie classify.js).
 - **Fase 3 — daarna:** onzekerheid tegen schaduw/boekstijl. De nieuwe
   classifier is al vanaf het begin ontworpen om ongevoelig te zijn voor
   drukstijl/belichting (lokale kenmerken per veld + normalisatie over de 50
