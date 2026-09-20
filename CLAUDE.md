@@ -98,6 +98,10 @@ server, geen build-stap.
   altijd een schaakbord, ongeacht de stukken erop), en trekt het beeld met die
   correctie nogmaals recht. Vangt op dat de 4 aangewezen hoekpunten net niet
   exact op de speelveldrand zaten. Zichtbaar onder "Toon herkenningsstappen".
+  Werkt samen met `stripBorderToPlayfield()` in `detectBoard.js` (zie
+  "Openstaand" → Fase 1 hieronder voor het volledige verhaal): die snijdt vóór
+  het rechttrekken al een eventuele dikke bordrand grof weg, `refineGrid()`
+  polijst daarna de laatste kleine restfout (met name restrotatie) weg.
 - `damscan/` is een los Node/CommonJS-trainingspijplijn (inmiddels in git
   getrackt). Vanuit de project-root: `node damscan/train.js labels.txt crops
   damscan/weights.json`. `labels.txt`, `crops/`, `check/` zijn gitignored
@@ -121,7 +125,8 @@ bijgestelde versie (niet de volgorde uit het originele plan):
   achterste rij) werden weggegooid; die worden nu getoond op het
   resultatenscherm van de fotoherkenning én tellen mee als onzeker veld. Zie
   `sanityCheck()` in `newClassify.js`, gebruikt in `diagramCaptureView.js`.
-- **Fase 1 — klaar (2026-09-20), twee delen:**
+- **Fase 1 — klaar (2026-09-20), twee delen, na twee mislukte pogingen
+  onderweg (zie hieronder):**
   1. Kleine correctie ná het rechttrekken (`src/recognition/gridRefine.js`,
      `refineGrid()`) — geen gebruik van de classifier zelf (te traag om
      tientallen keren per foto te draaien), maar van de vaststelling dat het
@@ -131,21 +136,46 @@ bijgestelde versie (niet de volgorde uit het originele plan):
      per foto). Tests: `tests/gridRefine.test.js`.
   2. **Belangrijker, pas toegevoegd nadat Jan liet zien dat 1. voor hem geen
      verschil maakte:** de automatische hoekdetectie zelf (`detectBoard.js`)
-     pakte tot dan toe de buitenkant van de zwarte rand om het speelveld,
-     niet het schaakbordpatroon erbinnen — bij een dikke rand een veel te
-     grote fout om door punt 1 (kleine correctie) opgevangen te worden. Jan
-     moest daardoor zelf steeds de hoeken verslepen. Nieuw:
-     `stripBorderToPlayfield()` in `detectBoard.js` snijdt die rand nu
-     automatisch weg (een effen rand heeft nauwelijks variatie in
-     helderheid per rij/kolom, het patroon zelf wel — dat verschil bepaalt
-     waar de rand ophoudt). Getest met een dikke effen rand én met een
-     gearceerd (Oost-Europees) boekstijltje. Tests:
-     `tests/detectBoard.test.js`.
+     pakte de buitenkant van de zwarte rand om het speelveld, niet het
+     schaakbordpatroon erbinnen. `stripBorderToPlayfield()` snijdt die rand
+     nu weg via een projectieprofiel: per rij/kolom de Sobel-randsterkte
+     optellen over de HELE breedte/hoogte, en daarin de celbreedte +
+     startpositie zoeken die de 9 interne rasterlijnen het best laat
+     samenvallen met echte randen (`findGridAxis()`). Bij gelijke score de
+     voorkeur voor zo min mogelijk wegsnijden (>3% beter nodig om een kleinere
+     spacing te kiezen) — anders vindt het bij een erg regelmatig schaakbord
+     soms toevallig een net-te-klein raster. Tests: `tests/detectBoard.test.js`.
   Beide draaien automatisch bij elke herkenning (ook bulk-import), zichtbaar/
-  toegepast vóór classificatie. Bewust NIET gedaan: "aanpak B" uit het plan
-  (voorspelde vs. gecorrigeerde hoekpunten loggen voor een toekomstig
-  hoek-model) — blijft openstaan, geen haast bij tenzij dit in de praktijk
-  alsnog tekortschiet.
+  toegepast vóór classificatie. Geverifieerd met Jans eigen testfoto's in
+  `testdata/` (niet alleen synthetische plaatjes) — zie de twee mislukte
+  tussenstappen hieronder, die zijn precies daarom verworpen. Bewust NIET
+  gedaan: "aanpak B" uit het plan (voorspelde vs. gecorrigeerde hoekpunten
+  loggen voor een toekomstig hoek-model) — blijft openstaan.
+  - *Mislukte poging 1:* per-rij/kolom-**variantie** i.p.v. randsterkte-som —
+    een rand met wat drukstructuur/scanruis werd daarmee soms al als
+    "patroon" herkend, dus bleef er nog een zichtbare rand over. Dit was de
+    eerste versie die Jan testte en terecht afkeurde ("nog steeds rand
+    meegenomen").
+  - *Mislukte poging 2:* `gridRefine.js`'s eigen aanpak (kleine translatie/
+    schaal/rotatie, score = randsterkte-som) met een veel breder zoekbereik
+    toepassen op de ONgestripte hoeken, in de hoop dat één brede zoektocht
+    alles in één keer zou oplossen — liep vast op periodieke aliasing (een
+    verkeerd geschaald/verschoven raster kan bij een herhalend
+    schaakbordpatroon toevallig ook goed scoren). Vandaar de two-stage aanpak
+    hierboven: eerst grof met een projectieprofiel (ongevoelig voor die
+    aliasing omdat het over de hele rij/kolom optelt), dan pas de bestaande,
+    kleine `gridRefine`-correctie als laatste polijststap.
+  - **Bekende resterende beperking:** op sommige foto's blijft aan één kant
+    (meestal rechts/onder) nog een dun streepje rand over, ook na beide
+    correcties — geen volledige oplossing, wel een forse verbetering t.o.v.
+    "de hele rand werd als bord gezien". Niet verder achtervolgd: kans op
+    overfitten op deze paar testfoto's, en de rest van de pijplijn (fase 0/2/3)
+    kan hier prima mee leven.
+  - `testdata/IMG_532.jpeg` (gitignored, alleen lokaal) is de exacte foto
+    waarmee Jan dit meldde — een goede "moeilijke" foto om een volgende keer
+    weer tegenaan te testen bij wijzigingen aan `detectBoard.js`/
+    `gridRefine.js`. `testdata/testfotos/` had 'm al staan (identiek bestand,
+    ander diagram dan waar de map oorspronkelijk voor bedoeld was).
 - **Fase 2 — daarna:** een volwaardige plausibiliteitslaag met damlogica,
   bovenop wat Fase 0 al doet. **Belangrijk, bevestigd door Jan:** in zijn
   opgaven-database is het aantal schijven wit/zwart in ~95% van de gevallen

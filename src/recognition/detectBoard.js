@@ -1,4 +1,4 @@
-import { computeHomography, applyHomography, warpPerspective } from "./homography.js?v=20260920c";
+import { computeHomography, applyHomography, warpPerspective } from "./homography.js?v=20260920e";
 
 // Automatische hoekdetectie van het dambord op een foto — zonder externe
 // bibliotheken (de app blijft een platte, server-loze website). Gevalideerd
@@ -18,10 +18,19 @@ import { computeHomography, applyHomography, warpPerspective } from "./homograph
 //      erbinnen (`stripBorderToPlayfield()`) — bij boeken met een dikke rand
 //      is "de grootste donkere vlek" uit stap 1 namelijk de rand zelf, niet
 //      het patroon erbinnen. Dat gaf in de praktijk een verkeerd afgesteld
-//      raster en foute schijfherkenning, vooral op de buitenste velden. Een
-//      effen rand heeft vrijwel geen variatie in helderheid per rij/kolom,
-//      het schaakbordpatroon (met of zonder stukken erop) juist wel — dat
-//      verschil gebruiken we om de rand automatisch weg te snijden.
+//      raster en foute schijfherkenning, vooral op de buitenste velden.
+//      Zoekt de celbreedte + startpositie van het 10x10-raster die de
+//      opgetelde randsterkte (Sobel-gradiënt) langs de 9 interne rasterlijnen
+//      maximaliseert, per rij/kolom-projectieprofiel (zie `findGridAxis()`).
+//      Bewust GEEN per-rij/kolom-variantie meer (eerdere versie, 2026-09-20
+//      ochtend): een rand met wat drukstructuur of scancompressie-ruis werd
+//      daarmee soms al als "patroon" herkend, waardoor er nog een zichtbare
+//      rand overbleef. Een projectieprofiel telt de randsterkte op over de
+//      HELE hoogte/breedte, dus een rasterlijn (die op bijna elke rij/kolom
+//      bijdraagt) steekt daar veel duidelijker bovenuit dan zo'n losse
+//      ruisplek. Werkt samen met de kleine na-correctie van `gridRefine.js`
+//      (die daarna, na het rechttrekken, nog een laatste restfout — met name
+//      een kleine restrotatie — wegpoetst).
 //
 // Geeft null terug als er niets overtuigends gevonden wordt — de aanroeper valt
 // dan terug op de bestaande, vaste standaardhoeken (12% marge).
@@ -264,99 +273,127 @@ export function detectCornersFromImageData(imageData, width, height) {
   return ordered.map(([x, y]) => ({ x, y }));
 }
 
-function rowVariances(gray, w, h) {
-  const out = new Float32Array(h);
-  for (let y = 0; y < h; y++) {
-    let sum = 0;
-    let sumSq = 0;
-    const base = y * w;
-    for (let x = 0; x < w; x++) {
-      const v = gray[base + x];
-      sum += v;
-      sumSq += v * v;
+// Sobel-gradiëntsterkte — zelfde kern als gridRefine.js (bewust gedupliceerd,
+// niet gedeeld: dit bestand kent geen afhankelijkheid van gridRefine.js, en dat
+// is hier ook niet nodig, het gaat om exact dezelfde, kleine berekening).
+function gradientMagnitude(gray, w, h) {
+  const mag = new Float32Array(w * h);
+  for (let y = 1; y < h - 1; y++) {
+    for (let x = 1; x < w - 1; x++) {
+      const i = y * w + x;
+      const tl = gray[i - w - 1], t = gray[i - w], tr = gray[i - w + 1];
+      const l = gray[i - 1], r = gray[i + 1];
+      const bl = gray[i + w - 1], b = gray[i + w], br = gray[i + w + 1];
+      const gx = tr + 2 * r + br - (tl + 2 * l + bl);
+      const gy = bl + 2 * b + br - (tl + 2 * t + tr);
+      mag[i] = Math.sqrt(gx * gx + gy * gy);
     }
-    const mean = sum / w;
-    out[y] = sumSq / w - mean * mean;
   }
-  return out;
+  return mag;
 }
 
-function colVariances(gray, w, h) {
-  const out = new Float32Array(w);
+// Randsterkte opgeteld per kolom/rij ("projectieprofiel"): een echte rasterlijn
+// van het schaakbordpatroon geeft op praktisch elke rij (resp. kolom) een randje,
+// dus die kolom/rij krijgt een hoge som — veel hoger dan het toevallige randje van
+// één stuk of wat drukruis in de rand, die maar op een klein stukje van de
+// kolom/rij bijdraagt. Dat maakt dit ongevoeliger voor ruis dan per-rij/kolom-
+// variantie (de eerdere aanpak, die bij een niet-effen rand — bijvoorbeeld met wat
+// drukstructuur — de rand ten onrechte al als "patroon" herkende).
+function colProfile(mag, w, h) {
+  const out = new Float64Array(w);
   for (let x = 0; x < w; x++) {
     let sum = 0;
-    let sumSq = 0;
-    for (let y = 0; y < h; y++) {
-      const v = gray[y * w + x];
-      sum += v;
-      sumSq += v * v;
-    }
-    const mean = sum / h;
-    out[x] = sumSq / h - mean * mean;
+    for (let y = 0; y < h; y++) sum += mag[y * w + x];
+    out[x] = sum;
   }
   return out;
 }
-
-// Zoekt vanaf index 0 de eerste plek waar de variantie `run` waarden achter
-// elkaar boven de drempel uitkomt (één losse uitschieter telt niet mee) — dat
-// is de grens tussen een effen rand en het patroon erachter. Geeft 0 terug als
-// die overgang niet binnen `maxScan` gevonden wordt (dan is er kennelijk geen
-// rand, of niet een die we betrouwbaar kunnen vinden).
-function scanForSustainedRise(variances, threshold, run, maxScan) {
-  for (let i = 0; i <= maxScan; i++) {
-    let ok = true;
-    for (let k = 0; k < run; k++) {
-      if (variances[i + k] < threshold) {
-        ok = false;
-        break;
-      }
-    }
-    if (ok) return i;
+function rowProfile(mag, w, h) {
+  const out = new Float64Array(h);
+  for (let y = 0; y < h; y++) {
+    let sum = 0;
+    const base = y * w;
+    for (let x = 0; x < w; x++) sum += mag[base + x];
+    out[y] = sum;
   }
-  return 0;
+  return out;
+}
+function sampleProfile(profile, size, x) {
+  const xi = Math.round(x);
+  if (xi < 0 || xi >= size) return 0;
+  return profile[xi];
 }
 
-// `variances` loopt over één as (rijen of kolommen) van een vierkant
-// gewarpeerd beeld. Geeft {start, end} terug: de grens tussen rand en patroon
-// aan begin en eind van die as, in dezelfde pixel-coördinaten.
-function detectInsets(variances, size) {
-  const maxVar = Math.max(...variances);
-  if (maxVar < 1e-6) return { start: 0, end: size }; // effen beeld, geen patroon te vinden
-  const threshold = maxVar * 0.25;
-  const run = Math.max(3, Math.round(size * 0.01));
-  const maxInset = Math.floor(size * 0.22); // een rand van meer dan ~22% zou zeer ongebruikelijk zijn
-
-  const start = scanForSustainedRise(variances, threshold, run, maxInset);
-  const fromEnd = scanForSustainedRise(Array.from(variances).reverse(), threshold, run, maxInset);
-  return { start, end: size - fromEnd };
+// Zoekt, langs één as, de celbreedte + startpositie van de 9 interne rasterlijnen
+// die samen de hoogste randsterkte oppikken uit het profiel — dat is het echte
+// 10x10-raster, ongeacht waar de (eventuele) rand precies ophoudt. `offsetMax`
+// begrenst niet alleen hoe ver de eerste lijn van de rand mag liggen, maar ook
+// dat de 10e lijn (offset + 10*spacing) binnen het beeld blijft: zonder die eis
+// kan een kandidaat toevallig goed scoren op de 9 gesamplede lijnen terwijl het
+// hele raster in werkelijkheid een stuk buiten het beeld valt.
+function findGridAxis(profile, size) {
+  let best = null;
+  let bestScore = -1;
+  const spacingMin = (size / 10) * 0.72;
+  const spacingMax = (size / 10) * 1.02;
+  // Van groot naar klein: een rand kan het bord alleen maar kleiner laten lijken
+  // dan het echt is, nooit groter. Bij twee kandidaten die het patroon ongeveer
+  // even goed oppikken (denkbaar bij een erg regelmatig schaakbord: een té klein
+  // gekozen raster kan toevallig ook aardig op randjes uitkomen) geeft dat de
+  // voorkeur aan zo min mogelijk wegsnijden — een kleinere spacing wordt alleen
+  // gekozen als die duidelijk (>3%) beter scoort dan de beste tot nu toe, niet
+  // bij een marginaal verschil.
+  for (let spacing = spacingMax; spacing >= spacingMin; spacing -= 0.5) {
+    // offset mag ook (bijna) 0 zijn: als het patroon de gevonden buitenrand al
+    // helemaal vult, is er geen rand om weg te snijden. Eerder stond hier een
+    // ondergrens van 2% — die sloot precies dát geval per ongeluk uit, want
+    // gecombineerd met de bovengrens (het hele raster moet binnen het beeld
+    // passen) bleef er dan voor de grootste, kloppende spacing geen enkele
+    // geldige offset over.
+    const offsetMax = Math.min(size * 0.2, size - spacing * 10);
+    let bestForSpacing = null;
+    let bestScoreForSpacing = -1;
+    for (let offset = 0; offset <= offsetMax; offset += 1) {
+      let score = 0;
+      for (let k = 1; k <= 9; k++) score += sampleProfile(profile, size, offset + k * spacing);
+      if (score > bestScoreForSpacing) {
+        bestScoreForSpacing = score;
+        bestForSpacing = { offset, spacing };
+      }
+    }
+    if (bestForSpacing && bestScoreForSpacing > bestScore * 1.03) {
+      bestScore = bestScoreForSpacing;
+      best = bestForSpacing;
+    }
+  }
+  return best;
 }
 
 // outerCorners: de 4 hoeken van de gevonden buitenrand (mogelijk incl. lijst),
 // in dezelfde coördinaten als `imageData`. Geeft de (mogelijk) naar binnen
-// bijgestelde 4 hoeken terug, of `outerCorners` ongewijzigd als er niets
-// overtuigends te vinden was (bijvoorbeeld: geen rand, het patroon vult de
-// gevonden buitenrand al helemaal).
+// bijgestelde 4 hoeken terug die het dambordpatroon zelf volgen, of
+// `outerCorners` ongewijzigd terug als er geen patroon te vinden was.
 function stripBorderToPlayfield(imageData, outerCorners) {
-  const SCAN_SIZE = 300;
+  const SIZE = 500;
   const squareCorners = [
     { x: 0, y: 0 },
-    { x: SCAN_SIZE, y: 0 },
-    { x: SCAN_SIZE, y: SCAN_SIZE },
-    { x: 0, y: SCAN_SIZE },
+    { x: SIZE, y: 0 },
+    { x: SIZE, y: SIZE },
+    { x: 0, y: SIZE },
   ];
   const H = computeHomography(squareCorners, outerCorners);
-  const warped = warpPerspective(imageData, H, SCAN_SIZE, SCAN_SIZE);
+  const warped = warpPerspective(imageData, H, SIZE, SIZE);
   const gray = toGrayscale(warped);
+  const mag = gradientMagnitude(gray, SIZE, SIZE);
 
-  const { start: top, end: bottom } = detectInsets(rowVariances(gray, SCAN_SIZE, SCAN_SIZE), SCAN_SIZE);
-  const { start: left, end: right } = detectInsets(colVariances(gray, SCAN_SIZE, SCAN_SIZE), SCAN_SIZE);
+  const xAxis = findGridAxis(colProfile(mag, SIZE, SIZE), SIZE);
+  const yAxis = findGridAxis(rowProfile(mag, SIZE, SIZE), SIZE);
+  if (!xAxis || !yAxis) return outerCorners;
 
-  // Sanity check: als er zogenaamd meer dan de helft van het beeld is
-  // weggesneden, is dit waarschijnlijk een verkeerde detectie — dan liever
-  // niets aanpassen dan een gegokte, mogelijk veel te kleine uitsnede.
-  if (right - left < SCAN_SIZE * 0.5 || bottom - top < SCAN_SIZE * 0.5) {
-    return outerCorners;
-  }
+  const left = xAxis.offset;
+  const right = xAxis.offset + 10 * xAxis.spacing;
+  const top = yAxis.offset;
+  const bottom = yAxis.offset + 10 * yAxis.spacing;
 
   return [
     { x: left, y: top },
