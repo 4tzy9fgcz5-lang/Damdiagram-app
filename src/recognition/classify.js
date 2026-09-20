@@ -1,4 +1,4 @@
-import { FIELD_COUNT, fieldToCoord, PIECE_TYPES, createEmptyBoard } from "../core/board.js?v=20260920p";
+import { FIELD_COUNT, fieldToCoord, PIECE_TYPES, createEmptyBoard } from "../core/board.js?v=20260920t";
 
 function median(values) {
   const sorted = [...values].sort((a, b) => a - b);
@@ -151,7 +151,7 @@ const DIVERSITY_THRESHOLD = 0.2;
 // schijf als een echte dam aan (geen enkel verband met de werkelijke dam-status). Beter
 // eerlijk niets gokken dan stelselmatig fout gokken — elk bezet veld wordt dus een
 // gewone schijf; Jan tikt een veld met een dam er zelf nog een keer op om te wisselen.
-export function classifyFromFeatures(features, diversity = null) {
+function classifyStandard(features, diversity) {
   const fields = [];
   for (let f = 1; f <= FIELD_COUNT; f++) fields.push(f);
   const stds = fields.map((f) => features[f].std);
@@ -285,19 +285,84 @@ export function classifyFromFeatures(features, diversity = null) {
     confidences[f] = Math.min(occupiedConfidenceFor(f), colorConfidence);
   }
 
-  // Spelregel-controle: een witte schijf op veld 1-5 of een zwarte op veld 46-50
-  // kan niet (zou een dam moeten zijn, en de opgaves die hiermee gemaakt worden
-  // bevatten nooit dammen) — dit nooit stilzwijgend aanpassen (in 22 echte
-  // controlegevallen was dit altijd fout, maar 3x bleek een andere aanname niet
-  // te kloppen), maar wel altijd als onzeker markeren zodat het opvalt.
+  flagImpossiblePieces(board, confidences);
+
+  return { board, confidences };
+}
+
+// Spelregel-controle: een witte schijf op veld 1-5 of een zwarte op veld 46-50
+// kan niet (zou een dam moeten zijn, en de opgaves die hiermee gemaakt worden
+// bevatten nooit dammen) — dit nooit stilzwijgend aanpassen (in 22 echte
+// controlegevallen was dit altijd fout, maar 3x bleek een andere aanname niet
+// te kloppen), maar wel altijd als onzeker markeren zodat het opvalt.
+function flagImpossiblePieces(board, confidences) {
   for (let f = 1; f <= 5; f++) {
     if (board[f] === PIECE_TYPES.WHITE_PIECE) confidences[f] = Math.min(confidences[f], 0.2);
   }
   for (let f = 46; f <= FIELD_COUNT; f++) {
     if (board[f] === PIECE_TYPES.BLACK_PIECE) confidences[f] = Math.min(confidences[f], 0.2);
   }
+}
 
+// Effen zwarte schijven zijn véél donkerder dan de rest van het bord — ook dan
+// gearceerde lege velden (een veelvoorkomende boekstijl). Een veld telt als "effen
+// zwart" als zijn midden onder dit deel van de mediaan-helderheid van alle velden zit.
+const SOLID_DARK_RATIO = 0.4;
+
+// Minimaal aantal effen-zwarte velden voordat de omgekeerd-controle hieronder iets
+// durft te concluderen (een paar donkere velden kan ook gewoon schaduw zijn).
+const MIN_SOLID_DARK = 4;
+
+// Zo groot moet de sprong in helderheid tussen lege velden en witte schijven zijn,
+// als deel van de mediaan-helderheid, om witte schijven daarop te herkennen.
+const MIN_WHITE_GAP_RATIO = 0.2;
+
+// Vangnet voor de hoofdherkenning hierboven. Die kiest "zeker lege" velden op basis van
+// weinig textuur. Een effen zwarte schijf heeft nog minder textuur dan een gearceerd leeg
+// veld — op zo'n foto werden de schijven als achtergrond gezien en de gearceerde lege
+// velden als schijven (zwart en leeg precies omgedraaid, gemeld door Jan, 2026-09-20).
+//
+// Herkent dat aan één ondubbelzinnig teken: velden die veel donkerder zijn dan het bord
+// als geheel (effen zwart) noemt de hoofdherkenning voor het grootste deel "leeg". Alleen
+// dan wordt het opnieuw gedaan op de eenvoudigste manier die hier klopt: die donkere
+// velden zijn zwarte schijven; van de rest is alles wat duidelijk lichter is dan de
+// lege velden een witte schijf. Geeft null als dat niet duidelijk genoeg te bepalen is —
+// dan blijft het resultaat van de hoofdherkenning staan.
+function reclassifyWhenBlackIsInverted(features, diversity, standard) {
+  const fields = [];
+  for (let f = 1; f <= FIELD_COUNT; f++) fields.push(f);
+  const boardMedian = median(fields.map((f) => features[f].centerMean));
+  const solidDark = fields.filter(
+    (f) => features[f].centerMean < SOLID_DARK_RATIO * boardMedian && (!diversity || diversity[f] >= DIVERSITY_THRESHOLD)
+  );
+  if (solidDark.length < MIN_SOLID_DARK) return null;
+  const calledEmpty = solidDark.filter((f) => !standard.board[f]).length;
+  if (calledEmpty < solidDark.length * 0.6) return null;
+
+  const rest = fields.filter((f) => !solidDark.includes(f));
+  const split = kmeans1d2(rest.map((f) => features[f].centerMean));
+  const whiteThreshold = (split.low + split.high) / 2;
+  const hasWhites = split.highGroup.length > 0 && split.gap >= MIN_WHITE_GAP_RATIO * boardMedian;
+
+  const board = createEmptyBoard();
+  const confidences = new Array(FIELD_COUNT + 1).fill(0.75);
+  for (const f of solidDark) board[f] = PIECE_TYPES.BLACK_PIECE;
+  if (hasWhites) {
+    for (const f of rest) {
+      if (features[f].centerMean <= whiteThreshold) continue;
+      board[f] = PIECE_TYPES.WHITE_PIECE;
+      const margin = (features[f].centerMean - whiteThreshold) / (split.gap / 2 + 1e-6);
+      confidences[f] = clamp01(0.5 + margin * 0.15);
+    }
+  }
   return { board, confidences };
+}
+
+export function classifyFromFeatures(features, diversity = null) {
+  const standard = classifyStandard(features, diversity);
+  const result = reclassifyWhenBlackIsInverted(features, diversity, standard) || standard;
+  flagImpossiblePieces(result.board, result.confidences);
+  return result;
 }
 
 function toGray(r, g, b) {

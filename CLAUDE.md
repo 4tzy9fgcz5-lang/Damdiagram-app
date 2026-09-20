@@ -70,6 +70,17 @@ server, geen build-stap.
 
 - **Oud**: `src/recognition/classify.js` — handgetunede heuristiek (kmeans-
   splitsing, lichthelling-correctie). `CONFIDENCE_THRESHOLD = 0.65`.
+- **Sinds 2026-09-20: vangnet tegen omgekeerd zwart/leeg (oude classifier).**
+  Op een foto met gearceerde donkere velden en effen zwarte schijven koos de
+  oude classifier de zwarte schijven als "zeker leeg" (minste textuur) en zag
+  daardoor alle gearceerde lege velden als schijf: zwart en leeg precies
+  omgedraaid, witte schijven wél goed (gemeld door Jan). Oorzaak was geen
+  foto-probleem maar een aanname in `classifyStandard()` (`classify.js`).
+  `reclassifyWhenBlackIsInverted()` grijpt alleen in als >= 4 velden veel
+  donkerder zijn dan het bord (midden < 0,4 x mediaan) en het hoofdresultaat
+  die grotendeels "leeg" noemt; dan = donker zwart, duidelijk lichter dan de
+  lege velden = wit. Op de 4 testfoto's met bekende stand exact dezelfde
+  uitkomst als voorheen. Test: `tests/classify.test.js` (echte meetwaarden).
 - **Nieuw** (sinds 2026-09-15, nu standaard): `src/recognition/newFeatures.js` /
   `newModel.js` / `newClassify.js` — ES-module-poort van `damscan/features.js`,
   `damscan/model.js`, `damscan/classify.js`. **Werkt per bord, niet per veld**:

@@ -1,6 +1,6 @@
-import { describe, it, assertEqual, assertTrue } from "./test-runner.js?v=20260920p";
-import { classifyFromFeatures, CONFIDENCE_THRESHOLD } from "../src/recognition/classify.js?v=20260920p";
-import { PIECE_TYPES, FIELD_COUNT, fieldToCoord } from "../src/core/board.js?v=20260920p";
+import { describe, it, assertEqual, assertTrue } from "./test-runner.js?v=20260920t";
+import { classifyFromFeatures, CONFIDENCE_THRESHOLD } from "../src/recognition/classify.js?v=20260920t";
+import { PIECE_TYPES, FIELD_COUNT, fieldToCoord } from "../src/core/board.js?v=20260920t";
 
 const OUT_SIZE = 500;
 const SQUARE = OUT_SIZE / 10;
@@ -207,6 +207,43 @@ describe("fotoherkenning: classificatie", () => {
     assertTrue(confidences[13] > CONFIDENCE_THRESHOLD);
     assertTrue(confidences[1] > CONFIDENCE_THRESHOLD);
     assertTrue(confidences[25] > CONFIDENCE_THRESHOLD);
+  });
+});
+
+// Echte meetwaarden [centerMean, std, diversiteit] per veld 1-50 van een foto met
+// gearceerde donkere velden en effen zwarte schijven (Jan, 2026-09-20). Hier
+// werden de zwarte schijven als "leeg" gezien en de gearceerde lege velden als
+// zwart (omgekeerd) — terwijl de witte schijven wél goed gingen.
+const HATCHED_PHOTO = [
+  [20, 5.1, 0.70], [85, 32.4, 0.34], [14, 1.9, 0.70], [19, 2.9, 0.86], [18, 7.1, 0.83], [17, 4.1, 0.73], [16, 2.6, 0.84], [30, 7.9, 0.86], [17, 3.8, 0.74], [18, 3.9, 0.93], [15, 7.5, 0.85], [29, 5.5, 0.65], [20, 4.5, 0.89], [22, 3.9, 0.98], [112, 11.9, 0.73], [19, 1.7, 0.76], [64, 19.9, 0.69], [17, 2.7, 0.64], [98, 10.4, 0.41], [119, 14.1, 0.55], [93, 13.7, 0.53], [109, 19.9, 0.30], [114, 10.4, 0.33], [17, 7.8, 0.80], [181, 28.9, 0.98], [18, 5.7, 0.96], [173, 27.3, 0.93], [118, 9.4, 0.31], [12, 5.6, 0.95], [123, 8.0, 0.45], [173, 33.2, 0.92], [177, 24.9, 0.95], [107, 9.7, 0.51], [103, 9.4, 0.36], [177, 31.8, 0.90], [77, 15.8, 0.91], [98, 19.7, 0.84], [173, 21.0, 0.95], [176, 26.7, 0.98], [178, 32.1, 0.96], [169, 35.9, 0.88], [173, 33.0, 0.97], [175, 26.2, 0.97], [171, 30.4, 0.97], [166, 37.3, 0.90], [162, 48.8, 0.88], [165, 36.8, 0.94], [169, 24.0, 0.92], [162, 29.9, 0.95], [164, 32.9, 0.94],
+];
+const HATCHED_PHOTO_BLACK = [1, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 16, 18, 24, 26, 29];
+const HATCHED_PHOTO_WHITE = [25, 27, 31, 32, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50];
+
+describe("classifyFromFeatures — gearceerde velden met effen zwarte schijven", () => {
+  const features = new Array(51).fill(null);
+  const diversity = new Array(51).fill(0);
+  HATCHED_PHOTO.forEach(([centerMean, std, div], i) => {
+    const f = i + 1;
+    const { cx, cy } = fieldCenter(f);
+    features[f] = { mean: centerMean, std, centerMean, cx, cy };
+    diversity[f] = div;
+  });
+  const { board } = classifyFromFeatures(features, diversity);
+
+  it("herkent alle effen zwarte schijven als zwart (niet als leeg)", () => {
+    for (const f of HATCHED_PHOTO_BLACK) assertEqual(board[f], PIECE_TYPES.BLACK_PIECE);
+  });
+
+  it("herkent alle witte schijven als wit", () => {
+    for (const f of HATCHED_PHOTO_WHITE) assertEqual(board[f], PIECE_TYPES.WHITE_PIECE);
+  });
+
+  it("laat de gearceerde lege velden leeg", () => {
+    for (let f = 1; f <= FIELD_COUNT; f++) {
+      if (HATCHED_PHOTO_BLACK.includes(f) || HATCHED_PHOTO_WHITE.includes(f)) continue;
+      assertEqual(board[f] || null, null);
+    }
   });
 });
 
