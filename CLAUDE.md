@@ -207,42 +207,40 @@ dan de nieuwe. Aanpak en uitkomst:
   bijgesneden foto met een titelregel erboven krijgt de titelregel mee in het
   kader (lichte scheefstand van het raster), en foto's met een breed zwart kader
   om het bord (IMG_1058) vallen terug op de vaste marge.
-- **Bulk-import (gemeten 2026-09-21 op volle resolutie, 107 kandidaten uit 33
-  paginafoto's).** Geen 8x8 in deze route, maar `detectMultiBoard.js` levert de
-  buitenrand mét zwarte bordrand: het 10x10-raster lag daardoor tot een halve
-  veldbreedte naast de velden (`refineGrid` corrigeert maar ±1,2% verschuiving/±3%
-  schaal, dat is te weinig voor een rand van 5-13%). Nu snijdt
-  `bulkImportView.js` per gevonden diagram de rand weg met
-  `tightenCornersOnDrawable()` (`detectBoard.js`; dezelfde `stripBorderToPlayfield`,
-  dus max. 8% per kant, en het oorspronkelijke kader blijft alleen staan als dat
-  >15% beter bij het patroon past). Op de meetplaatjes staat het raster daarna in
-  vrijwel alle gevallen op de velden. Let op: de detectie in de app draait op 1600px
-  (`detectMultiBoard.js`, `WORKING_SIZE`), NIET op 700px zoals bij een losse foto —
-  op 700px lijken tekstblokken op diagrammen. Bekende rest: tekstblokken/foto's
-  worden soms als "diagram" gevonden (Jan verwijdert die in het overzicht), en een
-  foto waarop het bord maar ~25% van het beeld beslaat (IMG_1056) geeft in de bulk-
-  detectie kleine onzin-kaders. Herkenning op de oranje/sepia stijl (pagina 855108d9)
-  is zwak bij beide herkenners (oud 22, nieuw 17 stukken, oneens over 27 van de 50
-  velden) — dat is classificatie, geen geometrie. Meetprogramma:
-  `tools/meetBulkImport.mjs`.
-- **Test op Jans 5 paginafoto's (IMG_0664/0665/0668/0669/0670, 2026-09-21, alleen
-  de automatische kaders, zonder handmatig slepen; geconverteerd naar
-  `testdata/pages5/*.jpg`, gitignored).** Van 53 volledig zichtbare diagrammen werden
-  er 48 gevonden (gemist: 188 en 189 op 0665, 24/28/32 op 0668; plus half zichtbare
-  diagrammen op de andere pagina) en 1 onzinkader (duim). Van de 48 gevonden staan
-  er 31 goed ingekaderd en foutloos herkend (bordniveau + steekproef per veld); 17
-  (35%) staan verkeerd ingekaderd. **Oorzaak:** (a) het diagramnummer of onderschrift
-  dat de bordrand raakt wordt in de "donkere vlek" opgenomen, waardoor het kader een
-  rij te hoog/laag zit en het raster een rij verschuift (0670: 46, 47, 51, 53, 57;
-  0669: 37, 38, 40, 41; 0668: 33, 37-40 onderschrift); (b) bij een schuin genomen foto
-  is het bord een scheef vierkant (0665: 185, 186, 190) — `detectMultiBoard.js`
-  levert een rechte rechthoek (kleinste omvattende) en `stripBorderToPlayfield`
-  snijdt weer een rechte rechthoek, dus die kan de echte hoeken niet volgen. Bij
-  goed ingekaderde borden was de herkenning door het neurale netwerkje op alle
-  bekeken velden goed. Voorstel: de 4 echte kaderlijnen zoeken (een lang, ononderbroken
-  donker lijnstuk, i.p.v. de omvattende rechthoek van alles wat donker is) zodat tekst
-  buiten het kader en scheefstand geen invloed hebben; opnieuw meten op deze 5 pagina's
-  (doel: 48/48 goed ingekaderd) en op de 33 pagina's uit `~/Downloads/Dammen/Analyses`.
+- **Bulk-import: hoeken zoeken op het patroon (2026-09-21, nacht).** Eerste test op
+  Jans 5 paginafoto's (IMG_0664/0665/0668/0669/0670 -> `testdata/pages5/*.jpg`,
+  gitignored) met alleen de automatische kaders: van 53 volledig zichtbare diagrammen
+  werden er 48 gevonden, 17 (35%) daarvan verkeerd ingekaderd. **Oorzaken:**
+  `detectMultiBoard.js` voegt de hoeken van de omhullende rechthoek van elke vlek toe
+  aan de hull (`points.push([minx, miny]...)`), dus het kader is altijd een RECHTE
+  rechthoek (te ruim bij een scheef genomen foto, nummer/onderschrift dat de bordrand
+  raakt doet mee), en `stripBorderToPlayfield` snijdt weer een rechte rechthoek.
+  **Oplossing:** `src/recognition/quadFit.js` zoekt de vier echte hoeken direct op het
+  dambordpatroon (`fitBoardQuad`): maat = afgeknot gemiddelde van de lichte cellen min
+  dat van de donkere (donker = rij+kolom oneven, 5x5 punten per cel), patroonzoektocht
+  met 12 verplaatsingen (8 hoeken + 4 zijden), 4 startposities (0/4/8/12% kleiner),
+  tiebreak op randsterkte langs het kader, daarna een fijnafstelling op de 11+11
+  rasterlijnen (`gridLineScore`, max 12% van de zijde, patroonmaat mag niet zakken).
+  `patternSeparation` (kans dat een lichte cel lichter is dan een donkere; 0,5 = geen
+  patroon) en het contrast wijzen niet-borden af: tekst, een hand, een foto scoorden
+  0,52-0,65 en contrast 3-7, het vaagste echte bord 0,71 en 16 (`bulkDetect.js`:
+  drempels 0,6 en 10). Gemiste borden: `findMissingBoards` bepaalt uit de gevonden
+  borden de kolommen en rijen (min. 2 gevonden) en past op elk leeg kruispunt een bord
+  (drempel 0,68, want het kruispunt is voorspeld). Alles zit in `bulkDetect.js`
+  (`detectBulkBoards`, leesvolgorde rij voor rij), gebruikt door `bulkImportView.js`;
+  de oude `tightenCorners*`-functies zijn verwijderd. ~1 s per pagina.
+  **Resultaat op de 5 pagina's:** alle 53 volledig zichtbare diagrammen gevonden
+  (3+6+20+12+12; alleen half zichtbare diagrammen op de andere pagina worden niet gevonden), de hand is weg, en de
+  33 oudere pagina's geven 53 borden (was 62 kandidaten, waarvan ~8 geen bord: tekst,
+  persoon, onzinkaders; pagina's zonder diagram -> 0). Bij 0664, 0665, 0669, 0670 staan
+  alle borden goed ingekaderd en kloppen alle stukaantallen; **pagina 0668 (20 vage
+  miniaturen) zit op ~13 van 20 goed** — bij de andere ligt het raster nog een halve
+  cel te laag/opzij (stukken op de rasterlijn, gele velden). Volgende stap daarvoor:
+  de uitlijning laten sturen door de zekerheid van het neurale netwerkje (raster in
+  kleine stapjes verschuiven en de stand met de hoogste totale zekerheid kiezen, bij
+  het herkennen i.p.v. bij het zoeken), of de schuifverstoring bij het trainen van het
+  netwerkje vergroten. Testhulp: `tools/bulkCheck/` (server + driver). Tests:
+  `tests/quadFit.test.js`.
 - **Damlogica uit.** `classifyWithComparison()` past de stand niet meer aan
   (`enforceRules` wordt niet meer aangeroepen) en markeert geen extra velden op
   basis van balans/"dam?". Alleen de waarschuwingen "geen enkel stuk herkend" en
