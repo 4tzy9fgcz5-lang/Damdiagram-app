@@ -1,5 +1,5 @@
-import { describe, it, assertTrue } from "./test-runner.js?v=20260920b";
-import { detectBoardCorners } from "../src/recognition/detectBoard.js?v=20260920b";
+import { describe, it, assertTrue } from "./test-runner.js?v=20260920c";
+import { detectBoardCorners } from "../src/recognition/detectBoard.js?v=20260920c";
 
 function approxEqual(a, b, eps) {
   return Math.abs(a - b) < eps;
@@ -69,5 +69,73 @@ describe("automatische hoekdetectie", () => {
     const ys = corners.map((p) => p.y);
     assertTrue(Math.max(...xs) - Math.min(...xs) > 250, "bord lijkt te smal gevonden");
     assertTrue(Math.max(...ys) - Math.min(...ys) > 250, "bord lijkt te laag gevonden");
+  });
+});
+
+describe("automatische hoekdetectie: rand wegsnijden tot het patroon", () => {
+  it("snijdt een dikke zwarte rand om het schaakbordpatroon weg", () => {
+    const size = 700;
+    const frame = { x0: 100, y0: 100, x1: 600, y1: 600 };
+    const playfield = { x0: 130, y0: 130, x1: 570, y1: 570 }; // rand van 30px
+    const cell = (playfield.x1 - playfield.x0) / 10;
+
+    const canvas = document.createElement("canvas");
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext("2d");
+    ctx.fillStyle = "#e8dcc0"; // papierkleur
+    ctx.fillRect(0, 0, size, size);
+    ctx.fillStyle = "#000000"; // dikke rand
+    ctx.fillRect(frame.x0, frame.y0, frame.x1 - frame.x0, frame.y1 - frame.y0);
+    for (let row = 0; row < 10; row++) {
+      for (let col = 0; col < 10; col++) {
+        ctx.fillStyle = (row + col) % 2 === 0 ? "#3a2a18" : "#c9b183";
+        ctx.fillRect(playfield.x0 + col * cell, playfield.y0 + row * cell, cell, cell);
+      }
+    }
+
+    const corners = detectBoardCorners(canvas);
+    assertTrue(corners !== null, "verwachtte een gevonden bord");
+    const xs = corners.map((p) => p.x);
+    const ys = corners.map((p) => p.y);
+
+    // De rand (100-600) moet zijn weggesneden tot dicht bij het echte patroon
+    // (130-570) — niet exact, maar wél duidelijk dichter bij het patroon dan
+    // bij de buitenkant van de rand.
+    assertTrue(approxEqual(Math.min(...xs), playfield.x0, 20), `linkerkant: ${Math.min(...xs)} vs patroon ${playfield.x0} (rand lag op ${frame.x0})`);
+    assertTrue(approxEqual(Math.max(...xs), playfield.x1, 20), `rechterkant: ${Math.max(...xs)} vs patroon ${playfield.x1} (rand lag op ${frame.x1})`);
+    assertTrue(approxEqual(Math.min(...ys), playfield.y0, 20), `bovenkant: ${Math.min(...ys)} vs patroon ${playfield.y0} (rand lag op ${frame.y0})`);
+    assertTrue(approxEqual(Math.max(...ys), playfield.y1, 20), `onderkant: ${Math.max(...ys)} vs patroon ${playfield.y1} (rand lag op ${frame.y1})`);
+  });
+
+  it("laat een bord zonder rand met rust (patroon vult de gevonden buitenkant al)", () => {
+    const size = 700;
+    const playfield = { x0: 100, y0: 100, x1: 600, y1: 600 };
+    const cell = (playfield.x1 - playfield.x0) / 10;
+
+    const canvas = document.createElement("canvas");
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext("2d");
+    ctx.fillStyle = "#e8dcc0";
+    ctx.fillRect(0, 0, size, size);
+    // Geen aparte zwarte rand: het patroon zelf heeft aan de buitenkant al
+    // een donker veld, zodat de buitenrand-detectie (stap 1) meteen het
+    // patroon zelf vindt.
+    ctx.fillStyle = "#000000";
+    ctx.fillRect(playfield.x0 - 2, playfield.y0 - 2, playfield.x1 - playfield.x0 + 4, playfield.y1 - playfield.y0 + 4);
+    for (let row = 0; row < 10; row++) {
+      for (let col = 0; col < 10; col++) {
+        ctx.fillStyle = (row + col) % 2 === 0 ? "#3a2a18" : "#c9b183";
+        ctx.fillRect(playfield.x0 + col * cell, playfield.y0 + row * cell, cell, cell);
+      }
+    }
+
+    const corners = detectBoardCorners(canvas);
+    assertTrue(corners !== null, "verwachtte een gevonden bord");
+    const xs = corners.map((p) => p.x);
+    const ys = corners.map((p) => p.y);
+    assertTrue(approxEqual(Math.min(...xs), playfield.x0, 20), `linkerkant week te veel af: ${Math.min(...xs)}`);
+    assertTrue(approxEqual(Math.max(...xs), playfield.x1, 20), `rechterkant week te veel af: ${Math.max(...xs)}`);
   });
 });

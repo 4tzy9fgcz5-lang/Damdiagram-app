@@ -4,7 +4,7 @@ import {
   MIGRATIONS,
   STORE_LIJSTEN,
   DEFAULT_CATEGORIEEN,
-} from "./schema.js?v=20260920b";
+} from "./schema.js?v=20260920c";
 
 let dbPromise = null;
 let currentDb = null;

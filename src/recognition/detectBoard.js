@@ -1,15 +1,27 @@
+import { computeHomography, applyHomography, warpPerspective } from "./homography.js?v=20260920c";
+
 // Automatische hoekdetectie van het dambord op een foto — zonder externe
 // bibliotheken (de app blijft een platte, server-loze website). Gevalideerd
 // buiten de app (Python-prototype op 81 echte testfoto's, ~80-90% raak) vóór
 // deze overzetting.
 //
-// Aanpak: het bord heeft in vrijwel elke boekstijl een opvallende, dikke zwarte
-// buitenrand. Die rand is de grootste samenhangende "donkere" vorm op de foto
-// (groter dan een los stuk), gevonden via:
-//   grijswaarden -> Otsu-drempel (donker/licht) -> dilatatie (randjes verbinden)
-//   -> samenhangende vlekken zoeken -> de vlek met de grootste bounding-box
-//   -> convex hull van die vlek -> kleinst omvattende (eventueel scheve)
-//   rechthoek (rotating calipers) als de 4 hoeken.
+// Twee stappen:
+//   1. De buitenrand vinden: het bord heeft in vrijwel elke boekstijl een
+//      opvallende, dikke zwarte buitenrand. Die rand is de grootste
+//      samenhangende "donkere" vorm op de foto (groter dan een los stuk),
+//      gevonden via: grijswaarden -> Otsu-drempel (donker/licht) -> dilatatie
+//      (randjes verbinden) -> samenhangende vlekken zoeken -> de vlek met de
+//      grootste bounding-box -> convex hull van die vlek -> kleinst
+//      omvattende (eventueel scheve) rechthoek (rotating calipers) als de 4
+//      hoeken.
+//   2. Die rand (indien aanwezig) wegsnijden tot het echte dambordpatroon
+//      erbinnen (`stripBorderToPlayfield()`) — bij boeken met een dikke rand
+//      is "de grootste donkere vlek" uit stap 1 namelijk de rand zelf, niet
+//      het patroon erbinnen. Dat gaf in de praktijk een verkeerd afgesteld
+//      raster en foute schijfherkenning, vooral op de buitenste velden. Een
+//      effen rand heeft vrijwel geen variatie in helderheid per rij/kolom,
+//      het schaakbordpatroon (met of zonder stukken erop) juist wel — dat
+//      verschil gebruiken we om de rand automatisch weg te snijden.
 //
 // Geeft null terug als er niets overtuigends gevonden wordt — de aanroeper valt
 // dan terug op de bestaande, vaste standaardhoeken (12% marge).
@@ -252,6 +264,108 @@ export function detectCornersFromImageData(imageData, width, height) {
   return ordered.map(([x, y]) => ({ x, y }));
 }
 
+function rowVariances(gray, w, h) {
+  const out = new Float32Array(h);
+  for (let y = 0; y < h; y++) {
+    let sum = 0;
+    let sumSq = 0;
+    const base = y * w;
+    for (let x = 0; x < w; x++) {
+      const v = gray[base + x];
+      sum += v;
+      sumSq += v * v;
+    }
+    const mean = sum / w;
+    out[y] = sumSq / w - mean * mean;
+  }
+  return out;
+}
+
+function colVariances(gray, w, h) {
+  const out = new Float32Array(w);
+  for (let x = 0; x < w; x++) {
+    let sum = 0;
+    let sumSq = 0;
+    for (let y = 0; y < h; y++) {
+      const v = gray[y * w + x];
+      sum += v;
+      sumSq += v * v;
+    }
+    const mean = sum / h;
+    out[x] = sumSq / h - mean * mean;
+  }
+  return out;
+}
+
+// Zoekt vanaf index 0 de eerste plek waar de variantie `run` waarden achter
+// elkaar boven de drempel uitkomt (één losse uitschieter telt niet mee) — dat
+// is de grens tussen een effen rand en het patroon erachter. Geeft 0 terug als
+// die overgang niet binnen `maxScan` gevonden wordt (dan is er kennelijk geen
+// rand, of niet een die we betrouwbaar kunnen vinden).
+function scanForSustainedRise(variances, threshold, run, maxScan) {
+  for (let i = 0; i <= maxScan; i++) {
+    let ok = true;
+    for (let k = 0; k < run; k++) {
+      if (variances[i + k] < threshold) {
+        ok = false;
+        break;
+      }
+    }
+    if (ok) return i;
+  }
+  return 0;
+}
+
+// `variances` loopt over één as (rijen of kolommen) van een vierkant
+// gewarpeerd beeld. Geeft {start, end} terug: de grens tussen rand en patroon
+// aan begin en eind van die as, in dezelfde pixel-coördinaten.
+function detectInsets(variances, size) {
+  const maxVar = Math.max(...variances);
+  if (maxVar < 1e-6) return { start: 0, end: size }; // effen beeld, geen patroon te vinden
+  const threshold = maxVar * 0.25;
+  const run = Math.max(3, Math.round(size * 0.01));
+  const maxInset = Math.floor(size * 0.22); // een rand van meer dan ~22% zou zeer ongebruikelijk zijn
+
+  const start = scanForSustainedRise(variances, threshold, run, maxInset);
+  const fromEnd = scanForSustainedRise(Array.from(variances).reverse(), threshold, run, maxInset);
+  return { start, end: size - fromEnd };
+}
+
+// outerCorners: de 4 hoeken van de gevonden buitenrand (mogelijk incl. lijst),
+// in dezelfde coördinaten als `imageData`. Geeft de (mogelijk) naar binnen
+// bijgestelde 4 hoeken terug, of `outerCorners` ongewijzigd als er niets
+// overtuigends te vinden was (bijvoorbeeld: geen rand, het patroon vult de
+// gevonden buitenrand al helemaal).
+function stripBorderToPlayfield(imageData, outerCorners) {
+  const SCAN_SIZE = 300;
+  const squareCorners = [
+    { x: 0, y: 0 },
+    { x: SCAN_SIZE, y: 0 },
+    { x: SCAN_SIZE, y: SCAN_SIZE },
+    { x: 0, y: SCAN_SIZE },
+  ];
+  const H = computeHomography(squareCorners, outerCorners);
+  const warped = warpPerspective(imageData, H, SCAN_SIZE, SCAN_SIZE);
+  const gray = toGrayscale(warped);
+
+  const { start: top, end: bottom } = detectInsets(rowVariances(gray, SCAN_SIZE, SCAN_SIZE), SCAN_SIZE);
+  const { start: left, end: right } = detectInsets(colVariances(gray, SCAN_SIZE, SCAN_SIZE), SCAN_SIZE);
+
+  // Sanity check: als er zogenaamd meer dan de helft van het beeld is
+  // weggesneden, is dit waarschijnlijk een verkeerde detectie — dan liever
+  // niets aanpassen dan een gegokte, mogelijk veel te kleine uitsnede.
+  if (right - left < SCAN_SIZE * 0.5 || bottom - top < SCAN_SIZE * 0.5) {
+    return outerCorners;
+  }
+
+  return [
+    { x: left, y: top },
+    { x: right, y: top },
+    { x: right, y: bottom },
+    { x: left, y: bottom },
+  ].map(({ x, y }) => applyHomography(H, x, y));
+}
+
 // drawable: een canvas/bitmap/image met .width/.height, tekenbaar via drawImage.
 // Geeft [{x,y} x4] terug in de coördinaten van `drawable`, of null.
 export function detectBoardCorners(drawable) {
@@ -268,7 +382,9 @@ export function detectBoardCorners(drawable) {
   ctx.drawImage(drawable, 0, 0, workWidth, workHeight);
   const imageData = ctx.getImageData(0, 0, workWidth, workHeight);
 
-  const corners = detectCornersFromImageData(imageData, workWidth, workHeight);
-  if (!corners) return null;
+  const outerCorners = detectCornersFromImageData(imageData, workWidth, workHeight);
+  if (!outerCorners) return null;
+
+  const corners = stripBorderToPlayfield(imageData, outerCorners);
   return corners.map(({ x, y }) => ({ x: x / scale, y: y / scale }));
 }

@@ -121,21 +121,31 @@ bijgestelde versie (niet de volgorde uit het originele plan):
   achterste rij) werden weggegooid; die worden nu getoond op het
   resultatenscherm van de fotoherkenning én tellen mee als onzeker veld. Zie
   `sanityCheck()` in `newClassify.js`, gebruikt in `diagramCaptureView.js`.
-- **Fase 1 — klaar (2026-09-20), alleen "aanpak A":** automatisch het raster
-  verfijnen na het rechttrekken. Zie `src/recognition/gridRefine.js`
-  (`refineGrid()`) — geen gebruik van de classifier zelf (te traag om
-  tientallen keren per foto te draaien), maar van de vaststelling dat het
-  bordpatroon zelf altijd een schaakbordpatroon is: score = opgetelde
-  Sobel-randsterkte langs de 18 rasterlijnen, kleine translatie/schaal/rotatie
-  daarop geoptimaliseerd (coördinaat-afdaling, geen volledige combinatorische
-  zoektocht — ruim onder de 50ms per foto). Gewapend met eigen tests
-  (`tests/gridRefine.test.js`) op een synthetisch verschoven schaakbord.
-  Aangesloten in `diagramCaptureView.js`: draait automatisch bij elke
-  herkenning, vóór classificatie, en de toegepaste correctie (indien van
-  toepassing) is zichtbaar onder "Toon herkenningsstappen". Bewust NIET
-  gedaan: "aanpak B" uit het plan (voorspelde vs. gecorrigeerde hoekpunten
-  loggen voor een toekomstig hoek-model) — dat blijft openstaan, geen haast
-  bij tenzij aanpak A in de praktijk toch tekortschiet.
+- **Fase 1 — klaar (2026-09-20), twee delen:**
+  1. Kleine correctie ná het rechttrekken (`src/recognition/gridRefine.js`,
+     `refineGrid()`) — geen gebruik van de classifier zelf (te traag om
+     tientallen keren per foto te draaien), maar van de vaststelling dat het
+     bordpatroon zelf altijd een schaakbordpatroon is: score = opgetelde
+     Sobel-randsterkte langs de 18 rasterlijnen, kleine translatie/schaal/
+     rotatie daarop geoptimaliseerd (coördinaat-afdaling, ruim onder de 50ms
+     per foto). Tests: `tests/gridRefine.test.js`.
+  2. **Belangrijker, pas toegevoegd nadat Jan liet zien dat 1. voor hem geen
+     verschil maakte:** de automatische hoekdetectie zelf (`detectBoard.js`)
+     pakte tot dan toe de buitenkant van de zwarte rand om het speelveld,
+     niet het schaakbordpatroon erbinnen — bij een dikke rand een veel te
+     grote fout om door punt 1 (kleine correctie) opgevangen te worden. Jan
+     moest daardoor zelf steeds de hoeken verslepen. Nieuw:
+     `stripBorderToPlayfield()` in `detectBoard.js` snijdt die rand nu
+     automatisch weg (een effen rand heeft nauwelijks variatie in
+     helderheid per rij/kolom, het patroon zelf wel — dat verschil bepaalt
+     waar de rand ophoudt). Getest met een dikke effen rand én met een
+     gearceerd (Oost-Europees) boekstijltje. Tests:
+     `tests/detectBoard.test.js`.
+  Beide draaien automatisch bij elke herkenning (ook bulk-import), zichtbaar/
+  toegepast vóór classificatie. Bewust NIET gedaan: "aanpak B" uit het plan
+  (voorspelde vs. gecorrigeerde hoekpunten loggen voor een toekomstig
+  hoek-model) — blijft openstaan, geen haast bij tenzij dit in de praktijk
+  alsnog tekortschiet.
 - **Fase 2 — daarna:** een volwaardige plausibiliteitslaag met damlogica,
   bovenop wat Fase 0 al doet. **Belangrijk, bevestigd door Jan:** in zijn
   opgaven-database is het aantal schijven wit/zwart in ~95% van de gevallen
