@@ -1,19 +1,21 @@
-import { renderEditorView } from "./editorView.js?v=20260921av";
-import { renderDatabaseView } from "./databaseView.js?v=20260921av";
-import { renderStandDetailView } from "./standDetailView.js?v=20260921av";
-import { renderStencilsListView } from "./stencilsListView.js?v=20260921av";
-import { renderStencilView, addStandenToStencil } from "./stencilView.js?v=20260921av";
-import { saveStencil } from "../db/stencils.js?v=20260921av";
-import { getLastBackupDate } from "./backupView.js?v=20260921av";
-import { renderSettingsView } from "./settingsView.js?v=20260921av";
-import { renderImportView } from "./importView.js?v=20260921av";
-import { renderPhotoImportView } from "./photoImportView.js?v=20260921av";
-import { renderBulkImportView } from "./bulkImportView.js?v=20260921av";
-import { loadDrawable } from "./imageInput.js?v=20260921av";
-import { renderDiagramCapture, cropAroundCorners } from "./diagramCaptureView.js?v=20260921av";
-import { listStanden } from "../db/standen.js?v=20260921av";
+import { renderEditorView } from "./editorView.js?v=20260921ax";
+import { renderDatabaseView } from "./databaseView.js?v=20260921ax";
+import { renderStandDetailView } from "./standDetailView.js?v=20260921ax";
+import { renderStencilsListView } from "./stencilsListView.js?v=20260921ax";
+import { renderStencilView, addStandenToStencil } from "./stencilView.js?v=20260921ax";
+import { saveStencil } from "../db/stencils.js?v=20260921ax";
+import { getLastBackupDate } from "./backupView.js?v=20260921ax";
+import { renderSettingsView } from "./settingsView.js?v=20260921ax";
+import { renderImportView } from "./importView.js?v=20260921ax";
+import { renderPhotoImportView } from "./photoImportView.js?v=20260921ax";
+import { renderBulkImportView } from "./bulkImportView.js?v=20260921ax";
+import { loadDrawable } from "./imageInput.js?v=20260921ax";
+import { renderBulkPrepare } from "./bulkPrepareView.js?v=20260921ax";
+import { reviewReason } from "../core/bulkReview.js?v=20260921ax";
+import { renderDiagramCapture, cropAroundCorners } from "./diagramCaptureView.js?v=20260921ax";
+import { listStanden } from "../db/standen.js?v=20260921ax";
 
-const routes = ["nieuw", "foto", "bulk", "bulk-diagram", "database", "stand", "stencils", "stencil", "instellingen", "import"];
+const routes = ["nieuw", "foto", "bulk", "bulk-voorbereiden", "bulk-diagram", "database", "stand", "stencils", "stencil", "instellingen", "import"];
 let pendingRecognition = null;
 // Actieve bulk-import-rij: { pages: [{ file, name }] (de foto's), diagrams: [{ page (plek in pages),
 // corners, manual, nummer, oplossingTekst }], boekstijl, auteur, index }.
@@ -46,6 +48,20 @@ let standReturnRoute = "#/database";
 // knoppen er niet.
 let standNavIds = null;
 
+// De regel boven de editor in de automatische bulk-modus: waar je in de rij zit en (alleen bij een
+// automatisch herkend diagram) waarom het extra aandacht vraagt.
+function makeBulkInfo(diagram, index, metReden) {
+  const { diagrams, pages } = bulkQueue;
+  return {
+    tekst: `Diagram ${index + 1} van ${diagrams.length}${diagram.nummer ? ` — nr. ${diagram.nummer}` : ""}${pages.length > 1 ? ` (foto ${diagram.page + 1} van ${pages.length})` : ""}`,
+    reden: metReden ? reviewReason(diagram) : "",
+    onAdjustCorners: () => {
+      diagram.hoekenOpnieuw = true;
+      location.hash = "#/bulk-diagram";
+    },
+  };
+}
+
 function showToast(message) {
   const toast = document.createElement("div");
   toast.className = "toast";
@@ -65,6 +81,7 @@ const NAV_FOR_ROUTE = {
   nieuw: "nieuw",
   foto: "nieuw",
   bulk: "nieuw",
+  "bulk-voorbereiden": "nieuw",
   "bulk-diagram": "nieuw",
   database: "database",
   stand: "database",
@@ -98,7 +115,7 @@ async function render() {
   // anders naartoe — ook naar #/nieuw/<id> om een bestaande stand te bewerken —
   // dan is de rij voorbij; anders zou een latere, losse opslag onterecht als
   // bulk-stap behandeld worden.
-  if (bulkQueue && name !== "bulk" && name !== "bulk-diagram" && !(name === "nieuw" && !param)) {
+  if (bulkQueue && name !== "bulk" && name !== "bulk-voorbereiden" && name !== "bulk-diagram" && !(name === "nieuw" && !param)) {
     bulkQueue = null;
   }
   if (!bulkQueue) releaseBulkDrawable();
@@ -205,8 +222,25 @@ async function render() {
   } else if (name === "bulk") {
     bulkQueue = null;
     await renderBulkImportView(app, {
-      onConfirmed: ({ pages, diagrams, boekstijl, auteur }) => {
-        bulkQueue = { pages, diagrams, boekstijl, auteur, index: 0 };
+      onConfirmed: ({ pages, diagrams, boekstijl, auteur, auto }) => {
+        bulkQueue = { pages, diagrams, boekstijl, auteur, auto, index: 0 };
+        location.hash = auto ? "#/bulk-voorbereiden" : "#/bulk-diagram";
+      },
+    });
+  } else if (name === "bulk-voorbereiden") {
+    if (!bulkQueue) {
+      location.hash = "#/bulk";
+      return;
+    }
+    renderBulkPrepare(app, {
+      queue: bulkQueue,
+      onDone: () => {
+        location.hash = "#/bulk-diagram";
+      },
+      onFallback: () => {
+        // toch per diagram de hoeken bekijken: de al herkende resultaten worden dan niet gebruikt
+        bulkQueue.auto = false;
+        bulkQueue.index = 0;
         location.hash = "#/bulk-diagram";
       },
     });
@@ -217,6 +251,22 @@ async function render() {
     }
     const { diagrams, index } = bulkQueue;
     const diagram = diagrams[index];
+    // Automatische modus: de stand is al herkend, dus meteen naar de controle in de editor. Alleen
+    // een diagram dat niet herkend kon worden, zelf is toegevoegd of waarvan je zelf de hoeken wilt
+    // aanpassen gaat nog langs het hoekenscherm hieronder.
+    if (bulkQueue.auto && diagram.result && !diagram.hoekenOpnieuw) {
+      pendingRecognition = {
+        ...diagram.result,
+        boekstijl: bulkQueue.boekstijl,
+        auteur: bulkQueue.auteur,
+        nummer: diagram.nummer ?? "",
+        oplossingTekst: diagram.oplossingTekst ?? "",
+        beurt: diagram.beurt,
+        bulkInfo: makeBulkInfo(diagram, index, true),
+      };
+      location.hash = "#/nieuw";
+      return;
+    }
     let drawable;
     try {
       drawable = await getBulkDrawable(diagram.page);
@@ -240,7 +290,8 @@ async function render() {
       initialCorners: stepCorners,
       heading: `Diagram ${index + 1} van ${diagrams.length}${diagram.nummer ? ` — nr. ${diagram.nummer}` : ""}${bulkQueue.pages.length > 1 ? ` (foto ${diagram.page + 1} van ${bulkQueue.pages.length})` : ""}`,
       onRecognized: (result) => {
-        pendingRecognition = { ...result, boekstijl: bulkQueue.boekstijl, auteur: bulkQueue.auteur, nummer: diagram.nummer ?? "", oplossingTekst: diagram.oplossingTekst ?? "" };
+        diagram.hoekenOpnieuw = false;
+        pendingRecognition = { ...result, boekstijl: bulkQueue.boekstijl, auteur: bulkQueue.auteur, nummer: diagram.nummer ?? "", oplossingTekst: diagram.oplossingTekst ?? "", bulkInfo: bulkQueue.auto ? makeBulkInfo(diagram, index, false) : undefined };
         location.hash = "#/nieuw";
       },
     });
@@ -258,6 +309,8 @@ async function render() {
       initialAuteur: recognition?.auteur,
       initialNummer: recognition?.nummer,
       initialOplossingTekst: recognition?.oplossingTekst,
+      initialTurn: recognition?.beurt,
+      bulkInfo: recognition?.bulkInfo,
       onSaved: (stand, { addToStencil }) => {
         if (bulkQueue) {
           bulkQueue.index += 1;

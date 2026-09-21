@@ -404,7 +404,28 @@ resolutie in het geheugen; daarna een voorbeeld van max 700 px + het `File`. `bu
 heeft nu `pages: [{file, name}]` en per diagram `page`; `getBulkDrawable()` laadt de volle foto pas als
 een diagram ervan aan de beurt is en laat hem los bij een andere foto. Getest in de echte app met
 3 foto's tegelijk (28 diagrammen; 26 nummers direct goed, rest afgeleid) en doorlopen van foto 1
-naar foto 2 in de rij. Nog NIET gebouwd: stap 2 (automatische modus zonder hoekenscherm).
+naar foto 2 in de rij. Stap 2 (automatische modus) staat hieronder.
+
+**Automatische modus in de bulk-import (stap 2 van het plan "hele boek", 2026-09-22):**
+in het bulk-overzicht staat onderaan de keuze "Werkwijze": *Automatisch* (standaard) of *Per diagram
+eerst de hoeken bekijken* (het oude gedrag, ongewijzigd). Bij automatisch gaat "Doorgaan" naar een
+voorbereidingsscherm (`bulkPrepareView.js`, route `#/bulk-voorbereiden`): foto voor foto (één keer
+laden, dan loslaten) wordt elk automatisch gevonden diagram herkend met `recognizeDiagram()`
+(nieuw in `diagramCaptureView.js`: rechttrekken + `refineGrid` + neuraal netwerkje, zelfde als het
+hoekenscherm) en, als er een geplakte oplossing is, meteen tegen de herkende stand gelegd
+(`checkSolutionFit`: ok / let-op / fout; begint de oplossing met zwart dan start de editor met
+zwart aan zet). Snelheid gemeten: ruim 5 diagrammen per seconde (16 in ~3 s). Daarna een overzicht
+("zonder twijfel / onzeker / oplossing past niet / handwerk") met keuze *Twijfelgevallen eerst*
+(standaard) of *In boekvolgorde*; de volgorde en de "waarom staat dit vooraan"-tekst zitten in
+`src/core/bulkReview.js` (`reviewScore`: niet-herkend/handmatig 250-300 > oplossing past niet 200 > gele
+velden of waarschuwing 100+ > aangepaste zet 50). In de rij ga je daarna direct naar de editor
+(`#/nieuw`) met bovenaan een balk (`bulkInfo`: "Diagram 5 van 300 - nr. 572 (foto 2 van 25)", de reden,
+en de knop "Klopt het kader niet? Hoeken opnieuw instellen" die dat ene diagram alsnog langs het
+hoekenscherm stuurt); de opslaan-knop heet dan "Opslaan en volgende". Handmatig toegevoegde diagrammen
+en niet-herkende diagrammen gaan altijd langs het hoekenscherm. "Stoppen" op het voorbereidingsscherm
+valt terug op de oude werkwijze. Getest in de echte app (16 diagrammen op 2 foto's met plak-oplossingen:
+288 en 580 kwamen vooraan, 289 startte met zwart aan zet). Bekend: alles zit alleen in het geheugen — bij
+een paginaherlaad ben je de rij kwijt (tussentijds hervatten is niet gebouwd).
 
 ### Neuraal netwerkje (2026-09-21) — nu de standaardherkenner
 

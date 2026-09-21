@@ -1,19 +1,19 @@
-import { createBoardEditor, createPalette } from "./boardEditor.js?v=20260921av";
-import { createSolutionInput } from "./solutionInput.js?v=20260921av";
-import { parseOplossing } from "../core/solutionParser.js?v=20260921av";
-import { createEmptyBoard, countPieces, isWhite, isBlack } from "../core/board.js?v=20260921av";
-import { parseFen, boardToFen, FenParseError } from "../core/fen.js?v=20260921av";
-import { parseStandInput, QuickTextParseError } from "../core/quicktext.js?v=20260921av";
-import { validateBoard } from "../core/validate.js?v=20260921av";
-import { saveStand, getStand, findDuplicates } from "../db/standen.js?v=20260921av";
-import { getList, addListValue } from "../db/lijsten.js?v=20260921av";
-import { getAllCategorieen } from "../db/categorieen.js?v=20260921av";
-import { logHerkenningCorrectie } from "../db/herkenningLog.js?v=20260921av";
-import { reclassifyFromDataUrl } from "./diagramCaptureView.js?v=20260921av";
-import { RECOGNITION_VERSION as NEW_MODEL_VERSION } from "../recognition/newClassify.js?v=20260921av";
-import { CNN_RECOGNITION_VERSION as CNN_MODEL_VERSION } from "../recognition/cnnClassify.js?v=20260921av";
+import { createBoardEditor, createPalette } from "./boardEditor.js?v=20260921ax";
+import { createSolutionInput } from "./solutionInput.js?v=20260921ax";
+import { parseOplossing } from "../core/solutionParser.js?v=20260921ax";
+import { createEmptyBoard, countPieces, isWhite, isBlack } from "../core/board.js?v=20260921ax";
+import { parseFen, boardToFen, FenParseError } from "../core/fen.js?v=20260921ax";
+import { parseStandInput, QuickTextParseError } from "../core/quicktext.js?v=20260921ax";
+import { validateBoard } from "../core/validate.js?v=20260921ax";
+import { saveStand, getStand, findDuplicates } from "../db/standen.js?v=20260921ax";
+import { getList, addListValue } from "../db/lijsten.js?v=20260921ax";
+import { getAllCategorieen } from "../db/categorieen.js?v=20260921ax";
+import { logHerkenningCorrectie } from "../db/herkenningLog.js?v=20260921ax";
+import { reclassifyFromDataUrl } from "./diagramCaptureView.js?v=20260921ax";
+import { RECOGNITION_VERSION as NEW_MODEL_VERSION } from "../recognition/newClassify.js?v=20260921ax";
+import { CNN_RECOGNITION_VERSION as CNN_MODEL_VERSION } from "../recognition/cnnClassify.js?v=20260921ax";
 
-import { renderStarRating } from "./starRating.js?v=20260921av";
+import { renderStarRating } from "./starRating.js?v=20260921ax";
 
 export async function renderEditorView(
   container,
@@ -30,10 +30,13 @@ export async function renderEditorView(
     initialAuteur,
     initialNummer,
     initialOplossingTekst,
+    initialTurn,
+    bulkInfo,
   } = {}
 ) {
   container.innerHTML = `
     <h2>Nieuwe stand invoeren</h2>
+    <div data-role="bulkInfo"></div>
     <div class="card editor-layout">
       <div class="editor-board-col">
         ${
@@ -156,7 +159,25 @@ export async function renderEditorView(
   const boekstijlHost = el('[data-role="boekstijl"]');
 
   let existingStand = null;
-  let turn = "white";
+  let turn = initialTurn === "black" ? "black" : "white";
+
+  // Automatische bulk-modus: waar je in de rij zit, waarom dit diagram extra aandacht vraagt, en de
+  // mogelijkheid om (als het kader niet klopt) alsnog de hoeken opnieuw aan te wijzen.
+  if (bulkInfo) {
+    const host = el('[data-role="bulkInfo"]');
+    host.innerHTML = `
+      <div style="border:1px solid #cfd8cf;background:#f6faf6;border-radius:8px;padding:0.5rem 0.75rem;margin:0 0 0.75rem;">
+        <strong>${escapeHtml(bulkInfo.tekst)}</strong>
+        ${bulkInfo.reden ? `<div style="color:#8a4b00;font-size:0.9rem;">Let extra op: ${escapeHtml(bulkInfo.reden)}.</div>` : ""}
+        ${
+          bulkInfo.onAdjustCorners
+            ? `<div class="button-row" style="margin-top:0.4rem;"><button type="button" class="secondary" data-action="adjust-corners">Klopt het kader niet? Hoeken opnieuw instellen</button></div>`
+            : ""
+        }
+      </div>`;
+    host.querySelector('[data-action="adjust-corners"]')?.addEventListener("click", () => bulkInfo.onAdjustCorners());
+    el('[data-action="save"]').textContent = "Opslaan en volgende";
+  }
   // Per categorie-key (speelsysteem, type, en wat Jan er zelf bij maakt in
   // Instellingen -> Database) de gekozen waarden voor déze stand.
   let selectedCategorieen = {};

@@ -1,5 +1,5 @@
-import { detectMultipleBoardCorners } from "./detectMultiBoard.js?v=20260921av";
-import { fitCornersOnDrawable, findMissingBoardsOnDrawable } from "./detectBoard.js?v=20260921av";
+import { detectMultipleBoardCorners } from "./detectMultiBoard.js?v=20260921ax";
+import { fitCornersOnDrawable, findMissingBoardsOnDrawable } from "./detectBoard.js?v=20260921ax";
 
 // Alle diagrammen op een paginafoto vinden, met de vier echte hoeken per diagram
 // (voor de bulk-import). Drie stappen:

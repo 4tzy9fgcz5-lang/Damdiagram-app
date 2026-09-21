@@ -8,13 +8,13 @@
 // blijft een klein voorbeeldplaatje (voor de kaders) en het bestand zelf over. De volle foto wordt
 // pas weer geladen als een diagram van die foto aan de beurt is (zie app.js).
 
-import { loadDrawable, drawableSize } from "./imageInput.js?v=20260921av";
-import { detectBulkBoards } from "../recognition/bulkDetect.js?v=20260921av";
-import { getList, addListValue } from "../db/lijsten.js?v=20260921av";
-import { createNumberReader, fillMissingNumbers } from "../recognition/numberOcr.js?v=20260921av";
-import { splitOplossingenTekst } from "../core/solutionParser.js?v=20260921av";
-import { OPLOSSING_OPDRACHT, kopieerNaarKlembord } from "./oplossingOpdracht.js?v=20260921av";
-import { getOplossingenTekst, setOplossingenTekst } from "../db/uiSettings.js?v=20260921av";
+import { loadDrawable, drawableSize } from "./imageInput.js?v=20260921ax";
+import { detectBulkBoards } from "../recognition/bulkDetect.js?v=20260921ax";
+import { getList, addListValue } from "../db/lijsten.js?v=20260921ax";
+import { createNumberReader, fillMissingNumbers } from "../recognition/numberOcr.js?v=20260921ax";
+import { splitOplossingenTekst } from "../core/solutionParser.js?v=20260921ax";
+import { OPLOSSING_OPDRACHT, kopieerNaarKlembord } from "./oplossingOpdracht.js?v=20260921ax";
+import { getOplossingenTekst, setOplossingenTekst } from "../db/uiSettings.js?v=20260921ax";
 
 const COLORS = ["#d1495b", "#1a5c38", "#3a6ea5", "#e0a800", "#8854d0", "#009688"];
 const THUMB_MAX_SIDE = 700;
@@ -95,6 +95,12 @@ export async function renderBulkImportView(container, { onConfirmed } = {}) {
 
       <label style="margin-top:0.75rem;">Boekstijl (voor training van de fotoherkenning) — geldt voor alle diagrammen</label>
       <div class="tag-list" data-role="boekstijl"></div>
+
+      <label style="margin-top:0.75rem;">Werkwijze</label>
+      <label style="display:block;margin:0.2rem 0;font-weight:normal;"><input type="radio" name="werkwijze" value="auto" checked />
+        Automatisch (aanbevolen): de app herkent alle diagrammen alvast; jij controleert per diagram alleen de stand</label>
+      <label style="display:block;margin:0.2rem 0;font-weight:normal;"><input type="radio" name="werkwijze" value="hoeken" />
+        Per diagram eerst de hoeken bekijken (langzamer, meer controle)</label>
 
       <div class="button-row">
         <button type="button" class="primary" data-action="confirm">Doorgaan</button>
@@ -610,6 +616,7 @@ export async function renderBulkImportView(container, { onConfirmed } = {}) {
       }
     }
     onConfirmed?.({
+      auto: container.querySelector('input[name="werkwijze"]:checked')?.value !== "hoeken",
       pages: usedPages.map((p) => ({ file: p.file, name: p.name })),
       diagrams,
       boekstijl: selectedBoekstijl,

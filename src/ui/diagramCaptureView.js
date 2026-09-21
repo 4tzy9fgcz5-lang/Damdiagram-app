@@ -3,28 +3,28 @@
 // foto-import als elke stap van de bulk-import (rij-door-diagrammen) precies
 // dezelfde, vertrouwde flow gebruiken.
 
-import { warpToSquareCanvas } from "../recognition/homography.js?v=20260921av";
-import { classifyBoard, CONFIDENCE_THRESHOLD, RECOGNITION_VERSION } from "../recognition/classify.js?v=20260921av";
+import { warpToSquareCanvas } from "../recognition/homography.js?v=20260921ax";
+import { classifyBoard, CONFIDENCE_THRESHOLD, RECOGNITION_VERSION } from "../recognition/classify.js?v=20260921ax";
 import {
   createClassifier as createNewClassifier,
   FLAG_BELOW as NEW_FLAG_BELOW,
   RECOGNITION_VERSION as NEW_RECOGNITION_VERSION,
-} from "../recognition/newClassify.js?v=20260921av";
+} from "../recognition/newClassify.js?v=20260921ax";
 import {
   createCnnClassifier,
   CNN_FLAG_BELOW,
   CNN_RECOGNITION_VERSION,
-} from "../recognition/cnnClassify.js?v=20260921av";
-import { refineGrid } from "../recognition/gridRefine.js?v=20260921av";
-import { checkPlausibility } from "../recognition/plausibility.js?v=20260921av";
+} from "../recognition/cnnClassify.js?v=20260921ax";
+import { refineGrid } from "../recognition/gridRefine.js?v=20260921ax";
+import { checkPlausibility } from "../recognition/plausibility.js?v=20260921ax";
 import {
   buildCornersOverlay,
   buildGridOverlay,
   buildFieldCrops,
   buildRawFieldCrops,
-} from "../recognition/debugRender.js?v=20260921av";
-import { FIELD_COUNT, createEmptyBoard, PIECE_TYPES } from "../core/board.js?v=20260921av";
-import { drawableSize, WORKING_MAX_SIDE } from "./imageInput.js?v=20260921av";
+} from "../recognition/debugRender.js?v=20260921ax";
+import { FIELD_COUNT, createEmptyBoard, PIECE_TYPES } from "../core/board.js?v=20260921ax";
+import { drawableSize, WORKING_MAX_SIDE } from "./imageInput.js?v=20260921ax";
 
 // Ligt buiten het bereik van het cache-bust-bompscript (dat kijkt alleen naar JS-
 // imports/HTML-tags) — bij het trainen van een nieuw damscan/weights.json dus ook
@@ -197,6 +197,26 @@ export async function reclassifyFromDataUrl(photoDataUrl, kind) {
 }
 
 const WARP_SIZE = 500;
+
+// Herkent één diagram zonder het hoekenscherm: trekt het bord recht vanaf de volle foto, stelt het
+// raster nog een klein beetje bij en herkent de velden. `corners` staat in de coördinaten van
+// `sourceDrawable` (de volle paginafoto). Geeft hetzelfde terug als het hoekenscherm aan de editor
+// doorgeeft (board, confidences, uncertainFields, photoDataUrl, modelVersion), plus de waarschuwingen
+// ("geen enkel stuk herkend", ">20 van één kleur") — voor de automatische bulk-modus.
+export async function recognizeDiagram(sourceDrawable, corners, kind = "cnn") {
+  const roughWarpedCanvas = warpToSquareCanvas(sourceDrawable, corners, WARP_SIZE);
+  const warpedCanvas = refineGrid(roughWarpedCanvas).canvas;
+  const photoDataUrl = warpedCanvas.toDataURL("image/jpeg", 0.85);
+  const result = await classifyWithComparison(kind, warpedCanvas);
+  return {
+    board: result.board,
+    confidences: result.confidences,
+    uncertainFields: result.uncertainFields,
+    photoDataUrl,
+    modelVersion: result.modelVersion,
+    warnings: result.warnings ?? [],
+  };
+}
 const HANDLE_RADIUS = 14;
 const HANDLE_HIT_RADIUS = 28;
 
