@@ -8,6 +8,158 @@
 - Werk in kleine, zelfstandig te testen stappen. Test een UI-wijziging altijd
   daadwerkelijk in de browser (zie "Testen tijdens ontwikkeling" hieronder) voor je
   meldt dat iets werkt.
+- Jan is damtrainer en kent het spel goed; hij is geen programmeur. Leg keuzes uit
+  in gewoon Nederlands en zeg erbij wat hij zelf moet doen (welk commando, welke
+  map). Is iets een keuze over damregels of trainingspraktijk: vraag het hem, hij is
+  de expert. Verzin geen damkennis (openingsnamen, bronnen, oplossingen).
+- **Eerst lezen en plannen, dan pas bouwen.** Bij een nieuwe fase van de uitbreiding
+  (zie hieronder): beschrijf eerst wat ik van plan ben en wacht op akkoord.
+- **Bestaande gegevens zijn heilig.** Elke wijziging aan het databaseschema moet
+  bestaande standen behouden (migratie of afleiden bij het lezen, nooit leegmaken).
+  Vraag Jan vóór zo'n wijziging een back-up te maken (`#/instellingen/backup`); de
+  database staat in zijn browser en ik kan er zelf geen kopie van maken.
+- **Raak niet aan zonder opdracht:** de foto-herkenning (`damscan/`,
+  `src/recognition/`) en de regelengine (`src/core/draughtsMoves.js`) worden bij
+  het werk aan de uitbreiding gebruikt, niet gewijzigd. Moet er toch iets
+  veranderen, meld dat eerst.
+- **Testen met echte voorbeelden** (PDN-partijen met commentaar, studies met
+  zijvarianten) uit `testdata/`. Een stap is pas klaar als die voorbeelden goed
+  laden, goed getoond worden en goed printen. `testdata/` staat buiten GitHub;
+  kleine, zelfgemaakte voorbeelden voor de automatische tests mogen wel in git.
+- Voeg geen zware afhankelijkheden toe zonder het te melden en uit te leggen.
+
+# Uitbreiding: dam-toolkit (plan van Jan, 2026-09-21)
+
+Jan wil de app uitbreiden van een tool voor opdrachtvellen naar een grotere
+dam-toolkit met drie nieuwe onderdelen: een **studiestanden**-database, een
+**partijen**-database (met commentaar, print en de filmopdracht) en een
+**openingen**-database (zoeken op naam en op stand). De inventarisatie van wat er
+al is staat in `INVENTARISATIE.md` (2026-09-21); lees die eerst bij werk hieraan.
+
+Kort: veel bouwstenen zijn er al (bord, afspeler, klikinvoer, damregels, Word-
+export, back-up). Het grote gat is een echte **zettenboom**: nu heeft een stand een
+hoofdlijn plus één laag zijvarianten (`zetten` + `zijvarianten`), zonder commentaar
+per zet en zonder varianten in varianten.
+
+## Damkennis (gecontroleerd tegen de code, 2026-09-21)
+
+- **Regelvariant:** Nederlands/internationaal dammen, 10x10. De code gaat hier
+  overal van uit (50 velden, damrij = rij 0 en 9). **Fries dammen of andere
+  varianten worden niet ondersteund** en zijn ook niet gepland.
+- **Veldnummering:** 1 t/m 50 op de donkere velden; zwart start op 1-20, wit op
+  31-50 en speelt naar lagere nummers (`src/core/board.js`). Klopt met het plan.
+- **Notatie:** gewone zet `32-28`, slag `28x19`. De code schrijft een meerslag met
+  **alle landingsvelden** (`22x33x40`, `moveToNotation`), PDN schrijft meestal alleen
+  begin en einde (`22x40`), soms met tussenvelden. Een PDN-lezer moet beide kunnen en
+  de zet opzoeken uit de toegestane zetten. Er bestaan ringslagen (schijf komt op zijn
+  beginveld terug) die op twee kanten kunnen: dat geeft twee zetten met dezelfde
+  uitkomst — kies er één.
+- **Zetnummering:** één nummer per paar; wit begint altijd een nieuw nummer, dus als
+  zwart begint komt er "12. ... 33-28" (`plyMoveNumber`).
+- **FEN:** `W:W31,K32:B1,2` (aan zet, dan wit, dan zwart). PDN-bestanden gebruiken
+  ook bereiken (`31-50`); `parseFen` kan dat nog niet en moet dat leren (kleine
+  aanpassing in `fen.js`, niet in de regelengine).
+- **Betrouwbaarheid regelengine:** doorgerekend vanaf de beginstelling geeft hij op
+  diepte 1-7 exact de bekende referentie-aantallen (9, 81, 658, 4.265, 27.117,
+  167.140, 1.049.442). Dieper telt hij alleen ringslag-dubbelen extra, geen
+  regelfouten.
+- Schijven en dammen zijn twee soorten stukken; wit en zwart.
+
+## Woordenlijst (Nederlands = wat in de app en in code voorkomt)
+
+| Term | Betekenis |
+|---|---|
+| stand | positie op het bord: schijven en dammen, en wie aan zet is |
+| diagram | afbeelding van een stand (op papier of scherm) |
+| opdrachtvel | werkblad met opdrachten voor de speler |
+| antwoordvel | hetzelfde blad met de oplossing erin |
+| combinatie | stand met een winnende reeks slagen/offers |
+| studie | langere uitwerking van een stand, met zijvarianten en tekst |
+| partij | volledig gespeelde of modelpartij (PDN) |
+| opening | beginfase met naam; kan meerdere namen (aliassen) hebben |
+| zijvariant | alternatieve reeks zetten binnen een studie of partij |
+| filmen | trainingsopdracht: de 6 belangrijkste momenten van een partij intekenen |
+
+## Doelarchitectuur (uitgangspunten)
+
+Studies, partijen en openingslijnen zijn dezelfde soort ding: een **beginstand,
+een zettenboom (hoofdlijn met zijvarianten) en tekst bij stand of zet**. Ze
+verschillen in metadata en in de manier van invoer. Bouw dus één gedeeld model
+en drie weergaven daarvan, geen drie losse systemen.
+
+- **Zettenboom:** elke zet wordt gecontroleerd door de regelengine. Een
+  onmogelijke zet wordt gemarkeerd, niet stilzwijgend opgeslagen. Komt naast het
+  bestaande `zetten`/`zijvarianten` en wordt bij het lezen daaruit afgeleid (zoals
+  `normalizeCategorieen`), zodat bestaande standen ongemoeid blijven.
+- **Positie-index:** van elke stand in elke lijn wordt een canonieke weergave
+  opgeslagen (bezette velden + wie aan zet), zodat zoeken op stand een gewone
+  opzoeking is en transposities gevonden worden. Zoeken werkt over alle
+  onderdelen heen (partijen, studies, openingen). Nu bestaat alleen een index op de
+  beginstand van elke stand (`fen`/`mirrorFen`).
+- **Tekst uit boekscans is foutgevoelig.** Laat herkenning bij het diagram, laat
+  de oplossing plakken of typen in notatie en laat de regelengine die
+  controleren. Houd altijd een correctiestap.
+- **Herkomst en rechten:** houd bij elk item de bron vast (boek, auteur,
+  toernooi, link). Of er een gedeelde database komt met materiaal uit boeken is
+  een openstaande keuze; ga niet uit van een gedeelde database zonder overleg.
+- **Import van toernooibase:** begin met PDN-bestand of plakken. Bouw geen
+  scraper zonder overleg.
+- **Eén zetten-omzetter** (tekst -> zetten, gestuurd door de regelengine) voor zowel
+  PDN-import als het "oplossingen via foto meesturen"-plan verderop; niet twee
+  bouwen. Startpunt: `tools/meetOplossingen.mjs`.
+- **Engine-analyse (Scan):** buiten scope voor nu. Niet bouwen.
+- **Lokaal en voor één gebruiker** blijft de opzet (IndexedDB in de browser); hosting
+  met inlog/dossiers voor meerdere gebruikers is nog niet beslist (backend-taal
+  open). Houd gegevens per onderdeel uit- en inleesbaar.
+
+## Fasering ("Uitbreiding, fase 1-4")
+
+Niet te verwarren met de fases 0-3 van het herkenning-verbeterplan verderop.
+
+1. **Kern:** zettenboom, validatie, positie-index, viewer om door een boom te
+   stappen.
+2. **Partijen:** PDN inladen, doorspelen, commentaar per zet, printen, en de
+   filmmodule (zie hieronder).
+3. **Studies:** bestaande foto-invoer plus oplossing met zijvarianten en tekst;
+   printen.
+4. **Openingen:** lijnen en namen; zoeken op naam en op stand.
+
+Voorstel voor stap-voor-stap uitwerking van fase 1: `INVENTARISATIE.md`, onderdeel 7
+(nog niet uitgevoerd; wacht op akkoord van Jan).
+
+## Filmmodule (onderdeel van fase 2)
+
+Doel: een trainer maakt van een partij een **opdrachtvel** en een **antwoordvel**.
+
+- Niet bij elke partij nodig. Het proces wordt alleen doorlopen als de trainer
+  een partij in de filmmodule opent.
+- **Opdrachtvel:** partijgegevens bovenaan (spelers, datum, toernooi), een regel
+  voor de naam van de speler, dan de notatie, dan 6 lege diagrammen. Er wordt
+  niets aangeklikt; de speler moet zelf de belangrijkste momenten vinden.
+- **Antwoordvel:** dezelfde pagina, maar de trainer heeft 6 momenten (zetten)
+  aangeklikt en de diagrammen zijn ingevuld met die standen. Onder elk diagram
+  staat het zetnummer en optioneel een korte toelichting (dezelfde tekst als het
+  commentaar bij die zet).
+- **Notatie-opmaak:** 5 zetnummers per regel (1-5, 6-10, 11-15, ...). Elk
+  zetnummer heeft wit en zwart naast elkaar, dus 5 witte en 5 zwarte zetten per
+  regel. Een laatste regel met minder zetten blijft kort; eindigt de partij na een
+  witte zet, dan blijft de zwarte plek leeg.
+- **Opslag:** bij de partij komt een verwijzing naar de gemaakte filmopdracht,
+  zodat het niet opnieuw hoeft. Bewaar daarbij ook de 6 gekozen zetnummers en het
+  aantal diagrammen (standaard 6, instelbaar bijv. 4 of 8), niet alleen de
+  PDF's, zodat de vellen opnieuw te genereren en aan te passen zijn.
+- **Techniek:** komt als nieuwe pagina-bouwer naast `src/export/docx.js` (die de
+  bestaande kop, marges, diagram-naar-plaatje en pagina-onderdelen hergebruikt); het
+  huidige stencil (`buildOpgavenTable`) is op opgaven gebouwd. Voorstel: eerst alleen
+  als Word-bestand, de HTML-voorbeeldweergave (`stencilPreview.js`) later.
+
+## Openstaande punten (uitbreiding)
+
+- Hosting voor meerdere gebruikers (inlog, dossiers): eerder besproken, nog niet
+  beslist. Backend-taal is open.
+- Vragen aan Jan die nog beantwoord moeten worden: `INVENTARISATIE.md`, onderdeel 6
+  (o.a. prioriteit partijen/studies, voorbeeldpartijen aanleveren, velden van een
+  partij, of zoeken ook gespiegelde standen moet vinden).
 
 # Status en vervolgstappen (bijgewerkt 2026-09-21, nacht)
 
@@ -21,7 +173,9 @@ server, geen build-stap.
 
 - Routing/render in `src/ui/app.js`: `#/nieuw` (invoer/correctie), `#/foto`
   (foto-import), `#/database` (overzicht), `#/stand/:id` (detailpagina, alleen-
-  lezen), `#/stencils`/`#/stencil/:id`, `#/backup`, `#/import`.
+  lezen), `#/bulk`/`#/bulk-diagram` (bulk-import van een paginafoto),
+  `#/stencils`/`#/stencil/:id`, `#/instellingen` (met o.a. `#/instellingen/backup`),
+  `#/import`.
 - IndexedDB via `src/db/*.js`: `standen` (nu ook met `zetten` — de aangeklikte
   oplossing, zie hieronder — en `boekstijl`), `lijsten` (herbruikbare tags,
   waaronder nu ook `boekstijl`), `stencils`, `herkenningCorrecties`
@@ -206,7 +360,7 @@ dezelfde gelabelde velduitsneden.
   correctiescherm (drie opties). Bij "Neuraal netwerk" is er geen vergelijking met de
   oude herkenning (die levert alleen ruis: de oude is veel minder nauwkeurig) — alleen
   de eigen zekerheid < 0,95 markeert. Bij "Oude"/"Nieuwe" blijft het onenigheid-randje.
-- **Hertrainen** (nieuwe export via `#/backup`; ook in `tools/cnn/train.mjs` beschreven):
+- **Hertrainen** (nieuwe export via `#/instellingen/backup`; ook in `tools/cnn/train.mjs` beschreven):
   1) export uitpakken in een LEGE map (labels.txt + crops/), eventueel eerdere data
   eraan toevoegen; 2) `tools/cnn/run-all.sh labels.txt crops uitvoermap` = 6
   meetrondes parallel (~1 min op 10 kernen) + rapport; 3) `node tools/cnn/train.mjs
@@ -331,7 +485,7 @@ dan de nieuwe. Aanpak en uitkomst:
   overgenomen. Het gele onenigheid-randje blijft het vangnet.
 - **Hertraining op Jans export van 140 diagrammen (2026-09-21) — geen winst.**
   Werkwijze (vanuit de project-root, dit overschrijft niets als je de export in een
-  aparte map uitpakt): (1) `#/backup` → "Trainingsmateriaal" → ZIP; (2) uitpakken in
+  aparte map uitpakt): (1) `#/instellingen/backup` → "Trainingsmateriaal" → ZIP; (2) uitpakken in
   een lege map; eventueel de oude `labels.txt` eraan plakken en `crops/` samenvoegen;
   (3) `node damscan/train.js <map>/labels.txt <map>/crops <map>/weights_nieuw.json`
   (duurt ~4 min bij 164 diagrammen; alleen de kandidaat-gewichten worden
@@ -484,7 +638,7 @@ bijgestelde versie (niet de volgorde uit het originele plan):
    oplossing" op de database-pagina (2026-09-16 weggehaald, zie
    `src/ui/databaseView.js`), dat niet meer zinvol was onder die aanname.
 1. **Klaar (2026-09-16): export van `herkenningLog` naar `labels.txt` + crops.**
-   Zit nu op `#/backup`, kaart "Trainingsmateriaal voor de fotoherkenning" —
+   Zit nu op `#/instellingen/backup`, kaart "Trainingsmateriaal voor de fotoherkenning" —
    `buildTrainingZip()` in `src/export/trainingExport.js` zet het hele logboek om
    naar een ZIP (`labels.txt` + `crops/diagNN/01.png..50.png`) in precies het
    formaat dat `damscan/train.js` verwacht. Uitpakken in de project-root
