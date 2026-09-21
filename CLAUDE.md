@@ -130,6 +130,48 @@ server, geen build-stap.
 
 ## Openstaand / eerstvolgende stappen
 
+### Oplossingen via foto meesturen (plan + meting, 2026-09-21) — nog NIET gebouwd
+
+Wens van Jan: naast de diagramfoto('s) ook foto('s) van de oplossingenpagina's (achterin
+het boek, dus meestal een andere sessie) meesturen; de app leest de diagramnummers en de
+oplossingen en vult na het controleren van de stand automatisch het klikbare oplossingsbord
+in, met een foutmelding als iets niet klopt. Stappenplan: (1) nummer boven elk diagram lezen
+en op het bulk-overzicht tonen/corrigeren, en bij de stand bewaren (`nummer`); (2) zetten-
+omzetter (tekst -> `zetten`/`zijvarianten`, gestuurd door `draughtsMoves.js`), (3) scherm
+voor oplossingenpagina's + koppelen op nummer, (4) invullen in `createSolutionInput`
+(`initialZetten`/`initialZijvarianten`) pas nadat de stand gecontroleerd is, (5) optioneel:
+later koppelen aan al opgeslagen standen op nummer+boekstijl.
+
+**Meting (Jans foto's IMG_0766-0770 -> `testdata/oplossingen/`, Russisch boek, diagrammen
+570-593 en oplossingen 558-598).** Meetprogramma: `tools/meetOplossingen.mjs` (speelt een
+afgelezen oplossing zet voor zet na op de herkende stelling; stellingen uit
+`tools/bulkCheck/boardsDriver.js`). Ontleden gestuurd door de damregels (bij elke zet: welke
+TOEGESTANE zet past als begin van de resterende tekst?) lost spatie-/cijferplakkers op
+("31 - 278 - 12" = 31-27 8-12), en kent: zetnummers, "x." als slotteken, `!`/`?`, Cyrillisch
+commentaar, varianten tussen haakjes en met `A)`, en weggelaten gedwongen antwoorden
+("43 - 39, 9. 49 x 7", met komma).
+- **Nummers boven de diagrammen lezen met Tesseract (strook boven het gevonden bord, geen
+  cijferlijst): 21/24 goed**, de 3 missers zijn met de doorlopende reeks te herstellen.
+- **Oplossingstekst lezen met Tesseract (lokaal, gratis): ongeschikt** — 1/24 volledig
+  nagespeeld, bij 11/24 zelfs het nummer niet eens gevonden (scheve/gebogen pagina,
+  buurpagina in beeld, spaties en tekens door elkaar). Bijsnijden + cijfers-only hielp niet.
+- **Lezen door een taalmodel met beeld (Claude; hier gemeten via mijn eigen lezing van de
+  foto's op dezelfde resolutie als de API zou krijgen, dus een vervanger, niet de echte
+  API-aanroep): 24/24 goed gelezen, 19/24 volledig nagespeeld.** De 5 rest: 584 = tekst
+  na de laatste zet is commentaar ("met onvermijdelijke dreiging 24-2x"), 576 = boek/
+  diagram wijkt af (boek: "6 x 17", toegestaan is 16x7: cijfers verwisseld), 578 = boek:
+  42x5, toegestaan 42x4 (één veld ernaast), 580 en 588 = de twee diagrammen met een
+  sterretje "*)" in het boek; bij beide klopt de gedrukte stelling niet met de gedrukte
+  oplossing. Stelling herkend door de app klopte in alle 4 gecontroleerde gevallen met
+  de foto. Dus: vrijwel alle "fouten" zijn bronfouten of commentaar, geen leesfouten —
+  precies wat de foutmelding moet opvangen. Ideeën: dichtstbijzijnde toegestane zet
+  voorstellen (geel, ter bevestiging) i.p.v. stilzwijgend herstellen.
+- Let op: Jan noemde 20 diagrammen, het zijn er 24 (2 pagina's van 12); in dit boek lopen de
+  nummers per rij, in het Poolse boek (`testdata/pages5/IMG_0669`) per kolom — dus altijd
+  het nummer echt lezen, niet uit de volgorde afleiden.
+- Nog niet gemeten: de echte API-aanroep (vraagt een eigen Anthropic-API-sleutel van Jan,
+  alleen lokaal bewaard, nooit in de code/GitHub; foto's gaan dan naar Anthropic).
+
 ### Neuraal netwerkje (2026-09-21) — nu de standaardherkenner
 
 Aanleiding: hertrainen van de oude logistische regressie (`damscan/`) op Jans 140
