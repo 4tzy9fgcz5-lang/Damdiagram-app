@@ -236,17 +236,27 @@ textarea {
   color: white;
 }
 
+/* Elke ster is een grijze ster met daar bovenop een gele ster die 0, 50 of 100%
+   breed is — zo kan een ster ook half gevuld zijn (zie starRating.js). */
 .stars {
   display: flex;
   gap: 0.2rem;
-  font-size: 1.4rem;
+  font-size: 1.7rem;
   cursor: pointer;
 }
-.star.filled {
-  color: #d19b00;
-}
 .star {
+  position: relative;
+  display: inline-block;
   color: #ccc;
+  line-height: 1;
+}
+.star-fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  color: #d19b00;
 }
 
 .warnings {
@@ -518,5 +528,58 @@ a.secondary {
   .editor-layout {
     flex-direction: column;
     align-items: center;
+  }
+}
+
+/* Instellingenpagina: menu links, inhoud rechts (op een smal scherm boven elkaar). */
+.settings-layout {
+  display: flex;
+  gap: 1.25rem;
+  align-items: flex-start;
+}
+.settings-menu {
+  flex: 0 0 200px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+.settings-menu-item {
+  text-align: left;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.95rem;
+  cursor: pointer;
+  color: var(--kleur-tekst);
+}
+.settings-menu-item:hover {
+  background: var(--kleur-accent-licht);
+}
+.settings-menu-item.active {
+  background: var(--kleur-accent);
+  color: white;
+  font-weight: 600;
+}
+.settings-content {
+  flex: 1 1 0;
+  min-width: 0;
+}
+.settings-title {
+  margin: 0 0 0.75rem;
+  font-size: 1.05rem;
+}
+@media (max-width: 600px) {
+  .settings-layout {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .settings-menu {
+    flex: none;
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+  .settings-menu-item {
+    border-color: var(--kleur-rand);
   }
 }

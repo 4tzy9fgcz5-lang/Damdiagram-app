@@ -1,7 +1,7 @@
-import { renderDiagramSVG } from "../diagram/render.js?v=20260921ar";
-import { parseFen } from "../core/fen.js?v=20260921ar";
-import { listStanden, resolveOplossingTekst, bulkAddCategorieWaarde } from "../db/standen.js?v=20260921ar";
-import { getAllCategorieen } from "../db/categorieen.js?v=20260921ar";
+import { renderDiagramSVG } from "../diagram/render.js?v=20260921as";
+import { parseFen } from "../core/fen.js?v=20260921as";
+import { listStanden, resolveOplossingTekst, bulkAddCategorieWaarde } from "../db/standen.js?v=20260921as";
+import { getAllCategorieen } from "../db/categorieen.js?v=20260921as";
 
 function escapeHtml(str) {
   return str.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -28,8 +28,12 @@ export async function renderDatabaseView(container, { onOpenStand, onAddSelectio
         <span data-role="categorieSelects" style="display:contents;"></span>
         <select data-field="moeilijkheid">
           <option value="">Alle moeilijkheid</option>
-          <option value="1">★</option><option value="2">★★</option><option value="3">★★★</option>
-          <option value="4">★★★★</option><option value="5">★★★★★</option>
+          <option value="0.5">½ ★</option>
+          <option value="1">★</option><option value="1.5">★ ½</option>
+          <option value="2">★★</option><option value="2.5">★★ ½</option>
+          <option value="3">★★★</option><option value="3.5">★★★ ½</option>
+          <option value="4">★★★★</option><option value="4.5">★★★★ ½</option>
+          <option value="5">★★★★★</option>
           <option value="ongedefinieerd">Niet gedefinieerd</option>
         </select>
         <select data-field="sort">
@@ -128,7 +132,7 @@ export async function renderDatabaseView(container, { onOpenStand, onAddSelectio
       search: raw.search.trim(),
       categorieen: categorieFilters,
       moeilijkheid:
-        raw.moeilijkheid && raw.moeilijkheid !== "ongedefinieerd" ? Number.parseInt(raw.moeilijkheid, 10) : undefined,
+        raw.moeilijkheid && raw.moeilijkheid !== "ongedefinieerd" ? Number.parseFloat(raw.moeilijkheid) : undefined,
       moeilijkheidOngedefinieerd: raw.moeilijkheid === "ongedefinieerd" ? true : undefined,
       metOplossing: missingOnly ? false : undefined,
       sortBy,
@@ -307,8 +311,8 @@ export async function renderDatabaseView(container, { onOpenStand, onAddSelectio
   });
 
   el('[data-action="share-selection"]').addEventListener("click", async () => {
-    const { buildShareData } = await import("../db/backup.js?v=20260921ar");
-    const { encodeShareData } = await import("../db/shareLink.js?v=20260921ar");
+    const { buildShareData } = await import("../db/backup.js?v=20260921as");
+    const { encodeShareData } = await import("../db/shareLink.js?v=20260921as");
     const data = await buildShareData([...selected]);
     const encoded = await encodeShareData(data);
     const url = `${location.origin}${location.pathname}#/import/${encoded}`;

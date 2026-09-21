@@ -1,16 +1,16 @@
-import { renderEditorView } from "./editorView.js?v=20260921ar";
-import { renderDatabaseView } from "./databaseView.js?v=20260921ar";
-import { renderStandDetailView } from "./standDetailView.js?v=20260921ar";
-import { renderStencilsListView } from "./stencilsListView.js?v=20260921ar";
-import { renderStencilView, addStandenToStencil } from "./stencilView.js?v=20260921ar";
-import { saveStencil } from "../db/stencils.js?v=20260921ar";
-import { getLastBackupDate } from "./backupView.js?v=20260921ar";
-import { renderSettingsView } from "./settingsView.js?v=20260921ar";
-import { renderImportView } from "./importView.js?v=20260921ar";
-import { renderPhotoImportView } from "./photoImportView.js?v=20260921ar";
-import { renderBulkImportView } from "./bulkImportView.js?v=20260921ar";
-import { renderDiagramCapture, cropAroundCorners } from "./diagramCaptureView.js?v=20260921ar";
-import { listStanden } from "../db/standen.js?v=20260921ar";
+import { renderEditorView } from "./editorView.js?v=20260921as";
+import { renderDatabaseView } from "./databaseView.js?v=20260921as";
+import { renderStandDetailView } from "./standDetailView.js?v=20260921as";
+import { renderStencilsListView } from "./stencilsListView.js?v=20260921as";
+import { renderStencilView, addStandenToStencil } from "./stencilView.js?v=20260921as";
+import { saveStencil } from "../db/stencils.js?v=20260921as";
+import { getLastBackupDate } from "./backupView.js?v=20260921as";
+import { renderSettingsView } from "./settingsView.js?v=20260921as";
+import { renderImportView } from "./importView.js?v=20260921as";
+import { renderPhotoImportView } from "./photoImportView.js?v=20260921as";
+import { renderBulkImportView } from "./bulkImportView.js?v=20260921as";
+import { renderDiagramCapture, cropAroundCorners } from "./diagramCaptureView.js?v=20260921as";
+import { listStanden } from "../db/standen.js?v=20260921as";
 
 const routes = ["nieuw", "foto", "bulk", "bulk-diagram", "database", "stand", "stencils", "stencil", "instellingen", "import"];
 let pendingRecognition = null;
@@ -170,9 +170,6 @@ async function render() {
       section: param,
       onOpenSection: (slug) => {
         location.hash = `#/instellingen/${slug}`;
-      },
-      onBack: () => {
-        location.hash = "#/instellingen";
       },
     });
   } else if (name === "import") {

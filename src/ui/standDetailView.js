@@ -1,11 +1,12 @@
-import { parseFen } from "../core/fen.js?v=20260921ar";
-import { getStand, saveStand, deleteStand } from "../db/standen.js?v=20260921ar";
-import { getAllCategorieen } from "../db/categorieen.js?v=20260921ar";
-import { createSolutionPlayer } from "./solutionPlayer.js?v=20260921ar";
-import { getVerbergOplossing } from "../db/uiSettings.js?v=20260921ar";
-import { renderDiagramSVG } from "../diagram/render.js?v=20260921ar";
-import { svgToPngDataUrl } from "../export/rasterize.js?v=20260921ar";
-import { downloadBlob } from "../export/docx.js?v=20260921ar";
+import { parseFen } from "../core/fen.js?v=20260921as";
+import { getStand, saveStand, deleteStand } from "../db/standen.js?v=20260921as";
+import { getAllCategorieen } from "../db/categorieen.js?v=20260921as";
+import { createSolutionPlayer } from "./solutionPlayer.js?v=20260921as";
+import { getVerbergOplossing } from "../db/uiSettings.js?v=20260921as";
+import { renderDiagramSVG } from "../diagram/render.js?v=20260921as";
+import { svgToPngDataUrl } from "../export/rasterize.js?v=20260921as";
+import { downloadBlob } from "../export/docx.js?v=20260921as";
+import { renderStarRating } from "./starRating.js?v=20260921as";
 
 function capitalize(str) {
   return str.charAt(0).toUpperCase() + str.slice(1);
@@ -101,17 +102,14 @@ export async function renderStandDetailView(
   // klikken op de huidige waarde wist 'm weer, net als op het invoerscherm.
   const starsHost = container.querySelector('[data-role="moeilijkheidStars"]');
   function renderMoeilijkheidStars() {
-    starsHost.innerHTML = [1, 2, 3, 4, 5]
-      .map((i) => `<span class="star${i <= (stand.moeilijkheid ?? 0) ? " filled" : ""}" data-star="${i}">★</span>`)
-      .join("");
-    for (const el of starsHost.querySelectorAll("[data-star]")) {
-      el.addEventListener("click", async () => {
-        const waarde = Number.parseInt(el.dataset.star, 10);
-        stand.moeilijkheid = stand.moeilijkheid === waarde ? null : waarde;
+    renderStarRating(starsHost, {
+      value: stand.moeilijkheid,
+      onChange: async (waarde) => {
+        stand.moeilijkheid = waarde;
         await saveStand(stand);
         renderMoeilijkheidStars();
-      });
-    }
+      },
+    });
   }
   renderMoeilijkheidStars();
 

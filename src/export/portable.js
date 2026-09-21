@@ -1,4 +1,4 @@
-import { resolveOplossingTekst } from "../db/standen.js?v=20260921ar";
+import { resolveOplossingTekst } from "../db/standen.js?v=20260921as";
 
 function csvEscape(value) {
   const str = String(value ?? "");
@@ -33,7 +33,7 @@ export function buildCsv(standen) {
         s.publicatie,
         (s.categorieen?.speelsysteem ?? []).join(", "),
         (s.categorieen?.type ?? []).join(", "),
-        s.moeilijkheid ?? "",
+        s.moeilijkheid != null ? String(s.moeilijkheid).replace(".", ",") : "",
         s.notities,
         s.createdAt,
       ]

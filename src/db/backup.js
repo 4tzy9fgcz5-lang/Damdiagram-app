@@ -1,9 +1,9 @@
-import { openDb, tx, promisify, newId } from "./db.js?v=20260921ar";
-import { STORE_STANDEN, STORE_LIJSTEN, STORE_STENCILS, STORE_HERKENNING_LOG, SCHEMA_VERSION } from "./schema.js?v=20260921ar";
-import { listStanden, saveStand } from "./standen.js?v=20260921ar";
-import { getAllLists, addListValue } from "./lijsten.js?v=20260921ar";
-import { listStencils, saveStencil } from "./stencils.js?v=20260921ar";
-import { getAllHerkenningCorrecties, putHerkenningCorrectie } from "./herkenningLog.js?v=20260921ar";
+import { openDb, tx, promisify, newId } from "./db.js?v=20260921as";
+import { STORE_STANDEN, STORE_LIJSTEN, STORE_STENCILS, STORE_HERKENNING_LOG, SCHEMA_VERSION } from "./schema.js?v=20260921as";
+import { listStanden, saveStand } from "./standen.js?v=20260921as";
+import { getAllLists, addListValue } from "./lijsten.js?v=20260921as";
+import { listStencils, saveStencil } from "./stencils.js?v=20260921as";
+import { getAllHerkenningCorrecties, putHerkenningCorrectie } from "./herkenningLog.js?v=20260921as";
 
 export async function buildShareData(standIds) {
   const selected = [];

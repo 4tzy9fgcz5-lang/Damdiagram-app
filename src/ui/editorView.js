@@ -1,19 +1,19 @@
-import { createBoardEditor, createPalette } from "./boardEditor.js?v=20260921ar";
-import { createSolutionInput } from "./solutionInput.js?v=20260921ar";
-import { parseOplossing } from "../core/solutionParser.js?v=20260921ar";
-import { createEmptyBoard, countPieces, isWhite, isBlack } from "../core/board.js?v=20260921ar";
-import { parseFen, boardToFen, FenParseError } from "../core/fen.js?v=20260921ar";
-import { parseStandInput, QuickTextParseError } from "../core/quicktext.js?v=20260921ar";
-import { validateBoard } from "../core/validate.js?v=20260921ar";
-import { saveStand, getStand, findDuplicates } from "../db/standen.js?v=20260921ar";
-import { getList, addListValue } from "../db/lijsten.js?v=20260921ar";
-import { getAllCategorieen } from "../db/categorieen.js?v=20260921ar";
-import { logHerkenningCorrectie } from "../db/herkenningLog.js?v=20260921ar";
-import { reclassifyFromDataUrl } from "./diagramCaptureView.js?v=20260921ar";
-import { RECOGNITION_VERSION as NEW_MODEL_VERSION } from "../recognition/newClassify.js?v=20260921ar";
-import { CNN_RECOGNITION_VERSION as CNN_MODEL_VERSION } from "../recognition/cnnClassify.js?v=20260921ar";
+import { createBoardEditor, createPalette } from "./boardEditor.js?v=20260921as";
+import { createSolutionInput } from "./solutionInput.js?v=20260921as";
+import { parseOplossing } from "../core/solutionParser.js?v=20260921as";
+import { createEmptyBoard, countPieces, isWhite, isBlack } from "../core/board.js?v=20260921as";
+import { parseFen, boardToFen, FenParseError } from "../core/fen.js?v=20260921as";
+import { parseStandInput, QuickTextParseError } from "../core/quicktext.js?v=20260921as";
+import { validateBoard } from "../core/validate.js?v=20260921as";
+import { saveStand, getStand, findDuplicates } from "../db/standen.js?v=20260921as";
+import { getList, addListValue } from "../db/lijsten.js?v=20260921as";
+import { getAllCategorieen } from "../db/categorieen.js?v=20260921as";
+import { logHerkenningCorrectie } from "../db/herkenningLog.js?v=20260921as";
+import { reclassifyFromDataUrl } from "./diagramCaptureView.js?v=20260921as";
+import { RECOGNITION_VERSION as NEW_MODEL_VERSION } from "../recognition/newClassify.js?v=20260921as";
+import { CNN_RECOGNITION_VERSION as CNN_MODEL_VERSION } from "../recognition/cnnClassify.js?v=20260921as";
 
-const MOEILIJKHEID_MAX = 5;
+import { renderStarRating } from "./starRating.js?v=20260921as";
 
 export async function renderEditorView(
   container,
@@ -542,17 +542,13 @@ export async function renderEditorView(
   await renderBoekstijlPicker();
 
   function renderStars() {
-    starsHost.innerHTML = "";
-    for (let i = 1; i <= MOEILIJKHEID_MAX; i++) {
-      const span = document.createElement("span");
-      span.className = "star" + (selectedMoeilijkheid && i <= selectedMoeilijkheid ? " filled" : "");
-      span.textContent = "★";
-      span.addEventListener("click", () => {
-        selectedMoeilijkheid = selectedMoeilijkheid === i ? null : i;
+    renderStarRating(starsHost, {
+      value: selectedMoeilijkheid,
+      onChange: (waarde) => {
+        selectedMoeilijkheid = waarde;
         renderStars();
-      });
-      starsHost.appendChild(span);
-    }
+      },
+    });
   }
   renderStars();
 

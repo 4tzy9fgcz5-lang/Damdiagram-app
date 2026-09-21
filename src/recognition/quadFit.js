@@ -1,4 +1,4 @@
-import { computeHomography, applyHomography } from "./homography.js?v=20260921ar";
+import { computeHomography, applyHomography } from "./homography.js?v=20260921as";
 
 // Zoekt de vier echte hoeken van een dambordpatroon rond een grove beginschatting.
 // Bedoeld voor de bulk-import: daar levert `detectMultiBoard.js` een rechte

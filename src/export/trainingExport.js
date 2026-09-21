@@ -1,7 +1,7 @@
-import { getAllHerkenningCorrecties } from "../db/herkenningLog.js?v=20260921ar";
-import { boardToLabelLine } from "../recognition/labelFormat.js?v=20260921ar";
-import { buildRawFieldCrops } from "../recognition/debugRender.js?v=20260921ar";
-import { buildZip } from "./zip.js?v=20260921ar";
+import { getAllHerkenningCorrecties } from "../db/herkenningLog.js?v=20260921as";
+import { boardToLabelLine } from "../recognition/labelFormat.js?v=20260921as";
+import { buildRawFieldCrops } from "../recognition/debugRender.js?v=20260921as";
+import { buildZip } from "./zip.js?v=20260921as";
 
 // Zet het herkenningslog (zie herkenningLog.js — logt bij elke foto-opslag
 // automatisch het rechtgetrokken beeld, de uiteindelijke stand en de boekstijl) om

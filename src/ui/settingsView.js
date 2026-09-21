@@ -1,8 +1,8 @@
-import { renderBackupSection, renderTrainingSection } from "./backupView.js?v=20260921ar";
-import { getVerbergOplossing, setVerbergOplossing } from "../db/uiSettings.js?v=20260921ar";
-import { getAllCategorieen, addCategorie, renameCategorie, removeCategorie } from "../db/categorieen.js?v=20260921ar";
-import { addListValue, renameListValue, removeListValue } from "../db/lijsten.js?v=20260921ar";
-import { listStanden, renameCategorieWaardeOpStanden } from "../db/standen.js?v=20260921ar";
+import { renderBackupSection, renderTrainingSection } from "./backupView.js?v=20260921as";
+import { getVerbergOplossing, setVerbergOplossing } from "../db/uiSettings.js?v=20260921as";
+import { getAllCategorieen, addCategorie, renameCategorie, removeCategorie } from "../db/categorieen.js?v=20260921as";
+import { addListValue, renameListValue, removeListValue } from "../db/lijsten.js?v=20260921as";
+import { listStanden, renameCategorieWaardeOpStanden } from "../db/standen.js?v=20260921as";
 
 function escapeHtml(str) {
   return str.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -200,31 +200,29 @@ const SECTIES = [
   },
 ];
 
-export async function renderSettingsView(container, { section, onOpenSection, onBack } = {}) {
-  const actief = SECTIES.find((s) => s.slug === section);
-
-  if (!actief) {
-    container.innerHTML = `
-      <h2>Instellingen</h2>
-      ${SECTIES.map(
-        (s) => `
-        <div class="card" data-slug="${s.slug}" style="cursor:pointer;margin-bottom:0.5rem;">
-          <strong>${s.titel}</strong>
-          <div style="color:#666;font-size:0.85rem;margin-top:0.2rem;">${s.omschrijving}</div>
-        </div>`
-      ).join("")}
-    `;
-    for (const card of container.querySelectorAll("[data-slug]")) {
-      card.addEventListener("click", () => onOpenSection?.(card.dataset.slug));
-    }
-    return;
-  }
+// Het keuzemenu staat altijd links (op een smal scherm bovenaan), zodat je direct
+// van het ene onderdeel naar het andere kunt zonder eerst terug te klikken.
+// Zonder gekozen onderdeel (#/instellingen) tonen we het eerste.
+export async function renderSettingsView(container, { section, onOpenSection } = {}) {
+  const actief = SECTIES.find((s) => s.slug === section) ?? SECTIES[0];
 
   container.innerHTML = `
-    <button type="button" class="secondary" data-action="terug">← Instellingen</button>
-    <h2 style="margin-top:0.75rem;">${actief.titel}</h2>
-    <div data-role="body"></div>
+    <h2>Instellingen</h2>
+    <div class="settings-layout">
+      <nav class="settings-menu" aria-label="Instellingen">
+        ${SECTIES.map(
+          (s) =>
+            `<button type="button" class="settings-menu-item${s.slug === actief.slug ? " active" : ""}" data-slug="${s.slug}" title="${escapeHtml(s.omschrijving)}">${s.titel}</button>`
+        ).join("")}
+      </nav>
+      <div class="settings-content">
+        <h3 class="settings-title">${actief.titel}</h3>
+        <div data-role="body"></div>
+      </div>
+    </div>
   `;
-  container.querySelector('[data-action="terug"]').addEventListener("click", () => onBack?.());
+  for (const knop of container.querySelectorAll("[data-slug]")) {
+    knop.addEventListener("click", () => onOpenSection?.(knop.dataset.slug));
+  }
   await actief.render(container.querySelector('[data-role="body"]'));
 }

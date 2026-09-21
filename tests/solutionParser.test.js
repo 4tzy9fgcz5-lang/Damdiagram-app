@@ -1,7 +1,7 @@
-import { describe, it, assertEqual, assertTrue } from "./test-runner.js?v=20260921ar";
-import { parseFen } from "../src/core/fen.js?v=20260921ar";
-import { getLegalMoves, applyMove, opposite, formatZettenMetVarianten } from "../src/core/draughtsMoves.js?v=20260921ar";
-import { parseOplossing, splitOplossingenPerNummer, splitOplossingenTekst, moveNotation } from "../src/core/solutionParser.js?v=20260921ar";
+import { describe, it, assertEqual, assertTrue } from "./test-runner.js?v=20260921as";
+import { parseFen } from "../src/core/fen.js?v=20260921as";
+import { getLegalMoves, applyMove, opposite, formatZettenMetVarianten } from "../src/core/draughtsMoves.js?v=20260921as";
+import { parseOplossing, splitOplossingenPerNummer, splitOplossingenTekst, moveNotation } from "../src/core/solutionParser.js?v=20260921as";
 
 const START_FEN = `W:W${Array.from({ length: 20 }, (_, i) => 31 + i).join(",")}:B${Array.from({ length: 20 }, (_, i) => 1 + i).join(",")}`;
 
