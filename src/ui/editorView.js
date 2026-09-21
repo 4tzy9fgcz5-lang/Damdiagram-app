@@ -1,16 +1,16 @@
-import { createBoardEditor, createPalette } from "./boardEditor.js?v=20260921am";
-import { createSolutionInput } from "./solutionInput.js?v=20260921am";
-import { createEmptyBoard, countPieces, isWhite, isBlack } from "../core/board.js?v=20260921am";
-import { parseFen, boardToFen, FenParseError } from "../core/fen.js?v=20260921am";
-import { parseStandInput, QuickTextParseError } from "../core/quicktext.js?v=20260921am";
-import { validateBoard } from "../core/validate.js?v=20260921am";
-import { saveStand, getStand, findDuplicates } from "../db/standen.js?v=20260921am";
-import { getList, addListValue } from "../db/lijsten.js?v=20260921am";
-import { getAllCategorieen } from "../db/categorieen.js?v=20260921am";
-import { logHerkenningCorrectie } from "../db/herkenningLog.js?v=20260921am";
-import { reclassifyFromDataUrl } from "./diagramCaptureView.js?v=20260921am";
-import { RECOGNITION_VERSION as NEW_MODEL_VERSION } from "../recognition/newClassify.js?v=20260921am";
-import { CNN_RECOGNITION_VERSION as CNN_MODEL_VERSION } from "../recognition/cnnClassify.js?v=20260921am";
+import { createBoardEditor, createPalette } from "./boardEditor.js?v=20260921ap";
+import { createSolutionInput } from "./solutionInput.js?v=20260921ap";
+import { createEmptyBoard, countPieces, isWhite, isBlack } from "../core/board.js?v=20260921ap";
+import { parseFen, boardToFen, FenParseError } from "../core/fen.js?v=20260921ap";
+import { parseStandInput, QuickTextParseError } from "../core/quicktext.js?v=20260921ap";
+import { validateBoard } from "../core/validate.js?v=20260921ap";
+import { saveStand, getStand, findDuplicates } from "../db/standen.js?v=20260921ap";
+import { getList, addListValue } from "../db/lijsten.js?v=20260921ap";
+import { getAllCategorieen } from "../db/categorieen.js?v=20260921ap";
+import { logHerkenningCorrectie } from "../db/herkenningLog.js?v=20260921ap";
+import { reclassifyFromDataUrl } from "./diagramCaptureView.js?v=20260921ap";
+import { RECOGNITION_VERSION as NEW_MODEL_VERSION } from "../recognition/newClassify.js?v=20260921ap";
+import { CNN_RECOGNITION_VERSION as CNN_MODEL_VERSION } from "../recognition/cnnClassify.js?v=20260921ap";
 
 const MOEILIJKHEID_MAX = 5;
 
@@ -27,6 +27,7 @@ export async function renderEditorView(
     modelVersion,
     initialBoekstijl,
     initialAuteur,
+    initialNummer,
   } = {}
 ) {
   container.innerHTML = `
@@ -117,6 +118,9 @@ export async function renderEditorView(
         <label>Publicatie</label>
         <input type="text" data-field="publicatie" placeholder="boek, tijdschrift of website" />
 
+        <label>Nummer in het boek</label>
+        <input type="text" data-field="nummer" placeholder="nummer van het diagram (dan kan de oplossing er later bij)" />
+
         <div data-role="categorieen"></div>
 
         <label>Moeilijkheid</label>
@@ -164,6 +168,7 @@ export async function renderEditorView(
   // pagina ingevulde auteur, als startwaarde voor elk diagram — een bestaande
   // stand (bewerken) overschrijft dit hieronder met zijn eigen auteur.
   if (initialAuteur) el('[data-field="auteur"]').value = initialAuteur;
+  if (initialNummer) el('[data-field="nummer"]').value = initialNummer;
 
   if (standId) {
     existingStand = await getStand(standId);
@@ -189,6 +194,7 @@ export async function renderEditorView(
       el('[data-field="auteur"]').value = existingStand.auteur;
       el('[data-field="jaartal"]').value = existingStand.jaartal ?? "";
       el('[data-field="publicatie"]').value = existingStand.publicatie;
+      el('[data-field="nummer"]').value = existingStand.nummer ?? "";
       el('[data-field="notities"]').value = existingStand.notities;
       if (existingStand.gebruiktIn.length) {
         gebruiktInHost.textContent = `Gebruikt in ${existingStand.gebruiktIn.length} opgaveblad(en).`;
@@ -472,6 +478,7 @@ export async function renderEditorView(
       auteur: el('[data-field="auteur"]').value.trim(),
       jaartal: jaartalRaw ? Number.parseInt(jaartalRaw, 10) : null,
       publicatie: el('[data-field="publicatie"]').value.trim(),
+      nummer: el('[data-field="nummer"]').value.trim(),
       categorieen: Object.fromEntries(Object.entries(selectedCategorieen).map(([k, v]) => [k, [...v]])),
       moeilijkheid: selectedMoeilijkheid,
       notities: el('[data-field="notities"]').value.trim(),

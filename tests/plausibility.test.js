@@ -1,6 +1,6 @@
-import { describe, it, assertEqual, assertTrue } from "./test-runner.js?v=20260921am";
-import { checkPlausibility, warningFields, enforceRules } from "../src/recognition/plausibility.js?v=20260921am";
-import { createEmptyBoard, PIECE_TYPES } from "../src/core/board.js?v=20260921am";
+import { describe, it, assertEqual, assertTrue } from "./test-runner.js?v=20260921ap";
+import { checkPlausibility, warningFields, enforceRules } from "../src/recognition/plausibility.js?v=20260921ap";
+import { createEmptyBoard, PIECE_TYPES } from "../src/core/board.js?v=20260921ap";
 
 function boardWith(whites, blacks) {
   const b = createEmptyBoard();

@@ -1,8 +1,8 @@
-import { openDb, tx, promisify, newId } from "./db.js?v=20260921am";
-import { STORE_STANDEN } from "./schema.js?v=20260921am";
-import { parseFen, boardToFen } from "../core/fen.js?v=20260921am";
-import { mirrorBoard } from "../core/board.js?v=20260921am";
-import { formatZettenMetVarianten } from "../core/draughtsMoves.js?v=20260921am";
+import { openDb, tx, promisify, newId } from "./db.js?v=20260921ap";
+import { STORE_STANDEN } from "./schema.js?v=20260921ap";
+import { parseFen, boardToFen } from "../core/fen.js?v=20260921ap";
+import { mirrorBoard } from "../core/board.js?v=20260921ap";
+import { formatZettenMetVarianten } from "../core/draughtsMoves.js?v=20260921ap";
 
 function canonicalFens(fenString) {
   const { board, turn } = parseFen(fenString);
@@ -57,6 +57,7 @@ export async function saveStand(input) {
     auteur: input.auteur ?? "",
     jaartal: input.jaartal ?? null,
     publicatie: input.publicatie ?? "",
+    nummer: input.nummer ?? "",
     categorieen: normalizeCategorieen(input),
     moeilijkheid: input.moeilijkheid ?? null,
     notities: input.notities ?? "",

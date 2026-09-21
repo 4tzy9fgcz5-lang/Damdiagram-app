@@ -4,9 +4,10 @@
 // hoeken-stap (diagramCaptureView.js) — hier alleen verwijderen wat niet hoort en
 // zelf toevoegen wat gemist is.
 
-import { loadDrawable, drawableSize, WORKING_MAX_SIDE } from "./imageInput.js?v=20260921am";
-import { detectBulkBoards } from "../recognition/bulkDetect.js?v=20260921am";
-import { getList, addListValue } from "../db/lijsten.js?v=20260921am";
+import { loadDrawable, drawableSize, WORKING_MAX_SIDE } from "./imageInput.js?v=20260921ap";
+import { detectBulkBoards } from "../recognition/bulkDetect.js?v=20260921ap";
+import { getList, addListValue } from "../db/lijsten.js?v=20260921ap";
+import { readDiagramNumbers, fillMissingNumbers } from "../recognition/numberOcr.js?v=20260921ap";
 
 const COLORS = ["#d1495b", "#1a5c38", "#3a6ea5", "#e0a800", "#8854d0", "#009688"];
 
@@ -25,6 +26,10 @@ function defaultBoxCorners(fullWidth, fullHeight, index) {
     { x: cx + size / 2, y: cy + size / 2 },
     { x: cx - size / 2, y: cy + size / 2 },
   ];
+}
+
+function escapeAttr(str) {
+  return String(str ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
 
 export async function renderBulkImportView(container, { onConfirmed } = {}) {
@@ -46,6 +51,7 @@ export async function renderBulkImportView(container, { onConfirmed } = {}) {
         hoort; voeg zelf iets toe als er een gemist is. De hoeken van elk diagram
         stel je zo meteen, per diagram, precies af.</p>
       <p data-role="status" style="color:#666;font-size:0.85rem;"></p>
+      <p data-role="number-status" style="color:#666;font-size:0.85rem;margin-top:-0.5rem;"></p>
       <div style="position:relative;display:inline-block;max-width:100%;">
         <canvas data-role="canvas" style="width:100%;max-width:620px;height:auto;display:block;border-radius:8px;"></canvas>
       </div>
@@ -73,13 +79,19 @@ export async function renderBulkImportView(container, { onConfirmed } = {}) {
   const canvas = el('[data-role="canvas"]');
   const ctx = canvas.getContext("2d");
   const status = el('[data-role="status"]');
+  const numberStatus = el('[data-role="number-status"]');
+  const confirmBtn = el('[data-action="confirm"]');
   const list = el('[data-role="list"]');
   const boekstijlHost = el('[data-role="boekstijl"]');
 
   let drawable = null;
   let scale = 1;
-  // { id, corners: [{x,y} x4] in VOLLEDIGE-RESOLUTIE coördinaten van drawable, manual }
+  // { id, corners: [{x,y} x4] in VOLLEDIGE-RESOLUTIE coördinaten van drawable, manual,
+  //   nummer (tekst, het nummer boven het diagram in het boek), nummerBron: "" | "gelezen" | "afgeleid" | "zelf" }
   let items = [];
+  // Telt mee bij elke nieuwe foto, zodat een nummerlezing van een vorige foto niets meer overschrijft.
+  let readToken = 0;
+  let numbersBusy = false;
   let nextId = 1;
   let selectedBoekstijl = "";
 
@@ -136,9 +148,88 @@ export async function renderBulkImportView(container, { onConfirmed } = {}) {
       ctx.setLineDash([]);
       ctx.fillStyle = color;
       ctx.font = `bold ${Math.round(canvas.width * 0.03)}px sans-serif`;
-      ctx.fillText(String(index + 1), label.x + 4, label.y + canvas.width * 0.03);
+      ctx.fillText(item.nummer || String(index + 1), label.x + 4, label.y + canvas.width * 0.03);
       ctx.restore();
     });
+  }
+
+  // Zet achter elk nummer een korte aanwijzing: afgeleid uit de reeks, of dubbel gebruikt.
+  function updateHints() {
+    const counts = new Map();
+    for (const it of items) if (it.nummer) counts.set(it.nummer, (counts.get(it.nummer) ?? 0) + 1);
+    for (const it of items) {
+      const hint = list.querySelector(`[data-hint="${it.id}"]`);
+      if (!hint) continue;
+      if (it.nummer && counts.get(it.nummer) > 1) {
+        hint.textContent = "komt dubbel voor";
+        hint.style.color = "#b00020";
+      } else if (it.nummerBron === "afgeleid") {
+        hint.textContent = "afgeleid, controleer";
+        hint.style.color = "#8a4b00";
+      } else if (!it.nummer && !it.manual) {
+        hint.textContent = numbersBusy ? "" : "niet gelezen";
+        hint.style.color = "#8a4b00";
+      } else {
+        hint.textContent = "";
+      }
+    }
+  }
+
+  // Het nummer boven elk (automatisch gevonden) diagram lezen. Duurt even (de tekstlezer moet
+  // eerst geladen worden) en loopt daarom op de achtergrond: je kunt ondertussen al controleren.
+  async function readNumbers() {
+    const auto = items.filter((it) => !it.manual);
+    if (auto.length === 0) return;
+    const token = ++readToken;
+    numbersBusy = true;
+    confirmBtn.disabled = true;
+    numberStatus.textContent = "Nummers boven de diagrammen lezen...";
+    updateHints();
+    try {
+      const nums = await readDiagramNumbers(
+        drawable,
+        auto.map((it) => it.corners),
+        {
+          onProgress: (i, n) => {
+            if (token === readToken && i < n) numberStatus.textContent = `Nummers boven de diagrammen lezen... (${i + 1} van ${n})`;
+          },
+        }
+      );
+      if (token !== readToken) return;
+      const filled = fillMissingNumbers(
+        auto.map((it, i) => {
+          const xs = it.corners.map((p) => p.x);
+          const ys = it.corners.map((p) => p.y);
+          return { nummer: nums[i], cx: (Math.min(...xs) + Math.max(...xs)) / 2, cy: (Math.min(...ys) + Math.max(...ys)) / 2, breedte: Math.max(...xs) - Math.min(...xs) };
+        })
+      );
+      auto.forEach((it, i) => {
+        if (it.nummerBron === "zelf") return; // zelf ingevuld terwijl de lezer bezig was
+        const f = filled[i];
+        it.nummer = f.nummer != null ? String(f.nummer) : "";
+        it.nummerBron = f.nummer == null ? "" : f.afgeleid ? "afgeleid" : "gelezen";
+      });
+      const gelezen = auto.filter((it) => it.nummerBron === "gelezen").length;
+      const afgeleid = auto.filter((it) => it.nummerBron === "afgeleid").length;
+      numberStatus.textContent =
+        `Nummers gelezen: ${gelezen} van ${auto.length}` +
+        (afgeleid ? `, ${afgeleid} afgeleid uit de reeks` : "") +
+        ". Controleer ze en vul aan wat ontbreekt.";
+    } catch (err) {
+      if (token !== readToken) return;
+      numberStatus.textContent = `De nummers konden niet automatisch gelezen worden (${err.message}). Vul ze zelf in, of laat ze leeg.`;
+    } finally {
+      if (token === readToken) {
+        numbersBusy = false;
+        confirmBtn.disabled = false;
+        for (const it of items) {
+          const input = list.querySelector(`[data-nummer="${it.id}"]`);
+          if (input && document.activeElement !== input) input.value = it.nummer;
+        }
+        updateHints();
+        redraw();
+      }
+    }
   }
 
   function renderList() {
@@ -156,10 +247,24 @@ export async function renderBulkImportView(container, { onConfirmed } = {}) {
       row.innerHTML = `
         <span style="display:inline-block;width:0.9rem;height:0.9rem;border-radius:50%;background:${color};flex-shrink:0;"></span>
         <span style="flex:1;">Diagram ${index + 1}${item.manual ? " (zelf toegevoegd — hoeken zelf plaatsen op de hele pagina)" : ""}</span>
+        <label style="margin:0;font-size:0.85rem;color:#666;">Nr.</label>
+        <input type="text" inputmode="numeric" data-nummer="${item.id}" value="${escapeAttr(item.nummer)}" placeholder="?" style="width:5rem;margin:0;" />
+        <span data-hint="${item.id}" style="font-size:0.8rem;min-width:6.5rem;"></span>
         <button type="button" class="secondary" data-remove="${item.id}">Verwijderen</button>
       `;
       list.appendChild(row);
     });
+    list.querySelectorAll("[data-nummer]").forEach((input) => {
+      input.addEventListener("input", () => {
+        const item = items.find((it) => it.id === Number(input.dataset.nummer));
+        if (!item) return;
+        item.nummer = input.value.trim();
+        item.nummerBron = item.nummer ? "zelf" : "";
+        updateHints();
+        redraw();
+      });
+    });
+    updateHints();
     list.querySelectorAll("[data-remove]").forEach((btn) => {
       btn.addEventListener("click", () => {
         const id = Number(btn.dataset.remove);
@@ -191,7 +296,8 @@ export async function renderBulkImportView(container, { onConfirmed } = {}) {
       } catch {
         detected = [];
       }
-      items = detected.map((corners) => ({ id: nextId++, corners, manual: false }));
+      items = detected.map((corners) => ({ id: nextId++, corners, manual: false, nummer: "", nummerBron: "" }));
+      numberStatus.textContent = "";
 
       status.textContent =
         items.length > 0
@@ -199,6 +305,7 @@ export async function renderBulkImportView(container, { onConfirmed } = {}) {
           : "Geen diagrammen automatisch gevonden. Voeg ze zelf toe met “+ Diagram toevoegen”.";
       renderList();
       redraw();
+      readNumbers();
     } catch (err) {
       status.textContent = "Kon deze foto niet openen: " + err.message;
     }
@@ -210,6 +317,9 @@ export async function renderBulkImportView(container, { onConfirmed } = {}) {
   el('[data-action="gallery"]').addEventListener("click", () => el('[data-role="gallery-input"]').click());
 
   el('[data-action="restart"]').addEventListener("click", () => {
+    readToken++;
+    numbersBusy = false;
+    confirmBtn.disabled = false;
     drawable = null;
     items = [];
     pickCard.style.display = "block";
@@ -220,13 +330,13 @@ export async function renderBulkImportView(container, { onConfirmed } = {}) {
 
   el('[data-action="add"]').addEventListener("click", () => {
     const { width, height } = drawableSize(drawable);
-    items.push({ id: nextId++, corners: defaultBoxCorners(width, height, items.length), manual: true });
+    items.push({ id: nextId++, corners: defaultBoxCorners(width, height, items.length), manual: true, nummer: "", nummerBron: "" });
     status.textContent = 'Diagram toegevoegd (gestippeld) — zodra het aan de beurt is, sleep je de hoeken op de hele pagina naar de juiste plek.';
     renderList();
     redraw();
   });
 
-  el('[data-action="confirm"]').addEventListener("click", () => {
+  confirmBtn.addEventListener("click", () => {
     if (items.length === 0) {
       status.textContent = "Voeg eerst minstens één diagram toe.";
       return;
@@ -235,7 +345,7 @@ export async function renderBulkImportView(container, { onConfirmed } = {}) {
       drawable,
       boekstijl: selectedBoekstijl,
       auteur: el('[data-field="auteur"]').value.trim(),
-      diagrams: items.map((item) => ({ corners: item.corners, manual: item.manual })),
+      diagrams: items.map((item) => ({ corners: item.corners, manual: item.manual, nummer: item.nummer })),
     });
   });
 }

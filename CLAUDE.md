@@ -284,7 +284,27 @@ server, geen build-stap.
 
 ## Openstaand / eerstvolgende stappen
 
-### Oplossingen via foto meesturen (plan + meting, 2026-09-21) — nog NIET gebouwd
+### Oplossingen via foto meesturen (plan + meting, 2026-09-21) — stap 1 en 2 gebouwd
+
+**Stand (2026-09-21, avond):** stap 1 en 2 zijn klaar en lokaal gecommit; stap 3-5 (scherm voor
+oplossingenpagina's, invullen in het klikbare bord, later koppelen) nog niet.
+- **Stap 2 — de gedeelde zetten-omzetter:** `src/core/solutionParser.js` (`parseOplossing`,
+  `splitOplossingenPerNummer`); tests `tests/solutionParser.test.js`. Geeft `zetten` +
+  `zijvarianten` (zelfde vorm als `solutionInput.js`) en `meldingen` in gewoon Nederlands
+  (`fout` / `let-op` / `info`), plus `volledig`, `betrouwbaar`, `hersteld`, `aangevuld`. Zetten
+  die net niet mogen (1-2 tekens verschil) worden hersteld naar de dichtstbijzijnde toegestane
+  zet, mét melding; `herstel: false` zet dat uit. Op de 24 echte oplossingen: 22 volledig
+  (2 niet: 580 en 584, zie meting). Bedoeld om ook voor PDN-import te hergebruiken (zie
+  uitbreidingsplan). Meten: `node tools/meetOplossingen.mjs boards.json lezing.txt`.
+- **Stap 1 — nummer boven het diagram:** `src/recognition/numberOcr.js` (strook boven het bord
+  -> Tesseract.js, geladen van jsDelivr zodra nodig, dus internet nodig; zonder internet blijft
+  handmatig invullen werken). Nummers die niet gelezen zijn of niet in de doorlopende reeks
+  passen worden uit de reeks afgeleid (`fillMissingNumbers`, rij- én kolomvolgorde). In de
+  echte app op de 24 diagrammen: 24/24 goed (7 afgeleid, gemarkeerd "afgeleid, controleer").
+  Bulk-overzicht (`bulkImportView.js`) toont per diagram een nummerveld; het nummer gaat via
+  `bulkQueue` -> `initialNummer` naar de editor en wordt bewaard als `nummer` (tekst) op de stand
+  (veld "Nummer in het boek", ook in de detailweergave). Bestaande standen hebben het veld niet
+  en blijven werken (leeg).
 
 Wens van Jan: naast de diagramfoto('s) ook foto('s) van de oplossingenpagina's (achterin
 het boek, dus meestal een andere sessie) meesturen; de app leest de diagramnummers en de

@@ -1,16 +1,16 @@
-import { renderEditorView } from "./editorView.js?v=20260921am";
-import { renderDatabaseView } from "./databaseView.js?v=20260921am";
-import { renderStandDetailView } from "./standDetailView.js?v=20260921am";
-import { renderStencilsListView } from "./stencilsListView.js?v=20260921am";
-import { renderStencilView, addStandenToStencil } from "./stencilView.js?v=20260921am";
-import { saveStencil } from "../db/stencils.js?v=20260921am";
-import { getLastBackupDate } from "./backupView.js?v=20260921am";
-import { renderSettingsView } from "./settingsView.js?v=20260921am";
-import { renderImportView } from "./importView.js?v=20260921am";
-import { renderPhotoImportView } from "./photoImportView.js?v=20260921am";
-import { renderBulkImportView } from "./bulkImportView.js?v=20260921am";
-import { renderDiagramCapture, cropAroundCorners } from "./diagramCaptureView.js?v=20260921am";
-import { listStanden } from "../db/standen.js?v=20260921am";
+import { renderEditorView } from "./editorView.js?v=20260921ap";
+import { renderDatabaseView } from "./databaseView.js?v=20260921ap";
+import { renderStandDetailView } from "./standDetailView.js?v=20260921ap";
+import { renderStencilsListView } from "./stencilsListView.js?v=20260921ap";
+import { renderStencilView, addStandenToStencil } from "./stencilView.js?v=20260921ap";
+import { saveStencil } from "../db/stencils.js?v=20260921ap";
+import { getLastBackupDate } from "./backupView.js?v=20260921ap";
+import { renderSettingsView } from "./settingsView.js?v=20260921ap";
+import { renderImportView } from "./importView.js?v=20260921ap";
+import { renderPhotoImportView } from "./photoImportView.js?v=20260921ap";
+import { renderBulkImportView } from "./bulkImportView.js?v=20260921ap";
+import { renderDiagramCapture, cropAroundCorners } from "./diagramCaptureView.js?v=20260921ap";
+import { listStanden } from "../db/standen.js?v=20260921ap";
 
 const routes = ["nieuw", "foto", "bulk", "bulk-diagram", "database", "stand", "stencils", "stencil", "instellingen", "import"];
 let pendingRecognition = null;
@@ -216,9 +216,9 @@ async function render() {
     renderDiagramCapture(app, {
       drawable: stepDrawable,
       initialCorners: stepCorners,
-      heading: `Diagram ${index + 1} van ${diagrams.length}`,
+      heading: `Diagram ${index + 1} van ${diagrams.length}${diagram.nummer ? ` — nr. ${diagram.nummer}` : ""}`,
       onRecognized: (result) => {
-        pendingRecognition = { ...result, boekstijl: bulkQueue.boekstijl, auteur: bulkQueue.auteur };
+        pendingRecognition = { ...result, boekstijl: bulkQueue.boekstijl, auteur: bulkQueue.auteur, nummer: diagram.nummer ?? "" };
         location.hash = "#/nieuw";
       },
     });
@@ -234,6 +234,7 @@ async function render() {
       modelVersion: recognition?.modelVersion,
       initialBoekstijl: recognition?.boekstijl,
       initialAuteur: recognition?.auteur,
+      initialNummer: recognition?.nummer,
       onSaved: (stand, { addToStencil }) => {
         if (bulkQueue) {
           bulkQueue.index += 1;
