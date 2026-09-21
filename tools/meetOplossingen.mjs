@@ -9,7 +9,7 @@
 //   node tools/meetOplossingen.mjs boards.json lezing.txt [lezing2.txt ...] [--zonder-herstel]
 import fs from "node:fs";
 import { parseFen } from "../src/core/fen.js";
-import { parseOplossing, splitOplossingenPerNummer } from "../src/core/solutionParser.js";
+import { parseOplossing, splitOplossingenTekst } from "../src/core/solutionParser.js";
 
 const args = process.argv.slice(2);
 const herstel = !args.includes("--zonder-herstel");
@@ -18,7 +18,7 @@ const boards = JSON.parse(fs.readFileSync(boardsFile, "utf8"));
 const numbers = boards.map((b) => b.nummer);
 
 for (const file of readings) {
-  const chunks = splitOplossingenPerNummer(fs.readFileSync(file, "utf8"), numbers);
+  const chunks = splitOplossingenTekst(fs.readFileSync(file, "utf8"), { verwacht: numbers }).perNummer;
   console.log(`\n===== ${file} (herstel ${herstel ? "aan" : "uit"}) =====`);
   const stat = { volledig: 0, deels: 0, ontbreekt: 0, zetten: 0, hersteld: 0, aangevuld: 0 };
   for (const b of boards) {
@@ -29,7 +29,11 @@ for (const file of readings) {
       continue;
     }
     const { board } = parseFen(b.fen);
-    const r = parseOplossing(chunk, { board, turn: "white", herstel });
+    let r = parseOplossing(chunk, { board, turn: "white", herstel });
+    if (r.fout?.andereBeurt) {
+      r = parseOplossing(chunk, { board, turn: "black", herstel });
+      console.log(`     (de app zou hier de knop "Zet zwart aan zet" tonen)`);
+    }
     stat.zetten += r.zetten.length;
     stat.hersteld += r.hersteld.length;
     stat.aangevuld += r.aangevuld.length;

@@ -4,13 +4,13 @@
 // hoeken-stap (diagramCaptureView.js) — hier alleen verwijderen wat niet hoort en
 // zelf toevoegen wat gemist is.
 
-import { loadDrawable, drawableSize, WORKING_MAX_SIDE } from "./imageInput.js?v=20260921as";
-import { detectBulkBoards } from "../recognition/bulkDetect.js?v=20260921as";
-import { getList, addListValue } from "../db/lijsten.js?v=20260921as";
-import { readDiagramNumbers, fillMissingNumbers } from "../recognition/numberOcr.js?v=20260921as";
-import { splitOplossingenTekst } from "../core/solutionParser.js?v=20260921as";
-import { OPLOSSING_OPDRACHT, kopieerNaarKlembord } from "./oplossingOpdracht.js?v=20260921as";
-import { getOplossingenTekst, setOplossingenTekst } from "../db/uiSettings.js?v=20260921as";
+import { loadDrawable, drawableSize, WORKING_MAX_SIDE } from "./imageInput.js?v=20260921at";
+import { detectBulkBoards } from "../recognition/bulkDetect.js?v=20260921at";
+import { getList, addListValue } from "../db/lijsten.js?v=20260921at";
+import { readDiagramNumbers, fillMissingNumbers } from "../recognition/numberOcr.js?v=20260921at";
+import { splitOplossingenTekst } from "../core/solutionParser.js?v=20260921at";
+import { OPLOSSING_OPDRACHT, kopieerNaarKlembord } from "./oplossingOpdracht.js?v=20260921at";
+import { getOplossingenTekst, setOplossingenTekst } from "../db/uiSettings.js?v=20260921at";
 
 const COLORS = ["#d1495b", "#1a5c38", "#3a6ea5", "#e0a800", "#8854d0", "#009688"];
 
@@ -188,7 +188,7 @@ export async function renderBulkImportView(container, { onConfirmed } = {}) {
       solutionStatus.textContent = "";
       return;
     }
-    const { perNummer, volgorde, dubbel } = splitOplossingenTekst(text);
+    const { perNummer, volgorde, dubbel } = splitOplossingenTekst(text, { verwacht: items.map((it) => it.nummer).filter(Boolean) });
     if (volgorde.length === 0) {
       solutionStatus.style.color = "#b00020";
       solutionStatus.textContent =
@@ -411,7 +411,7 @@ export async function renderBulkImportView(container, { onConfirmed } = {}) {
       status.textContent = "Voeg eerst minstens één diagram toe.";
       return;
     }
-    const oplossingen = splitOplossingenTekst(oplossingenField.value);
+    const oplossingen = splitOplossingenTekst(oplossingenField.value, { verwacht: items.map((it) => it.nummer).filter(Boolean) });
     onConfirmed?.({
       drawable,
       boekstijl: selectedBoekstijl,

@@ -1,4 +1,4 @@
-import { getLegalMoves, applyMove, opposite, plyColor, plyMoveNumber } from "./draughtsMoves.js?v=20260921as";
+import { getLegalMoves, applyMove, opposite, plyColor, plyMoveNumber } from "./draughtsMoves.js?v=20260921at";
 
 // Een oplossing zoals die in een boek staat (bv. "1. 31 - 27 8 - 12 2. 38 - 33 (2. 39 - 33)
 // 29 x 49 ... 9. 45 x 5 x.") omzetten in `zetten` + `zijvarianten`, zoals de klikbare
@@ -26,7 +26,25 @@ const COLOR_NAME = { white: "wit", black: "zwart" };
 function normalizeText(raw) {
   return String(raw ?? "")
     .replace(/[Xх×Х%]/g, "x")
-    .replace(/[–—−‑]/g, "-");
+    .replace(/[–—−‑]/g, "-")
+    // "18 : 49" of "18:49" is in sommige boeken een slag
+    .replace(/(\d)\s*:\s*(?=\d)/g, "$1x");
+}
+
+const MOVE_IN_TEXT = /\d{1,2}\s*[-x]\s*\d{1,2}/;
+const ONLY_MOVE = /^\d{1,2}\s*[-x]\s*\d{1,2}(?:\s*x\s*\d{1,2})*$/;
+
+// Sommige boeken schrijven ZONDER zetnummers, met de zwarte zetten tussen haakjes:
+// "39-34?! (16-21) 27x16 (18-22) 28x17". Dan zijn de haakjes geen varianten maar gewoon de
+// volgende zet. Herkend aan: geen enkel zetnummer ("12.") in de tekst, en elk haakjespaar bevat
+// precies één zet. De haakjes worden dan weggehaald.
+function unwrapParenMoves(text) {
+  const plain = text.replace(CYR, " ");
+  if (/(?:^|[\s(])\d{1,2}\s*\.(?!\d)/.test(plain)) return text; // er zijn zetnummers: gewone varianten
+  const groups = [...plain.matchAll(/\(([^()]*)\)/g)];
+  if (groups.length === 0) return text;
+  const single = groups.every((g) => ONLY_MOVE.test(g[1].replace(/[!?+\/;\s]/g, "")));
+  return single ? text.replace(/[()]/g, " ") : text;
 }
 
 // Letter die een variant aanwijst: Latijns A/B/C (ook klein) of Cyrillisch А/В/С (hoofdletter).
@@ -142,7 +160,7 @@ function closestMoves(legal, token, maxDist) {
 // { plies, boards, turns, pos, complete, implicit, repairs, ambiguous, anchors }.
 // `plies[i]` is de i-de zet, `boards[i]`/`turns[i]` de stand/beurt VOOR die zet.
 function decode(text, board, turn, { allowImplicit = true, maxRepairs = 0 } = {}) {
-  let best = { plies: [], boards: [board], turns: [turn], pos: 0, complete: false, implicit: [], repairs: [], ambiguous: [], anchors: {} };
+  let best = { plies: [], boards: [board], turns: [turn], pos: 0, complete: false, implicit: [], repairs: [], ambiguous: [], anchors: {}, ignored: "" };
   let steps = 0;
   let finished = false;
 
@@ -158,17 +176,18 @@ function decode(text, board, turn, { allowImplicit = true, maxRepairs = 0 } = {}
     let p = pos;
     let comma = false;
     for (;;) {
-      const m = /^(?:\d{1,2}\.{1,4}|\.{1,4}|,|§(\d+)§)/.exec(text.slice(p));
+      const m = /^(?:\d{1,2}\.{1,4}|[^\d§]+|§(\d+)§)/.exec(text.slice(p));
       if (!m) break;
-      if (m[0] === ",") comma = true;
+      if (m[0].includes(",")) comma = true;
       if (m[1] !== undefined) anchors = { ...anchors, [plies.length - 1]: Number(m[1]) };
       p += m[0].length;
     }
 
     const rest = text.slice(p);
     // niets meer over, of alleen het slotteken "x." van het boek
-    const atEnd = rest === "" || /^[x.\-]*$/.test(rest);
-    const snapshot = { plies, boards, turns, pos: atEnd ? text.length : p, complete: atEnd, implicit, repairs, ambiguous, anchors };
+    // ...of alleen tekst zonder één zet erin (bv. "Jeugdkampioenschap 1974.")
+    const atEnd = rest === "" || /^[x.\-]*$/.test(rest) || !MOVE_IN_TEXT.test(rest);
+    const snapshot = { plies, boards, turns, pos: atEnd ? text.length : p, complete: atEnd, implicit, repairs, ambiguous, anchors, ignored: atEnd && /\d/.test(rest) ? rest : "" };
     if (atEnd || better(snapshot, best)) best = snapshot;
     if (atEnd) {
       finished = true;
@@ -303,7 +322,7 @@ function cleanMove(mv) {
 export function parseOplossing(tekst, { board, turn = "white", herstel = true } = {}) {
   const meldingen = [];
   const empty = { zetten: [], zijvarianten: [], volledig: false, betrouwbaar: false, aangevuld: [], hersteld: [], fout: null, meldingen };
-  const cleaned = normalizeText(tekst);
+  const cleaned = unwrapParenMoves(normalizeText(tekst));
   const { main, variants } = splitVariants(cleaned);
   const mainStr = toMoveString(main);
   if (!/\d/.test(mainStr)) {
@@ -333,6 +352,9 @@ export function parseOplossing(tekst, { board, turn = "white", herstel = true } 
       meldingen.push({ niveau: failure.niveau, tekst: failure.tekst });
       if (failure.niveau === "fout") fout = { ply: failure.ply, gelezen: failure.gelezen, voorstellen: failure.voorstellen };
     }
+  }
+  if (result.complete && result.ignored) {
+    meldingen.push({ niveau: "info", tekst: `Tekst achter de laatste zet is genegeerd: „${result.ignored.slice(0, 40)}”.` });
   }
   for (const r of result.repairs) {
     meldingen.push({ niveau: "let-op", tekst: `${plyLabel(turn, r.ply)}: „${r.gelezen}” kan niet; gelezen als ${r.gekozen} (dichtstbijzijnde toegestane zet). Controleer dit.` });
@@ -411,27 +433,51 @@ export function splitOplossingenPerNummer(tekst, nummers) {
 /**
  * Verdeelt een geplakte tekst met meerdere oplossingen (één per regel, zoals de opdracht voor
  * Claude die vraagt: "570. 1. 21 - 17 22 x 11 ...") in stukken per diagramnummer.
- * Een regel begint een nieuwe oplossing als hij start met een nummer, een punt en dan vlak daarna
- * "1." (het eerste zetnummer); andere regels horen bij de vorige oplossing. Volgorde van de
- * nummers maakt niet uit. Opmaaktekens van een chat (```, **, opsommingstekens) worden genegeerd.
+ * Een regel begint een nieuwe oplossing als hij start met een nummer en een punt, en daarna:
+ *   - vlak erna "1." (het eerste zetnummer), of
+ *   - een zet staat ("286. 39-34?! (16-21) ...", boeken zonder zetnummers), of
+ *   - alleen een naam ("287. B. Mirotin.", de zetten volgen op de volgende regel) én het nummer
+ *     is een verwacht diagramnummer (`verwacht`).
+ * Uitzondering: een regel die met het VOLGENDE zetnummer van de oplossing ervoor begint ("12." na
+ * "... 11. 25 x 3") is een afgebroken regel en hoort bij die oplossing.
+ * Andere regels horen bij de vorige oplossing. Volgorde van de nummers maakt niet uit.
+ * Opmaaktekens van een chat (```, **, opsommingstekens) worden genegeerd.
+ * @param {string} tekst
+ * @param {{ verwacht?: (string|number)[] }} [opties] `verwacht`: de nummers van de diagrammen
  * @returns {{ perNummer: Record<string, string>, volgorde: string[], dubbel: string[] }}
  */
-export function splitOplossingenTekst(tekst) {
+export function splitOplossingenTekst(tekst, { verwacht } = {}) {
+  const expected = verwacht ? new Set(verwacht.map(String)) : null;
   const cleaned = String(tekst ?? "").replace(/```[a-zA-Z]*/g, "").replace(/[*`]/g, "");
   const START = /^\s*(?:[-•]\s*)?(?:nr\.?\s*)?(\d{1,4})\s*[.):]\s*(.*)$/i;
   const FIRST_MOVE = /^.{0,40}?(?<![\d])1\s*\.\s*(?:\.\.\s*)?\d/;
+  const HAS_MOVE = /\d{1,2}\s*[-—–x:×]\s*\d{1,2}/;
+  const lastMoveNumber = (text) => {
+    let last = 0;
+    for (const mm of text.matchAll(/(?:^|\s)(\d{1,2})\.(?!\d)/g)) last = Number(mm[1]);
+    return last;
+  };
   const perNummer = {};
   const volgorde = [];
   const dubbel = [];
   let current = null;
   for (const line of cleaned.split(/\r?\n/)) {
     const m = START.exec(line);
-    if (m && FIRST_MOVE.test(m[2])) {
+    const rest = m ? m[2] : "";
+    let isStart = false;
+    if (m) {
+      const last = current ? lastMoveNumber(perNummer[current]) : 0;
+      if (FIRST_MOVE.test(rest)) isStart = true;
+      else if (last > 0 && Number(m[1]) === last + 1) isStart = false;
+      else if (HAS_MOVE.test(rest)) isStart = true;
+      else if (expected && expected.has(m[1]) && !/\d/.test(rest) && rest.trim().length > 0) isStart = true;
+    }
+    if (isStart) {
       current = m[1];
       if (perNummer[current] !== undefined) {
         if (!dubbel.includes(current)) dubbel.push(current);
       } else volgorde.push(current);
-      perNummer[current] = m[2].trim();
+      perNummer[current] = rest.trim();
     } else if (current && line.trim()) {
       perNummer[current] += " " + line.trim();
     }

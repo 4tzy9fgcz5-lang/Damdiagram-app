@@ -1,19 +1,19 @@
-import { createBoardEditor, createPalette } from "./boardEditor.js?v=20260921as";
-import { createSolutionInput } from "./solutionInput.js?v=20260921as";
-import { parseOplossing } from "../core/solutionParser.js?v=20260921as";
-import { createEmptyBoard, countPieces, isWhite, isBlack } from "../core/board.js?v=20260921as";
-import { parseFen, boardToFen, FenParseError } from "../core/fen.js?v=20260921as";
-import { parseStandInput, QuickTextParseError } from "../core/quicktext.js?v=20260921as";
-import { validateBoard } from "../core/validate.js?v=20260921as";
-import { saveStand, getStand, findDuplicates } from "../db/standen.js?v=20260921as";
-import { getList, addListValue } from "../db/lijsten.js?v=20260921as";
-import { getAllCategorieen } from "../db/categorieen.js?v=20260921as";
-import { logHerkenningCorrectie } from "../db/herkenningLog.js?v=20260921as";
-import { reclassifyFromDataUrl } from "./diagramCaptureView.js?v=20260921as";
-import { RECOGNITION_VERSION as NEW_MODEL_VERSION } from "../recognition/newClassify.js?v=20260921as";
-import { CNN_RECOGNITION_VERSION as CNN_MODEL_VERSION } from "../recognition/cnnClassify.js?v=20260921as";
+import { createBoardEditor, createPalette } from "./boardEditor.js?v=20260921at";
+import { createSolutionInput } from "./solutionInput.js?v=20260921at";
+import { parseOplossing } from "../core/solutionParser.js?v=20260921at";
+import { createEmptyBoard, countPieces, isWhite, isBlack } from "../core/board.js?v=20260921at";
+import { parseFen, boardToFen, FenParseError } from "../core/fen.js?v=20260921at";
+import { parseStandInput, QuickTextParseError } from "../core/quicktext.js?v=20260921at";
+import { validateBoard } from "../core/validate.js?v=20260921at";
+import { saveStand, getStand, findDuplicates } from "../db/standen.js?v=20260921at";
+import { getList, addListValue } from "../db/lijsten.js?v=20260921at";
+import { getAllCategorieen } from "../db/categorieen.js?v=20260921at";
+import { logHerkenningCorrectie } from "../db/herkenningLog.js?v=20260921at";
+import { reclassifyFromDataUrl } from "./diagramCaptureView.js?v=20260921at";
+import { RECOGNITION_VERSION as NEW_MODEL_VERSION } from "../recognition/newClassify.js?v=20260921at";
+import { CNN_RECOGNITION_VERSION as CNN_MODEL_VERSION } from "../recognition/cnnClassify.js?v=20260921at";
 
-import { renderStarRating } from "./starRating.js?v=20260921as";
+import { renderStarRating } from "./starRating.js?v=20260921at";
 
 export async function renderEditorView(
   container,

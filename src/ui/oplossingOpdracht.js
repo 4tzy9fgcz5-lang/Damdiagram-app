@@ -9,7 +9,9 @@ export const OPLOSSING_OPDRACHT = `Hierbij foto's van pagina's met oplossingen v
 - Neem alle zetten en zetnummers over, ook het slotteken "x." aan het eind.
 - Varianten neem je precies over: tussen haakjes, of met een letter (zoals "A) 3. ... 23 x 21 4. 35 - 30 ...") achter de hoofdlijn, met dezelfde letter in de hoofdlijn achter de zet waar de variant bij hoort.
 - Corrigeer NIETS, ook niet als een zet volgens jou niet kan of een cijfer verkeerd gedrukt lijkt. Ik controleer het zelf. Twijfel je over een cijfer, schrijf dan je beste lezing.
-- Tekst in woorden (opmerkingen, namen) mag je weglaten.
+- Staat de oplossing direct bij het diagram (eronder of ernaast) zonder eigen nummer, gebruik dan het nummer dat boven of bij dat diagram staat. Zet alles van één oplossing op één regel, dus ook als het boek de regel afbreekt.
+- Onderschriften onder een diagram (zoals "39-34?! (16-21) enz?") en uitleg in woorden zijn geen oplossing: laat ze weg. Namen van auteurs mag je weglaten.
+- Er mogen ook diagrammen op de foto staan; die hoef je niet te beschrijven.
 - Loopt een oplossing door op de volgende pagina, maak er dan één regel van.
 - Geef het hele antwoord in één codeblok, zonder uitleg ervoor of erna.`;
 

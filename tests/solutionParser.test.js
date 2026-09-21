@@ -1,7 +1,7 @@
-import { describe, it, assertEqual, assertTrue } from "./test-runner.js?v=20260921as";
-import { parseFen } from "../src/core/fen.js?v=20260921as";
-import { getLegalMoves, applyMove, opposite, formatZettenMetVarianten } from "../src/core/draughtsMoves.js?v=20260921as";
-import { parseOplossing, splitOplossingenPerNummer, splitOplossingenTekst, moveNotation } from "../src/core/solutionParser.js?v=20260921as";
+import { describe, it, assertEqual, assertTrue } from "./test-runner.js?v=20260921at";
+import { parseFen } from "../src/core/fen.js?v=20260921at";
+import { getLegalMoves, applyMove, opposite, formatZettenMetVarianten } from "../src/core/draughtsMoves.js?v=20260921at";
+import { parseOplossing, splitOplossingenPerNummer, splitOplossingenTekst, moveNotation } from "../src/core/solutionParser.js?v=20260921at";
 
 const START_FEN = `W:W${Array.from({ length: 20 }, (_, i) => 31 + i).join(",")}:B${Array.from({ length: 20 }, (_, i) => 1 + i).join(",")}`;
 
@@ -248,10 +248,10 @@ describe("solutionParser: geplakte tekst met meerdere oplossingen", () => {
   });
 
   it("voegt een doorlopende regel toe aan de vorige oplossing (een zetnummer is geen nieuw nummer)", () => {
-    const tekst = "570. 1. 21 - 17 22 x 11 2. 30 - 24 19 x 30\n3. 38 - 33 29 x 49\n12. 40 - 35 x.\n571. 1. 29 - 24 20 x 49";
+    const tekst = "570. 1. 21 - 17 22 x 11 2. 30 - 24 19 x 30\n3. 38 - 33 29 x 49\n4. 40 - 35 x.\n571. 1. 29 - 24 20 x 49";
     const r = splitOplossingenTekst(tekst);
     assertEqual(r.volgorde, ["570", "571"]);
-    assertTrue(r.perNummer["570"].includes("3. 38 - 33 29 x 49") && r.perNummer["570"].includes("12. 40 - 35"));
+    assertTrue(r.perNummer["570"].includes("3. 38 - 33 29 x 49") && r.perNummer["570"].includes("4. 40 - 35"));
   });
 
   it("herkent een oplossing met een naam voor de eerste zet en meldt een dubbel nummer", () => {
@@ -261,7 +261,66 @@ describe("solutionParser: geplakte tekst met meerdere oplossingen", () => {
     assertTrue(r.perNummer["585"].startsWith("1. 33-29 19x30 2."));
   });
 
+  it("houdt een afgebroken regel (volgend zetnummer) bij dezelfde oplossing, ook als dat nummer een diagramnummer is", () => {
+    const tekst = "9. 1. 29-24 18x49 2. 47-41 36x47 3. 28-22 47x20\n4. 22x13 49x9 5. 26x8\n10. 1. 38-32 27x38";
+    const r = splitOplossingenTekst(tekst, { verwacht: [9, 10, 4] });
+    assertEqual(r.volgorde, ["9", "10"]);
+    assertTrue(r.perNummer["9"].includes("4. 22x13"));
+  });
+
   it("geeft niets terug voor tekst zonder oplossingen", () => {
     assertEqual(splitOplossingenTekst("Hier zijn je oplossingen!").volgorde, []);
+  });
+});
+
+describe("solutionParser: andere schrijfwijzen uit andere boeken", () => {
+  it("leest zwarte zetten tussen haakjes zonder zetnummers (\"39-34?! (16-21!?) 27x16 (18-22)\")", () => {
+    const { board, turn } = parseFen(START_FEN);
+    const zetten = playRandom(board, turn, 10, lcg(61));
+    const tekst = zetten
+      .map((m, i) => (i % 2 === 0 ? moveNotation(m) + (i === 0 ? "?!" : "") : `(${moveNotation(m)}!?)`))
+      .join(" ");
+    const r = parseOplossing(`B. Mirotin. ${tekst}.`, { board, turn });
+    assertEqual(key(r.zetten).length, key(zetten).length, tekst);
+    assertEqual(r.zetten.map(moveNotation), zetten.map(moveNotation), tekst);
+    assertEqual(r.zijvarianten.length, 0, "de haakjes zijn geen varianten");
+    assertTrue(r.volledig, JSON.stringify(r.meldingen));
+  });
+
+  it("leest een oplossing die met een zwarte zet (tussen haakjes) begint, en meldt dat de beurt niet klopt", () => {
+    const { board } = parseFen(START_FEN);
+    const r = parseOplossing("(17-22) 32-28", { board, turn: "white" });
+    assertTrue(r.fout?.andereBeurt, JSON.stringify(r));
+    const zwart = parseOplossing("(17-22) 32-28", { board, turn: "black" });
+    assertEqual(zwart.zetten.length, 2);
+  });
+
+  it("leest een dubbele punt als slag en een lange streep als min (\"29—24! 18 : 49\")", () => {
+    const { board, turn } = parseFen(START_FEN);
+    const zetten = playRandom(board, turn, 12, lcg(71));
+    const tekst = formatZettenMetVarianten(zetten, turn, [])
+      .replace(/-/g, "—")
+      .replace(/x/g, " : ");
+    const r = parseOplossing(tekst, { board, turn });
+    assertEqual(r.zetten.map(moveNotation), zetten.map(moveNotation), tekst);
+  });
+
+  it("negeert tekst met cijfers achter de laatste zet (\"Jeugdkampioenschap van Nederland 1974.\")", () => {
+    const { board, turn } = parseFen(START_FEN);
+    const zetten = playRandom(board, turn, 4, lcg(81));
+    const tekst = `${formatZettenMetVarianten(zetten, turn, [])}. Zie ook J. van der Wal - P. van Harten. Jeugdkampioenschap van Nederland 1974.`;
+    const r = parseOplossing(tekst, { board, turn });
+    assertEqual(r.zetten.map(moveNotation), zetten.map(moveNotation));
+    assertTrue(r.volledig, JSON.stringify(r.meldingen));
+    assertTrue(r.meldingen.some((m) => m.niveau === "info" && m.tekst.includes("genegeerd")));
+  });
+
+  it("verdeelt een tekst zonder zetnummers en met een naam op de eerste regel, als de nummers bekend zijn", () => {
+    const tekst = "286. 39-34?! (16-21!?) 27x16 (18-22)\n287. B. Mirotin.\n40-34?! (23-29!?) 34x23\n288. 31-26?! (24-29) 33x24";
+    const zonder = splitOplossingenTekst(tekst);
+    assertEqual(zonder.volgorde, ["286", "288"], "een naam-regel is zonder de bekende nummers niet zeker te herkennen");
+    const met = splitOplossingenTekst(tekst, { verwacht: [286, 287, 288, 289] });
+    assertEqual(met.volgorde, ["286", "287", "288"]);
+    assertTrue(met.perNummer["287"].includes("B. Mirotin.") && met.perNummer["287"].includes("40-34?!"));
   });
 });

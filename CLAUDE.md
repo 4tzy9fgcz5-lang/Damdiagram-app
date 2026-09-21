@@ -365,6 +365,33 @@ commentaar, varianten tussen haakjes en met `A)`, en weggelaten gedwongen antwoo
 - Nog niet gemeten: de echte API-aanroep (vraagt een eigen Anthropic-API-sleutel van Jan,
   alleen lokaal bewaard, nooit in de code/GitHub; foto's gaan dan naar Anthropic).
 
+**Twee andere boeklay-outs getest (Jan, 2026-09-22; foto's `testdata/gemengd/`, gitignored):**
+diagram en oplossing op DEZELFDE pagina.
+- *Nederlands boek (IMG_0759, diagrammen 286-289, oplossingen met nummer in het midden van de
+  pagina, zonder zetnummers en met de zwarte zetten tussen haakjes: "39-34?! (16-21!?) 27x16
+  (18-22) ...").* Omzetter aangepast (`unwrapParenMoves`: haakjes zonder zetnummers = gewoon de
+  volgende zet; tekst zonder zet achter de laatste zet, bv. "Jeugdkampioenschap 1974.", wordt
+  genegeerd met een `info`-melding; stray tekens vóór een zet worden overgeslagen). Uitkomst: 286,
+  287, 289 volledig nagespeeld (289 begint met zwart: de beurt-knop). 288: de hoekdetectie plaatste
+  het kader mis (17 gele velden, dus wel gewaarschuwd) en de herkenning op dat scheve, sterk
+  vervormde bord bleef slecht ook met handmatige hoeken: hier moet Jan het bord in de editor
+  zelf verbeteren. Nummers boven de diagrammen: 2 van 4 gelezen ("287", "288"), "286" las als
+  "5" en "289" niet; beide zijn uit de reeks afgeleid (`fillMissingNumbers`).
+- *Russisch boek uit de jaren '50 (IMG_0772, diagrammen 9 en 10; oplossing direct onder het
+  diagram, ZONDER eigen nummer; slag als "18 : 49", min als "29—24!").* Notatie wordt nu gelezen
+  (dubbele punt = slag), maar de herkenning van beide diagrammen was onbruikbaar (fijn
+  gearceerde velden, kleine schijven; 0 gele velden dus GEEN waarschuwing — alleen het
+  nagespeelde-oplossing-paneel verraadt het), en de nummers 9/10 boven de diagrammen werden niet
+  gelezen ("3" en niets). Voor dit boek is handwerk nodig (nummers en bord), tenzij er
+  trainingsmateriaal van deze stijl bij komt.
+- `splitOplossingenTekst` herkent nu ook regels zonder "1." (regel met een zet erin, of alleen een
+  naam als het nummer een verwacht diagramnummer is) en houdt afgebroken regels ("...11. 25 x 3 /
+  12. ...") bij dezelfde oplossing. De opdracht voor Claude vraagt nu om het nummer van het
+  diagram als de oplossing er direct onder staat, en om onderschriften weg te laten.
+- Ideeën van Jan, nog niet gebouwd (uitgewerkt in het gesprek): meerdere foto's tegelijk in de
+  bulk-import (`File`-objecten bewaren, per pagina inlezen; niet alle foto's tegelijk als
+  bitmap in het geheugen) en diagram+oplossing op één foto (dezelfde foto naar Claude sturen).
+
 ### Neuraal netwerkje (2026-09-21) — nu de standaardherkenner
 
 Aanleiding: hertrainen van de oude logistische regressie (`damscan/`) op Jans 140
