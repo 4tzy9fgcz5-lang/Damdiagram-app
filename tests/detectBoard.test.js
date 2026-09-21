@@ -1,8 +1,22 @@
-import { describe, it, assertTrue } from "./test-runner.js?v=20260921ax";
-import { detectBoardCorners } from "../src/recognition/detectBoard.js?v=20260921ax";
+import { describe, it, assertTrue } from "./test-runner.js?v=20260921ay";
+import { detectBoardCorners } from "../src/recognition/detectBoard.js?v=20260921ay";
 
 function approxEqual(a, b, eps) {
   return Math.abs(a - b) < eps;
+}
+
+// Een zwart kader met daarbinnen een 10x10-schaakbordpatroon (donker waar rij+kolom oneven is, zoals
+// op een echt dambord), op papierkleur. De hoekdetectie zoekt sinds 2026-09-21 het patroon zelf;
+// een kader zonder patroon (zoals de eerdere versie van deze test) is geen dambord meer.
+function paintPattern(ctx, x0, y0, width, height) {
+  const cw = width / 10;
+  const ch = height / 10;
+  for (let row = 0; row < 10; row++) {
+    for (let col = 0; col < 10; col++) {
+      ctx.fillStyle = (row + col) % 2 === 1 ? "#3a2a18" : "#c9b183";
+      ctx.fillRect(x0 + col * cw, y0 + row * ch, cw, ch);
+    }
+  }
 }
 
 function canvasWithBorder(size, border) {
@@ -14,14 +28,13 @@ function canvasWithBorder(size, border) {
   ctx.fillRect(0, 0, size, size);
   ctx.fillStyle = "#000000";
   ctx.fillRect(border.x0, border.y0, border.x1 - border.x0, border.y1 - border.y0);
-  ctx.fillStyle = "#cccccc";
   const inset = 8;
-  ctx.fillRect(border.x0 + inset, border.y0 + inset, border.x1 - border.x0 - 2 * inset, border.y1 - border.y0 - 2 * inset);
+  paintPattern(ctx, border.x0 + inset, border.y0 + inset, border.x1 - border.x0 - 2 * inset, border.y1 - border.y0 - 2 * inset);
   return canvas;
 }
 
 describe("automatische hoekdetectie", () => {
-  it("vindt een duidelijke zwarte bordrand op een verder effen foto", () => {
+  it("vindt een bord met een duidelijke zwarte rand op een verder effen foto", () => {
     const border = { x0: 60, y0: 90, x1: 540, y1: 570 };
     const canvas = canvasWithBorder(600, border);
     const corners = detectBoardCorners(canvas);
@@ -57,8 +70,7 @@ describe("automatische hoekdetectie", () => {
     ctx.rotate((8 * Math.PI) / 180);
     ctx.fillStyle = "#000000";
     ctx.fillRect(-180, -160, 360, 320);
-    ctx.fillStyle = "#cccccc";
-    ctx.fillRect(-165, -145, 330, 290);
+    paintPattern(ctx, -165, -145, 330, 290);
     ctx.restore();
 
     const corners = detectBoardCorners(canvas);

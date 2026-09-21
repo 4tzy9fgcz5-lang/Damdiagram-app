@@ -197,8 +197,8 @@ gewichtenbestanden.
   kunnen in Node: **98 geslaagd**, geen fout in de regelengine, veldnummering, FEN,
   diagram, stencil, plausibiliteit, labels, neuraal netwerk (rekenkern) en
   homografie. De overige 54 van de 152 tests (hoekdetectie, raster, database, Word, foto-uitsnede)
-  vragen een browser en heb ik niet gedraaid. `CLAUDE.md` noemt één bekende, altijd
-  falende test (hoekdetectie, zwarte rand).
+  vragen een browser en heb ik niet gedraaid. `CLAUDE.md` noemde één bekende, altijd
+  falende test (hoekdetectie, zwarte rand); die is op 2026-09-22 rechtgezet (zie daar).
 - **Voorbeeldgegevens:** `testdata/` heeft alleen foto's (diagrammen, paginafoto's,
   oplossingenpagina's) en staat bewust buiten GitHub (auteursrecht). **Er zijn geen
   PDN-partijen, geen studies met zijvarianten en geen openingen.**

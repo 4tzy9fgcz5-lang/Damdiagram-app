@@ -778,9 +778,11 @@ bijgestelde versie (niet de volgorde uit het originele plan):
   meerdere keren verwarrende, inconsistente testresultaten deze sessie. Bij een
   onverklaarbaar/inconsistent resultaat: open een gloednieuwe tab in plaats van de
   bestaande te hergebruiken, en/of hoog de cache-bust-versie nog een keer op.
-- Automatische tests: `tests/tests.html` (zelfde server). Eén bekende, altijd
-  falende test hoort daarbij en is geen regressie: "vindt een duidelijke zwarte
-  bordrand op een verder effen foto" (hoekdetectie-test, al bekend probleem).
+- Automatische tests: `tests/tests.html` (zelfde server). Sinds 2026-09-22 slagen ze allemaal
+  (191). De vroeger "bekende falende" hoekdetectie-test was verouderd: hij tekende een zwart
+  kader zonder schaakbordpatroon, en de hoekdetectie zoekt sinds 2026-09-21 het patroon zelf
+  (zonder patroon koos ze de hele foto). De test tekent nu een echt 10x10-patroon in het kader,
+  net als de andere hoekdetectie-tests. Faalt er nu iets, dan is dat dus wél een regressie.
 - `tests/compare.html` alleen lokaal, voor de classifier-vergelijking (zie boven).
 
 # Cache-busting

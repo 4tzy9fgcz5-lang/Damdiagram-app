@@ -1,7 +1,7 @@
-import { computeHomography, applyHomography, warpPerspective } from "./homography.js?v=20260921ax";
-import { gridFitScore } from "./gridFit.js?v=20260921ax";
-import { fitBoardQuad, findMissingBoards, findCenterBoard } from "./quadFit.js?v=20260921ax";
-import { detectMultipleCornersFromImageData } from "./detectMultiBoard.js?v=20260921ax";
+import { computeHomography, applyHomography, warpPerspective } from "./homography.js?v=20260921ay";
+import { gridFitScore } from "./gridFit.js?v=20260921ay";
+import { fitBoardQuad, findMissingBoards, findCenterBoard } from "./quadFit.js?v=20260921ay";
+import { detectMultipleCornersFromImageData } from "./detectMultiBoard.js?v=20260921ay";
 
 // Automatische hoekdetectie van het dambord op een foto — zonder externe
 // bibliotheken (de app blijft een platte, server-loze website). Gevalideerd
