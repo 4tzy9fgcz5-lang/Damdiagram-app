@@ -1,8 +1,8 @@
-import { renderDiagramSVG } from "../diagram/render.js?v=20260921ay";
-import { parseFen } from "../core/fen.js?v=20260921ay";
-import { resolveOplossingTekst } from "../db/standen.js?v=20260921ay";
-import { getGridLayout, paginateItems } from "./layout.js?v=20260921ay";
-import { opdrachtregelMetOndertitel } from "./compose.js?v=20260921ay";
+import { renderDiagramSVG } from "../diagram/render.js?v=20260921ba";
+import { parseFen } from "../core/fen.js?v=20260921ba";
+import { resolveOplossingTekst } from "../db/standen.js?v=20260921ba";
+import { getGridLayout, paginateItems } from "./layout.js?v=20260921ba";
+import { opdrachtregelMetOndertitel } from "./compose.js?v=20260921ba";
 
 const PAGE_STYLE = `
   @page { size: A4 portrait; margin: 14mm; }

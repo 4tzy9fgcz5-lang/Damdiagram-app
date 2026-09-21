@@ -8,13 +8,14 @@
 // blijft een klein voorbeeldplaatje (voor de kaders) en het bestand zelf over. De volle foto wordt
 // pas weer geladen als een diagram van die foto aan de beurt is (zie app.js).
 
-import { loadDrawable, drawableSize } from "./imageInput.js?v=20260921ay";
-import { detectBulkBoards } from "../recognition/bulkDetect.js?v=20260921ay";
-import { getList, addListValue } from "../db/lijsten.js?v=20260921ay";
-import { createNumberReader, fillMissingNumbers } from "../recognition/numberOcr.js?v=20260921ay";
-import { splitOplossingenTekst } from "../core/solutionParser.js?v=20260921ay";
-import { OPLOSSING_OPDRACHT, kopieerNaarKlembord } from "./oplossingOpdracht.js?v=20260921ay";
-import { getOplossingenTekst, setOplossingenTekst } from "../db/uiSettings.js?v=20260921ay";
+import { loadDrawable, drawableSize } from "./imageInput.js?v=20260921ba";
+import { detectBulkBoards } from "../recognition/bulkDetect.js?v=20260921ba";
+import { getList, addListValue } from "../db/lijsten.js?v=20260921ba";
+import { getAllCategorieen } from "../db/categorieen.js?v=20260921ba";
+import { createNumberReader, fillMissingNumbers } from "../recognition/numberOcr.js?v=20260921ba";
+import { splitOplossingenTekst } from "../core/solutionParser.js?v=20260921ba";
+import { OPLOSSING_OPDRACHT, kopieerNaarKlembord } from "./oplossingOpdracht.js?v=20260921ba";
+import { getOplossingenTekst, setOplossingenTekst } from "../db/uiSettings.js?v=20260921ba";
 
 const COLORS = ["#d1495b", "#1a5c38", "#3a6ea5", "#e0a800", "#8854d0", "#009688"];
 const THUMB_MAX_SIDE = 700;
@@ -44,7 +45,7 @@ const tick = () => new Promise((r) => setTimeout(r, 0));
 
 export async function renderBulkImportView(container, { onConfirmed } = {}) {
   container.innerHTML = `
-    <h2>Bulk-import: pagina's met meerdere diagrammen</h2>
+    <h2>Nieuwe stand toevoegen</h2>
     <div class="card" data-role="pick">
       <p>Kies één of meer foto's van boekpagina's met meerdere diagrammen erop (selecteer er gerust
         een heleboel tegelijk), of maak een foto. De app zoekt daarna per foto zelf de diagrammen en
@@ -55,6 +56,13 @@ export async function renderBulkImportView(container, { onConfirmed } = {}) {
       </div>
       <input type="file" accept="image/*" capture="environment" data-role="camera-input" style="display:none" />
       <input type="file" accept="image/*" multiple data-role="gallery-input" style="display:none" />
+      <div style="margin-top:1rem;padding-top:0.75rem;border-top:1px solid #e3e3e3;">
+        <span style="font-size:0.9rem;color:#555;">Liever op een andere manier?</span>
+        <div class="button-row" style="margin-top:0.4rem;">
+          <button type="button" class="secondary" data-go="#/foto">Eén foto van één diagram</button>
+          <button type="button" class="secondary" data-go="#/zelf">Zelf een stand invoeren</button>
+        </div>
+      </div>
     </div>
 
     <div class="card" data-role="overview" style="display:none;">
@@ -90,11 +98,15 @@ export async function renderBulkImportView(container, { onConfirmed } = {}) {
         <button type="button" class="secondary" data-action="clear-solutions" style="margin-top:0.4rem;">Wis geplakte tekst</button>
       </div>
 
-      <label style="margin-top:0.75rem;">Auteur (leeg = niet invullen) — geldt voor alle diagrammen</label>
+      <p style="font-size:0.9rem;color:#555;margin:0.75rem 0 0;">Wat hieronder ingevuld of gekozen wordt, geldt voor <strong>alle</strong> diagrammen
+        van deze import (per diagram kun je het straks nog aanpassen).</p>
+      <label style="margin-top:0.5rem;">Auteur (leeg = uit de oplossing halen als die daar bij staat)</label>
       <input type="text" data-field="auteur" placeholder="bijv. M. Fabre" />
 
-      <label style="margin-top:0.75rem;">Boekstijl (voor training van de fotoherkenning) — geldt voor alle diagrammen</label>
-      <div class="tag-list" data-role="boekstijl"></div>
+      <label style="margin-top:0.75rem;">Publicatie</label>
+      <input type="text" data-field="publicatie" placeholder="boek, tijdschrift of website" />
+
+      <div data-role="categorieen"></div>
 
       <label style="margin-top:0.75rem;">Werkwijze</label>
       <label style="display:block;margin:0.2rem 0;font-weight:normal;"><input type="radio" name="werkwijze" value="auto" checked />
@@ -121,7 +133,7 @@ export async function renderBulkImportView(container, { onConfirmed } = {}) {
   const cameraInput = el('[data-role="camera-input"]');
   el('[data-role="prompt-text"]').textContent = OPLOSSING_OPDRACHT;
   oplossingenField.value = getOplossingenTekst();
-  const boekstijlHost = el('[data-role="boekstijl"]');
+  const categorieenHost = el('[data-role="categorieen"]');
 
   // pages: { id, file, name, width, height, status: "wacht"|"bezig"|"klaar"|"fout", melding,
   //          base (klein voorbeeldplaatje), thumb (voorbeeld met kaders), scale }
@@ -135,41 +147,60 @@ export async function renderBulkImportView(container, { onConfirmed } = {}) {
   // Telt op bij "alles wissen", zodat een inleesronde die nog loopt stopt en niets meer toevoegt.
   let runToken = 0;
   let processing = false;
-  let selectedBoekstijl = "";
+  // Gekozen speelsysteem/type/... voor alle diagrammen: { [categorie-key]: string[] }
+  const selectedCategorieen = {};
 
-  // ---------- boekstijl ----------
-  // Zelfde patroon als de boekstijl-kiezer in editorView.js: één keuze, geldt nu
-  // voor alle diagrammen in plaats van per stand, zodat je dit niet per diagram
-  // hoeft te herhalen.
-  async function renderBoekstijlPicker() {
-    const values = await getList("boekstijl");
-    boekstijlHost.innerHTML = "";
-    for (const value of values) {
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = "tag";
-      btn.textContent = value;
-      if (selectedBoekstijl === value) btn.classList.add("selected");
-      btn.addEventListener("click", () => {
-        selectedBoekstijl = selectedBoekstijl === value ? "" : value;
-        renderBoekstijlPicker();
-      });
-      boekstijlHost.appendChild(btn);
+  // ---------- speelsysteem, type (en andere categorieën) ----------
+  // Zelfde keuzelijsten als op het invoerscherm (Instellingen -> Database beheert welke categorieën er
+  // zijn): kies wat voor alle diagrammen van deze import geldt.
+  async function renderCategorieen() {
+    const categorieen = await getAllCategorieen();
+    categorieenHost.innerHTML = categorieen
+      .map((cat) => `<label style="margin-top:0.75rem;">${escapeHtml(cat.label)}</label><div class="tag-list" data-cat="${escapeHtml(cat.key)}"></div>`)
+      .join("");
+    for (const cat of categorieen) {
+      selectedCategorieen[cat.key] ??= [];
+      const host = categorieenHost.querySelector(`[data-cat="${cat.key}"]`);
+      const draw = async () => {
+        const values = await getList(cat.key);
+        host.innerHTML = "";
+        for (const value of values) {
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.className = "tag";
+          btn.textContent = value;
+          if (selectedCategorieen[cat.key].includes(value)) btn.classList.add("selected");
+          btn.addEventListener("click", () => {
+            const list = selectedCategorieen[cat.key];
+            const i = list.indexOf(value);
+            if (i >= 0) list.splice(i, 1);
+            else list.push(value);
+            btn.classList.toggle("selected");
+          });
+          host.appendChild(btn);
+        }
+        const addBtn = document.createElement("button");
+        addBtn.type = "button";
+        addBtn.className = "tag";
+        addBtn.textContent = "+ nieuw";
+        addBtn.addEventListener("click", async () => {
+          const naam = prompt("Nieuwe waarde:");
+          if (!naam || !naam.trim()) return;
+          await addListValue(cat.key, naam.trim());
+          await draw();
+        });
+        host.appendChild(addBtn);
+      };
+      await draw();
     }
-    const addBtn = document.createElement("button");
-    addBtn.type = "button";
-    addBtn.className = "tag";
-    addBtn.textContent = "+ nieuw";
-    addBtn.addEventListener("click", async () => {
-      const naam = prompt("Uit welk boek of tijdschrift komen deze diagrammen?");
-      if (!naam || !naam.trim()) return;
-      await addListValue("boekstijl", naam.trim());
-      selectedBoekstijl = naam.trim();
-      renderBoekstijlPicker();
-    });
-    boekstijlHost.appendChild(addBtn);
   }
-  await renderBoekstijlPicker();
+  await renderCategorieen();
+
+  container.querySelectorAll("[data-go]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      location.hash = btn.dataset.go;
+    });
+  });
 
   // ---------- oplossingen ----------
   // Hoeveel van de geplakte oplossingen bij een diagram in deze import horen.
@@ -619,8 +650,9 @@ export async function renderBulkImportView(container, { onConfirmed } = {}) {
       auto: container.querySelector('input[name="werkwijze"]:checked')?.value !== "hoeken",
       pages: usedPages.map((p) => ({ file: p.file, name: p.name })),
       diagrams,
-      boekstijl: selectedBoekstijl,
       auteur: el('[data-field="auteur"]').value.trim(),
+      publicatie: el('[data-field="publicatie"]').value.trim(),
+      categorieen: Object.fromEntries(Object.entries(selectedCategorieen).filter(([, v]) => v.length > 0).map(([k, v]) => [k, [...v]])),
     });
   });
 

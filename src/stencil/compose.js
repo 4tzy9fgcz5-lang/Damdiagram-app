@@ -1,4 +1,4 @@
-import { getStand } from "../db/standen.js?v=20260921ay";
+import { getStand } from "../db/standen.js?v=20260921ba";
 
 export async function resolveStencilItems(stencil) {
   const items = [];

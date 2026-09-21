@@ -427,6 +427,37 @@ valt terug op de oude werkwijze. Getest in de echte app (16 diagrammen op 2 foto
 288 en 580 kwamen vooraan, 289 startte met zwart aan zet). Bekend: alles zit alleen in het geheugen — bij
 een paginaherlaad ben je de rij kwijt (tussentijds hervatten is niet gebouwd).
 
+**Invoerscherm bijgeschaafd na Jans eerste echte testronde (2026-09-22):**
+- **"Nieuwe stand" begint nu bij foto's kiezen** (`#/nieuw` zonder herkende stand -> hetzelfde
+  scherm als bulk-import), met twee alternatieven ernaast: "Eén foto van één diagram" (`#/foto`)
+  en "Zelf een stand invoeren" (nieuwe kale route `#/zelf`, hetzelfde editorscherm zonder foto).
+  Een lopende bulk-rij wordt niet meer stilletjes weggegooid als je naar "Nieuwe stand" navigeert
+  (bv. per ongeluk) — je komt terug in de rij; stoppen kan expliciet met de nieuwe knop "Rij
+  stoppen" naast "Hoeken opnieuw instellen" (met bevestiging).
+- **Bulk-import: boekstijl-kiezer weggehaald** (Jan: de herkenning is nu goed genoeg, verder
+  trainen is niet meer nodig) en vervangen door **Publicatie** en de gewone **Speelsysteem/
+  Type-tags** (en wat Jan verder toevoegt via Instellingen -> Database) — gelden voor alle
+  diagrammen van de import, net als auteur; per diagram nog aan te passen in de editor
+  (`initialPublicatie`/`initialCategorieen`). Boekstijl blijft wél bestaan op een individuele
+  stand (`editorView.js`, bij een foto-herkende stand) — alleen de aparte bulk-brede kiezer is weg.
+- **Auteur uit de oplossingtekst halen:** `extractAuthor()` (`solutionParser.js`) leest het stukje
+  voor de eerste zet ("287. B. Mirotin. 40-34..." -> "B. Mirotin"); een duidelijke naam (initialen +
+  achternaam, evt. met tussenvoegsel) wordt automatisch ingevuld ALS er voor de hele import geen
+  auteur is opgegeven; bij een losse achternaam of twee namen met een streepje (spelers van een
+  partij, geen componist) komt een gele melding met de ruwe tekst, ter controle — nooit stilzwijgend
+  fout. De opdracht voor Claude vraagt nu ook om een auteur bij de oplossing mee te schrijven.
+- **Oplossingspaneel korter:** klopt de oplossing helemaal en zonder gok/aanvulling, dan nog maar
+  één groen regeltje ("✔ Oplossing uit het boek ingelezen (19 zetten)"); de opsomming met
+  "weggelaten antwoord aangevuld" e.d. wordt alleen getoond als er ook echt iets te controleren
+  is (een fout, een herstelde zet, een dubbelzinnige slag).
+- **Dubbel-in-database-melding staat nu bovenaan** de editor (rood kader, boven de rij-balk),
+  niet meer onderin de bordkolom.
+- **Schijventelling rood bij onbalans:** "Wit: 9 · Zwart: 10 — niet in evenwicht" in rood/vet als
+  wit en zwart niet gelijk zijn (en niet allebei 0) — puur visueel, past niets aan.
+- Getest in de echte app: bulk-rij met publicatie+speelsysteem ingevuld, auteur automatisch
+  overgenomen (287) en een twijfelmelding bij een dubbele naam (289); "Rij stoppen" en de
+  bescherming tegen wegnavigeren; "Zelf invoeren" toont het lege bord. Alle 195 tests slagen.
+
 ### Neuraal netwerkje (2026-09-21) — nu de standaardherkenner
 
 Aanleiding: hertrainen van de oude logistische regressie (`damscan/`) op Jans 140

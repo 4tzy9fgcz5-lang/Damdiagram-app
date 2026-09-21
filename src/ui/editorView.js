@@ -1,19 +1,19 @@
-import { createBoardEditor, createPalette } from "./boardEditor.js?v=20260921ay";
-import { createSolutionInput } from "./solutionInput.js?v=20260921ay";
-import { parseOplossing } from "../core/solutionParser.js?v=20260921ay";
-import { createEmptyBoard, countPieces, isWhite, isBlack } from "../core/board.js?v=20260921ay";
-import { parseFen, boardToFen, FenParseError } from "../core/fen.js?v=20260921ay";
-import { parseStandInput, QuickTextParseError } from "../core/quicktext.js?v=20260921ay";
-import { validateBoard } from "../core/validate.js?v=20260921ay";
-import { saveStand, getStand, findDuplicates } from "../db/standen.js?v=20260921ay";
-import { getList, addListValue } from "../db/lijsten.js?v=20260921ay";
-import { getAllCategorieen } from "../db/categorieen.js?v=20260921ay";
-import { logHerkenningCorrectie } from "../db/herkenningLog.js?v=20260921ay";
-import { reclassifyFromDataUrl } from "./diagramCaptureView.js?v=20260921ay";
-import { RECOGNITION_VERSION as NEW_MODEL_VERSION } from "../recognition/newClassify.js?v=20260921ay";
-import { CNN_RECOGNITION_VERSION as CNN_MODEL_VERSION } from "../recognition/cnnClassify.js?v=20260921ay";
+import { createBoardEditor, createPalette } from "./boardEditor.js?v=20260921ba";
+import { createSolutionInput } from "./solutionInput.js?v=20260921ba";
+import { parseOplossing, extractAuthor } from "../core/solutionParser.js?v=20260921ba";
+import { createEmptyBoard, countPieces, isWhite, isBlack } from "../core/board.js?v=20260921ba";
+import { parseFen, boardToFen, FenParseError } from "../core/fen.js?v=20260921ba";
+import { parseStandInput, QuickTextParseError } from "../core/quicktext.js?v=20260921ba";
+import { validateBoard } from "../core/validate.js?v=20260921ba";
+import { saveStand, getStand, findDuplicates } from "../db/standen.js?v=20260921ba";
+import { getList, addListValue } from "../db/lijsten.js?v=20260921ba";
+import { getAllCategorieen } from "../db/categorieen.js?v=20260921ba";
+import { logHerkenningCorrectie } from "../db/herkenningLog.js?v=20260921ba";
+import { reclassifyFromDataUrl } from "./diagramCaptureView.js?v=20260921ba";
+import { RECOGNITION_VERSION as NEW_MODEL_VERSION } from "../recognition/newClassify.js?v=20260921ba";
+import { CNN_RECOGNITION_VERSION as CNN_MODEL_VERSION } from "../recognition/cnnClassify.js?v=20260921ba";
 
-import { renderStarRating } from "./starRating.js?v=20260921ay";
+import { renderStarRating } from "./starRating.js?v=20260921ba";
 
 export async function renderEditorView(
   container,
@@ -29,6 +29,8 @@ export async function renderEditorView(
     initialBoekstijl,
     initialAuteur,
     initialNummer,
+    initialPublicatie,
+    initialCategorieen,
     initialOplossingTekst,
     initialTurn,
     bulkInfo,
@@ -36,6 +38,7 @@ export async function renderEditorView(
 ) {
   container.innerHTML = `
     <h2>Nieuwe stand invoeren</h2>
+    <div data-role="duplicateWarning"></div>
     <div data-role="bulkInfo"></div>
     <div class="card editor-layout">
       <div class="editor-board-col">
@@ -68,8 +71,12 @@ export async function renderEditorView(
                   <p style="font-size:0.8rem;color:#666;margin:0.2rem 0 0;">
                     Ander resultaat nodig? Wisselen herkent dezelfde foto opnieuw en vervangt het bord hierboven.
                   </p>
-                  <label style="margin-top:0.5rem;">Boekstijl (voor training van de fotoherkenning)</label>
-                  <div class="tag-list" data-role="boekstijl"></div>
+                  ${
+                    bulkInfo
+                      ? ""
+                      : `<label style="margin-top:0.5rem;">Boekstijl (voor training van de fotoherkenning)</label>
+                  <div class="tag-list" data-role="boekstijl"></div>`
+                  }
                 </div>`
               : ""
           }
@@ -85,7 +92,6 @@ export async function renderEditorView(
           </label>
         </div>
         <div data-role="warnings"></div>
-        <div data-role="duplicateWarning"></div>
 
         <label>Stand invoeren</label>
         <textarea
@@ -120,6 +126,7 @@ export async function renderEditorView(
             <input type="number" data-field="jaartal" />
           </div>
         </div>
+        <div data-role="auteurNotice"></div>
 
         <label>Publicatie</label>
         <input type="text" data-field="publicatie" placeholder="boek, tijdschrift of website" />
@@ -171,11 +178,14 @@ export async function renderEditorView(
         ${bulkInfo.reden ? `<div style="color:#8a4b00;font-size:0.9rem;">Let extra op: ${escapeHtml(bulkInfo.reden)}.</div>` : ""}
         ${
           bulkInfo.onAdjustCorners
-            ? `<div class="button-row" style="margin-top:0.4rem;"><button type="button" class="secondary" data-action="adjust-corners">Klopt het kader niet? Hoeken opnieuw instellen</button></div>`
+            ? `<div class="button-row" style="margin-top:0.4rem;"><button type="button" class="secondary" data-action="adjust-corners">Klopt het kader niet? Hoeken opnieuw instellen</button>${
+                bulkInfo.onStop ? `<button type="button" class="secondary" data-action="stop-queue">Rij stoppen</button>` : ""
+              }</div>`
             : ""
         }
       </div>`;
     host.querySelector('[data-action="adjust-corners"]')?.addEventListener("click", () => bulkInfo.onAdjustCorners());
+    host.querySelector('[data-action="stop-queue"]')?.addEventListener("click", () => bulkInfo.onStop());
     el('[data-action="save"]').textContent = "Opslaan en volgende";
   }
   // Per categorie-key (speelsysteem, type, en wat Jan er zelf bij maakt in
@@ -193,6 +203,9 @@ export async function renderEditorView(
   // stand (bewerken) overschrijft dit hieronder met zijn eigen auteur.
   if (initialAuteur) el('[data-field="auteur"]').value = initialAuteur;
   if (initialNummer) el('[data-field="nummer"]').value = initialNummer;
+  if (initialPublicatie) el('[data-field="publicatie"]').value = initialPublicatie;
+  // Bulk-import: speelsysteem/type (en andere categorieën) die voor alle diagrammen zijn gekozen.
+  for (const [key, waarden] of Object.entries(initialCategorieen ?? {})) selectedCategorieen[key] = [...waarden];
 
   if (standId) {
     existingStand = await getStand(standId);
@@ -291,7 +304,12 @@ export async function renderEditorView(
     const board = boardEditor.getBoard();
     const white = countPieces(board, isWhite);
     const black = countPieces(board, isBlack);
-    pieceCountHost.textContent = `Wit: ${white} · Zwart: ${black}`;
+    // Rood als wit en zwart niet evenveel schijven hebben: bij bijna alle opgaven is dat gelijk, dus
+    // een verschil wijst meestal op een verkeerd herkend of vergeten veld.
+    const onevenwichtig = white !== black && white + black > 0;
+    pieceCountHost.style.color = onevenwichtig ? "#b00020" : "";
+    pieceCountHost.style.fontWeight = onevenwichtig ? "700" : "";
+    pieceCountHost.textContent = `Wit: ${white} · Zwart: ${black}${onevenwichtig ? " — niet in evenwicht" : ""}`;
   }
   renderPieceCount();
 
@@ -343,8 +361,8 @@ export async function renderEditorView(
     }
     const soort = exact.length > 0 ? "Deze stand" : "De gespiegelde versie van deze stand";
     dupWarningHost.innerHTML = `
-      <div class="warnings">
-        <strong>Let op:</strong> ${soort} staat al in de database.
+      <div style="border:2px solid #b00020;background:#fdecee;border-radius:8px;padding:0.75rem 1rem;margin:0 0 0.75rem;font-size:1.05rem;">
+        <strong style="color:#b00020;">Let op:</strong> ${soort} staat al in de database.
         <div class="button-row" style="margin-top:0.5rem;">
           <button type="button" class="secondary" data-action="skip-diagram">Diagram overslaan</button>
         </div>
@@ -358,6 +376,27 @@ export async function renderEditorView(
   // die nu op het bord staat, en opnieuw zodra het bord of "wie is aan zet" verandert — zo zie je
   // meteen of de gecontroleerde stand bij de oplossing past.
   const bookText = (initialOplossingTekst || "").trim();
+
+  // Staat er bij de oplossing een auteur (en is voor de hele import geen auteur ingevuld)? Dan wordt die
+  // bij dit diagram ingevuld. Is het niet duidelijk wat de auteur is, dan volgt een melding om te controleren.
+  if (bookText && !initialAuteur && !standId) {
+    const gevonden = extractAuthor(bookText);
+    const auteurField = el('[data-field="auteur"]');
+    const notice = el('[data-role="auteurNotice"]');
+    if (gevonden.auteur && gevonden.zeker) {
+      auteurField.value = gevonden.auteur;
+    } else if (gevonden.ruw) {
+      notice.innerHTML = `
+        <div style="border:1px solid #8a4b00;background:#fff6e5;border-radius:8px;padding:0.4rem 0.6rem;margin:0.3rem 0 0.6rem;font-size:0.85rem;">
+          Bij de oplossing staat „<strong>${escapeHtml(gevonden.ruw)}</strong>”. Is dat de auteur? Controleer en vul zo nodig zelf in.
+          ${gevonden.auteur ? `<button type="button" class="secondary" data-action="take-author" style="margin-left:0.4rem;">Neem „${escapeHtml(gevonden.auteur)}” over</button>` : ""}
+        </div>`;
+      notice.querySelector('[data-action="take-author"]')?.addEventListener("click", () => {
+        auteurField.value = gevonden.auteur;
+        notice.innerHTML = "";
+      });
+    }
+  }
   const bookPanel = el('[data-role="bookSolution"]');
   let bookTimer = null;
 
@@ -393,39 +432,33 @@ export async function renderEditorView(
     renderBookPanel(r);
   }
 
+  // Alleen aandacht vragen als er echt iets te controleren valt: een zet die niet past, een gegokte of
+  // aangepaste zet, of een keuze tussen twee slagen. Klopt alles, dan volstaat één kort regeltje;
+  // opmerkingen als "weggelaten antwoord aangevuld" blijven dan weg.
   function renderBookPanel(r) {
     const aantal = r.zetten.length;
     const varianten = r.zijvarianten.length;
-    const heeftFout = r.meldingen.some((m) => m.niveau === "fout");
-    const heeftLetOp = r.meldingen.some((m) => m.niveau === "let-op");
-    let kleur = "#1a5c38";
-    let achtergrond = "#eef7ef";
-    let kop;
-    if (r.volledig && !heeftLetOp) {
-      kop = `✔ Oplossing uit het boek ingelezen: ${aantal} zetten${varianten ? ` en ${varianten} variant${varianten > 1 ? "en" : ""}` : ""}, nagespeeld op deze stand. Controleer hem met de knoppen hieronder.`;
-    } else if (r.volledig) {
-      kop = `Oplossing uit het boek ingelezen (${aantal} zetten), maar controleer de punten hieronder.`;
-      kleur = "#8a4b00";
-      achtergrond = "#fff6e5";
-    } else if (aantal > 0) {
-      kop = `Oplossing uit het boek maar deels ingelezen (${aantal} zetten). Zie hieronder wat er niet klopte.`;
-      kleur = "#8a4b00";
-      achtergrond = "#fff6e5";
-    } else {
-      kop = "De oplossing uit het boek kon niet worden ingelezen.";
-      kleur = "#b00020";
-      achtergrond = "#fdecee";
+    const meldingen = r.meldingen.filter((m) => m.niveau !== "info");
+    if (r.volledig && meldingen.length === 0) {
+      bookPanel.innerHTML = `<p style="font-size:0.85rem;color:#1a5c38;margin:0.3rem 0;">✔ Oplossing uit het boek ingelezen (${aantal} zetten${varianten ? `, ${varianten} variant${varianten > 1 ? "en" : ""}` : ""}).</p>`;
+      return;
     }
-    const kleurVan = { fout: "#b00020", "let-op": "#8a4b00", info: "#555" };
-    const lijst = r.meldingen.length
-      ? `<ul style="margin:0.3rem 0 0 1.1rem;padding:0;font-size:0.85rem;">${r.meldingen
+    const heeftFout = meldingen.some((m) => m.niveau === "fout") || !r.volledig;
+    const kleur = heeftFout ? "#b00020" : "#8a4b00";
+    const achtergrond = heeftFout ? "#fdecee" : "#fff6e5";
+    let kop;
+    if (aantal === 0) kop = "De oplossing uit het boek kon niet worden ingelezen.";
+    else if (!r.volledig) kop = `Oplossing uit het boek maar deels ingelezen (${aantal} zetten).`;
+    else kop = `Oplossing uit het boek ingelezen (${aantal} zetten); controleer even:`;
+    const kleurVan = { fout: "#b00020", "let-op": "#8a4b00" };
+    const lijst = meldingen.length
+      ? `<ul style="margin:0.3rem 0 0 1.1rem;padding:0;font-size:0.85rem;">${meldingen
           .map((m) => `<li style="color:${kleurVan[m.niveau] ?? "#555"};">${escapeHtml(m.tekst)}</li>`)
           .join("")}</ul>`
       : "";
-    const tip =
-      !r.volledig
-        ? `<p style="font-size:0.8rem;color:#555;margin:0.4rem 0 0;">Klopt het bord niet? Verbeter het bord (of wie er aan zet is): de oplossing wordt dan automatisch opnieuw gelezen. Wat al is ingevuld kun je hieronder aanvullen of aanpassen.</p>`
-        : "";
+    const tip = !r.volledig
+      ? `<p style="font-size:0.8rem;color:#555;margin:0.4rem 0 0;">Klopt het bord niet? Verbeter het bord (of wie er aan zet is): de oplossing wordt dan opnieuw gelezen.</p>`
+      : "";
     const andereKleur = turn === "white" ? "black" : "white";
     const beurtKnop = r.fout?.andereBeurt
       ? `<button type="button" class="secondary" data-action="book-turn">Zet ${andereKleur === "black" ? "zwart" : "wit"} aan zet</button>`

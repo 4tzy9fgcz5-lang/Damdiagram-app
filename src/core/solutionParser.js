@@ -1,4 +1,4 @@
-import { getLegalMoves, applyMove, opposite, plyColor, plyMoveNumber } from "./draughtsMoves.js?v=20260921ay";
+import { getLegalMoves, applyMove, opposite, plyColor, plyMoveNumber } from "./draughtsMoves.js?v=20260921ba";
 
 // Een oplossing zoals die in een boek staat (bv. "1. 31 - 27 8 - 12 2. 38 - 33 (2. 39 - 33)
 // 29 x 49 ... 9. 45 x 5 x.") omzetten in `zetten` + `zijvarianten`, zoals de klikbare
@@ -483,4 +483,31 @@ export function splitOplossingenTekst(tekst, { verwacht } = {}) {
     }
   }
   return { perNummer, volgorde, dubbel };
+}
+
+/**
+ * Haalt de auteur uit het stukje tekst vóór de eerste zet van een oplossing ("287. B. Mirotin. 40-34?! ..."
+ * -> "B. Mirotin"). Geeft { auteur, zeker, ruw }:
+ *   - `auteur`: de naam (leeg als er niets vóór de zetten staat);
+ *   - `zeker`: true bij een duidelijke naam (initialen + achternaam); false als het twijfelachtig is
+ *     (bv. twee namen met een streepje ertussen — dat zijn meestal de spelers van een partij, geen
+ *     componist — of een hele zin), dan moet Jan het even controleren;
+ *   - `ruw`: de tekst zoals hij vóór de zetten stond.
+ */
+export function extractAuthor(tekst) {
+  const t = String(tekst ?? "");
+  const firstDigit = t.search(/\d/);
+  const prefix = (firstDigit < 0 ? t : t.slice(0, firstDigit)).replace(/[()\s]+$/g, "").replace(/^[\s(]+/g, "").trim();
+  if (!prefix || !/\p{L}/u.test(prefix)) return { auteur: "", zeker: false, ruw: "" };
+
+  const name = prefix.replace(/[.,;:\s]+$/g, "").trim();
+  const PARTICLE = "(?:van|de|der|den|von|la|le|ten|ter|te|op|du|di|da)";
+  const SURNAME = `\\p{Lu}[\\p{L}'’\\-]+`;
+  const INITIALS_SURNAME = new RegExp(`^(?:\\p{Lu}\\.\\s*){1,3}(?:${PARTICLE}\\s+)*${SURNAME}(?:\\s+${PARTICLE}\\s+${SURNAME})*$`, "u");
+  const SINGLE_NAME = new RegExp(`^${SURNAME}$`, "u");
+
+  if (INITIALS_SURNAME.test(name)) return { auteur: name, zeker: true, ruw: prefix };
+  // één achternaam zonder initialen kan een auteur zijn, maar ook een woord als "Studie": laten controleren
+  if (SINGLE_NAME.test(name)) return { auteur: name, zeker: false, ruw: prefix };
+  return { auteur: "", zeker: false, ruw: prefix };
 }

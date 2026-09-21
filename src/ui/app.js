@@ -1,24 +1,24 @@
-import { renderEditorView } from "./editorView.js?v=20260921ay";
-import { renderDatabaseView } from "./databaseView.js?v=20260921ay";
-import { renderStandDetailView } from "./standDetailView.js?v=20260921ay";
-import { renderStencilsListView } from "./stencilsListView.js?v=20260921ay";
-import { renderStencilView, addStandenToStencil } from "./stencilView.js?v=20260921ay";
-import { saveStencil } from "../db/stencils.js?v=20260921ay";
-import { getLastBackupDate } from "./backupView.js?v=20260921ay";
-import { renderSettingsView } from "./settingsView.js?v=20260921ay";
-import { renderImportView } from "./importView.js?v=20260921ay";
-import { renderPhotoImportView } from "./photoImportView.js?v=20260921ay";
-import { renderBulkImportView } from "./bulkImportView.js?v=20260921ay";
-import { loadDrawable } from "./imageInput.js?v=20260921ay";
-import { renderBulkPrepare } from "./bulkPrepareView.js?v=20260921ay";
-import { reviewReason } from "../core/bulkReview.js?v=20260921ay";
-import { renderDiagramCapture, cropAroundCorners } from "./diagramCaptureView.js?v=20260921ay";
-import { listStanden } from "../db/standen.js?v=20260921ay";
+import { renderEditorView } from "./editorView.js?v=20260921ba";
+import { renderDatabaseView } from "./databaseView.js?v=20260921ba";
+import { renderStandDetailView } from "./standDetailView.js?v=20260921ba";
+import { renderStencilsListView } from "./stencilsListView.js?v=20260921ba";
+import { renderStencilView, addStandenToStencil } from "./stencilView.js?v=20260921ba";
+import { saveStencil } from "../db/stencils.js?v=20260921ba";
+import { getLastBackupDate } from "./backupView.js?v=20260921ba";
+import { renderSettingsView } from "./settingsView.js?v=20260921ba";
+import { renderImportView } from "./importView.js?v=20260921ba";
+import { renderPhotoImportView } from "./photoImportView.js?v=20260921ba";
+import { renderBulkImportView } from "./bulkImportView.js?v=20260921ba";
+import { loadDrawable } from "./imageInput.js?v=20260921ba";
+import { renderBulkPrepare } from "./bulkPrepareView.js?v=20260921ba";
+import { reviewReason } from "../core/bulkReview.js?v=20260921ba";
+import { renderDiagramCapture, cropAroundCorners } from "./diagramCaptureView.js?v=20260921ba";
+import { listStanden } from "../db/standen.js?v=20260921ba";
 
-const routes = ["nieuw", "foto", "bulk", "bulk-voorbereiden", "bulk-diagram", "database", "stand", "stencils", "stencil", "instellingen", "import"];
+const routes = ["nieuw", "zelf", "foto", "bulk", "bulk-voorbereiden", "bulk-diagram", "database", "stand", "stencils", "stencil", "instellingen", "import"];
 let pendingRecognition = null;
 // Actieve bulk-import-rij: { pages: [{ file, name }] (de foto's), diagrams: [{ page (plek in pages),
-// corners, manual, nummer, oplossingTekst }], boekstijl, auteur, index }.
+// corners, manual, nummer, oplossingTekst }], auteur, publicatie, categorieen, index }.
 // Alleen in het geheugen — bij een paginaherlaad ben je de voortgang kwijt (zie
 // CLAUDE.md-plan, "tussentijds hervatten" is een latere stap).
 let bulkQueue = null;
@@ -59,6 +59,12 @@ function makeBulkInfo(diagram, index, metReden) {
       diagram.hoekenOpnieuw = true;
       location.hash = "#/bulk-diagram";
     },
+    onStop: () => {
+      if (!confirm("De rest van de rij wordt niet opgeslagen (wat je al opsloeg blijft staan). Rij stoppen?")) return;
+      bulkQueue = null;
+      location.hash = "#/nieuw";
+      render();
+    },
   };
 }
 
@@ -79,6 +85,7 @@ function currentRoute() {
 
 const NAV_FOR_ROUTE = {
   nieuw: "nieuw",
+  zelf: "nieuw",
   foto: "nieuw",
   bulk: "nieuw",
   "bulk-voorbereiden": "nieuw",
@@ -219,11 +226,19 @@ async function render() {
         location.hash = "#/nieuw";
       },
     });
-  } else if (name === "bulk") {
+  } else if (name === "bulk" || (name === "nieuw" && !param && !pendingRecognition)) {
+    // "Nieuwe stand" begint bij het kiezen van foto's (bulk-import); zelf invoeren is een aparte route
+    // (#/zelf). Een herkende stand uit de foto-import of bulk-rij komt hier wél in de editor terecht.
+    // Zit je midden in een bulk-rij en kom je hier (bv. via "Nieuwe stand"), dan ga je terug naar de rij
+    // in plaats van die stilletjes weg te gooien; stoppen kan met de knop "Rij stoppen" in de editor.
+    if (name === "nieuw" && bulkQueue && bulkQueue.index < bulkQueue.diagrams.length) {
+      location.hash = "#/bulk-diagram";
+      return;
+    }
     bulkQueue = null;
     await renderBulkImportView(app, {
-      onConfirmed: ({ pages, diagrams, boekstijl, auteur, auto }) => {
-        bulkQueue = { pages, diagrams, boekstijl, auteur, auto, index: 0 };
+      onConfirmed: ({ pages, diagrams, auteur, publicatie, categorieen, auto }) => {
+        bulkQueue = { pages, diagrams, auteur, publicatie, categorieen, auto, index: 0 };
         location.hash = auto ? "#/bulk-voorbereiden" : "#/bulk-diagram";
       },
     });
@@ -257,8 +272,9 @@ async function render() {
     if (bulkQueue.auto && diagram.result && !diagram.hoekenOpnieuw) {
       pendingRecognition = {
         ...diagram.result,
-        boekstijl: bulkQueue.boekstijl,
         auteur: bulkQueue.auteur,
+        publicatie: bulkQueue.publicatie,
+        categorieen: bulkQueue.categorieen,
         nummer: diagram.nummer ?? "",
         oplossingTekst: diagram.oplossingTekst ?? "",
         beurt: diagram.beurt,
@@ -291,7 +307,7 @@ async function render() {
       heading: `Diagram ${index + 1} van ${diagrams.length}${diagram.nummer ? ` — nr. ${diagram.nummer}` : ""}${bulkQueue.pages.length > 1 ? ` (foto ${diagram.page + 1} van ${bulkQueue.pages.length})` : ""}`,
       onRecognized: (result) => {
         diagram.hoekenOpnieuw = false;
-        pendingRecognition = { ...result, boekstijl: bulkQueue.boekstijl, auteur: bulkQueue.auteur, nummer: diagram.nummer ?? "", oplossingTekst: diagram.oplossingTekst ?? "", bulkInfo: bulkQueue.auto ? makeBulkInfo(diagram, index, false) : undefined };
+        pendingRecognition = { ...result, auteur: bulkQueue.auteur, publicatie: bulkQueue.publicatie, categorieen: bulkQueue.categorieen, nummer: diagram.nummer ?? "", oplossingTekst: diagram.oplossingTekst ?? "", bulkInfo: bulkQueue.auto ? makeBulkInfo(diagram, index, false) : undefined };
         location.hash = "#/nieuw";
       },
     });
@@ -305,8 +321,9 @@ async function render() {
       uncertainFields: recognition?.uncertainFields,
       photoDataUrl: recognition?.photoDataUrl,
       modelVersion: recognition?.modelVersion,
-      initialBoekstijl: recognition?.boekstijl,
       initialAuteur: recognition?.auteur,
+      initialPublicatie: recognition?.publicatie,
+      initialCategorieen: recognition?.categorieen,
       initialNummer: recognition?.nummer,
       initialOplossingTekst: recognition?.oplossingTekst,
       initialTurn: recognition?.beurt,
@@ -330,7 +347,8 @@ async function render() {
         } else if (param) {
           location.hash = `#/stand/${param}`;
         } else {
-          location.hash = "#/nieuw";
+          // zelf ingevoerd: meteen een leeg invoerscherm voor de volgende; anders terug naar foto's kiezen
+          location.hash = name === "zelf" ? "#/zelf" : "#/nieuw";
           render();
         }
       },

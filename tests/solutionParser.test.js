@@ -1,7 +1,7 @@
-import { describe, it, assertEqual, assertTrue } from "./test-runner.js?v=20260921ay";
-import { parseFen } from "../src/core/fen.js?v=20260921ay";
-import { getLegalMoves, applyMove, opposite, formatZettenMetVarianten } from "../src/core/draughtsMoves.js?v=20260921ay";
-import { parseOplossing, splitOplossingenPerNummer, splitOplossingenTekst, moveNotation } from "../src/core/solutionParser.js?v=20260921ay";
+import { describe, it, assertEqual, assertTrue } from "./test-runner.js?v=20260921ba";
+import { parseFen } from "../src/core/fen.js?v=20260921ba";
+import { getLegalMoves, applyMove, opposite, formatZettenMetVarianten } from "../src/core/draughtsMoves.js?v=20260921ba";
+import { parseOplossing, splitOplossingenPerNummer, splitOplossingenTekst, extractAuthor, moveNotation } from "../src/core/solutionParser.js?v=20260921ba";
 
 const START_FEN = `W:W${Array.from({ length: 20 }, (_, i) => 31 + i).join(",")}:B${Array.from({ length: 20 }, (_, i) => 1 + i).join(",")}`;
 
@@ -322,5 +322,33 @@ describe("solutionParser: andere schrijfwijzen uit andere boeken", () => {
     const met = splitOplossingenTekst(tekst, { verwacht: [286, 287, 288, 289] });
     assertEqual(met.volgorde, ["286", "287", "288"]);
     assertTrue(met.perNummer["287"].includes("B. Mirotin.") && met.perNummer["287"].includes("40-34?!"));
+  });
+});
+
+describe("solutionParser: auteur uit de oplossing halen", () => {
+  it("vindt initialen + achternaam vóór de zetten (ook Cyrillisch en met tussenvoegsel)", () => {
+    assertEqual(extractAuthor("B. Mirotin. 40-34?! (23-29!?) 34x23"), { auteur: "B. Mirotin", zeker: true, ruw: "B. Mirotin." });
+    assertEqual(extractAuthor("М. Галкин. 1. 33-29 19x30").auteur, "М. Галкин");
+    assertEqual(extractAuthor("D. de Jong. (24-30?) 35x22").auteur, "D. de Jong");
+    assertTrue(extractAuthor("J. van der Wal 1. 32-28").zeker);
+  });
+
+  it("geeft niets terug als er geen naam vóór de zetten staat", () => {
+    assertEqual(extractAuthor("1. 21 - 17 22 x 11").auteur, "");
+    assertEqual(extractAuthor("(24-30?) 35x22").auteur, "");
+    assertEqual(extractAuthor("").auteur, "");
+  });
+
+  it("markeert twee namen met een streepje (spelers van een partij) als onzeker", () => {
+    const r = extractAuthor("D. de Jong - J. van de Weteringh. (24-30?) 35x22 (3-9)");
+    assertEqual(r.zeker, false);
+    assertEqual(r.auteur, "");
+    assertTrue(r.ruw.includes("Weteringh"));
+  });
+
+  it("markeert een losse achternaam als onzeker", () => {
+    const r = extractAuthor("Mirotin 40-34?! (23-29)");
+    assertEqual(r.auteur, "Mirotin");
+    assertEqual(r.zeker, false);
   });
 });

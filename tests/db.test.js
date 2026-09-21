@@ -1,5 +1,5 @@
-import { describe, it, assertEqual, assertTrue } from "./test-runner.js?v=20260921ay";
-import { resetDatabaseForTests } from "../src/db/db.js?v=20260921ay";
+import { describe, it, assertEqual, assertTrue } from "./test-runner.js?v=20260921ba";
+import { resetDatabaseForTests } from "../src/db/db.js?v=20260921ba";
 import {
   saveStand,
   getStand,
@@ -9,12 +9,12 @@ import {
   markUsedIn,
   bulkAddCategorieWaarde,
   renameCategorieWaardeOpStanden,
-} from "../src/db/standen.js?v=20260921ay";
-import { getList, addListValue, renameListValue, removeListValue } from "../src/db/lijsten.js?v=20260921ay";
-import { getAllCategorieen, addCategorie, renameCategorie, removeCategorie } from "../src/db/categorieen.js?v=20260921ay";
-import { saveStencil, getStencil, listStencils, deleteStencil } from "../src/db/stencils.js?v=20260921ay";
-import { exportAll, importAll, buildShareData } from "../src/db/backup.js?v=20260921ay";
-import { logHerkenningCorrectie, getAllHerkenningCorrecties } from "../src/db/herkenningLog.js?v=20260921ay";
+} from "../src/db/standen.js?v=20260921ba";
+import { getList, addListValue, renameListValue, removeListValue } from "../src/db/lijsten.js?v=20260921ba";
+import { getAllCategorieen, addCategorie, renameCategorie, removeCategorie } from "../src/db/categorieen.js?v=20260921ba";
+import { saveStencil, getStencil, listStencils, deleteStencil } from "../src/db/stencils.js?v=20260921ba";
+import { exportAll, importAll, buildShareData } from "../src/db/backup.js?v=20260921ba";
+import { logHerkenningCorrectie, getAllHerkenningCorrecties } from "../src/db/herkenningLog.js?v=20260921ba";
 
 async function freshDb() {
   await resetDatabaseForTests();
