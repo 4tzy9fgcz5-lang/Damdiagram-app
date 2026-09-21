@@ -1,7 +1,7 @@
-import { describe, it, assertEqual, assertTrue } from "./test-runner.js?v=20260921ap";
-import { parseFen } from "../src/core/fen.js?v=20260921ap";
-import { getLegalMoves, applyMove, opposite, formatZettenMetVarianten } from "../src/core/draughtsMoves.js?v=20260921ap";
-import { parseOplossing, splitOplossingenPerNummer, moveNotation } from "../src/core/solutionParser.js?v=20260921ap";
+import { describe, it, assertEqual, assertTrue } from "./test-runner.js?v=20260921ar";
+import { parseFen } from "../src/core/fen.js?v=20260921ar";
+import { getLegalMoves, applyMove, opposite, formatZettenMetVarianten } from "../src/core/draughtsMoves.js?v=20260921ar";
+import { parseOplossing, splitOplossingenPerNummer, splitOplossingenTekst, moveNotation } from "../src/core/solutionParser.js?v=20260921ar";
 
 const START_FEN = `W:W${Array.from({ length: 20 }, (_, i) => 31 + i).join(",")}:B${Array.from({ length: 20 }, (_, i) => 1 + i).join(",")}`;
 
@@ -228,5 +228,40 @@ describe("solutionParser: oplossingenpagina in stukken knippen", () => {
     assertEqual(Object.keys(chunks), ["570", "571", "573"]);
     assertTrue(chunks[570].startsWith("1. 31-27") && !chunks[570].includes("571"));
     assertTrue(chunks[573].includes("33-29"));
+  });
+});
+
+describe("solutionParser: geplakte tekst met meerdere oplossingen", () => {
+  it("verdeelt per regel, in willekeurige volgorde van de nummers", () => {
+    const tekst = "580. 1. 33 - 28 18 - 22 2. 38 - 33!\n570. 1. 21 - 17 22 x 11 2. 30 - 24 x.\n";
+    const r = splitOplossingenTekst(tekst);
+    assertEqual(r.volgorde, ["580", "570"]);
+    assertEqual(r.perNummer["570"], "1. 21 - 17 22 x 11 2. 30 - 24 x.");
+    assertEqual(r.dubbel, []);
+  });
+
+  it("negeert codeblok-tekens en vet/opsommingstekens uit een chatantwoord", () => {
+    const tekst = "```\n**570.** 1. 21 - 17 22 x 11\n- 571. 1. 29 - 24 20 x 49\n```";
+    const r = splitOplossingenTekst(tekst);
+    assertEqual(r.volgorde, ["570", "571"]);
+    assertTrue(r.perNummer["571"].startsWith("1. 29 - 24"));
+  });
+
+  it("voegt een doorlopende regel toe aan de vorige oplossing (een zetnummer is geen nieuw nummer)", () => {
+    const tekst = "570. 1. 21 - 17 22 x 11 2. 30 - 24 19 x 30\n3. 38 - 33 29 x 49\n12. 40 - 35 x.\n571. 1. 29 - 24 20 x 49";
+    const r = splitOplossingenTekst(tekst);
+    assertEqual(r.volgorde, ["570", "571"]);
+    assertTrue(r.perNummer["570"].includes("3. 38 - 33 29 x 49") && r.perNummer["570"].includes("12. 40 - 35"));
+  });
+
+  it("herkent een oplossing met een naam voor de eerste zet en meldt een dubbel nummer", () => {
+    const tekst = "585. М. Галкин. 1. 33-29 19x30\n585. 1. 33-29 19x30 2. 39-33";
+    const r = splitOplossingenTekst(tekst);
+    assertEqual(r.dubbel, ["585"]);
+    assertTrue(r.perNummer["585"].startsWith("1. 33-29 19x30 2."));
+  });
+
+  it("geeft niets terug voor tekst zonder oplossingen", () => {
+    assertEqual(splitOplossingenTekst("Hier zijn je oplossingen!").volgorde, []);
   });
 });

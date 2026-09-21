@@ -1,16 +1,17 @@
-import { createBoardEditor, createPalette } from "./boardEditor.js?v=20260921ap";
-import { createSolutionInput } from "./solutionInput.js?v=20260921ap";
-import { createEmptyBoard, countPieces, isWhite, isBlack } from "../core/board.js?v=20260921ap";
-import { parseFen, boardToFen, FenParseError } from "../core/fen.js?v=20260921ap";
-import { parseStandInput, QuickTextParseError } from "../core/quicktext.js?v=20260921ap";
-import { validateBoard } from "../core/validate.js?v=20260921ap";
-import { saveStand, getStand, findDuplicates } from "../db/standen.js?v=20260921ap";
-import { getList, addListValue } from "../db/lijsten.js?v=20260921ap";
-import { getAllCategorieen } from "../db/categorieen.js?v=20260921ap";
-import { logHerkenningCorrectie } from "../db/herkenningLog.js?v=20260921ap";
-import { reclassifyFromDataUrl } from "./diagramCaptureView.js?v=20260921ap";
-import { RECOGNITION_VERSION as NEW_MODEL_VERSION } from "../recognition/newClassify.js?v=20260921ap";
-import { CNN_RECOGNITION_VERSION as CNN_MODEL_VERSION } from "../recognition/cnnClassify.js?v=20260921ap";
+import { createBoardEditor, createPalette } from "./boardEditor.js?v=20260921ar";
+import { createSolutionInput } from "./solutionInput.js?v=20260921ar";
+import { parseOplossing } from "../core/solutionParser.js?v=20260921ar";
+import { createEmptyBoard, countPieces, isWhite, isBlack } from "../core/board.js?v=20260921ar";
+import { parseFen, boardToFen, FenParseError } from "../core/fen.js?v=20260921ar";
+import { parseStandInput, QuickTextParseError } from "../core/quicktext.js?v=20260921ar";
+import { validateBoard } from "../core/validate.js?v=20260921ar";
+import { saveStand, getStand, findDuplicates } from "../db/standen.js?v=20260921ar";
+import { getList, addListValue } from "../db/lijsten.js?v=20260921ar";
+import { getAllCategorieen } from "../db/categorieen.js?v=20260921ar";
+import { logHerkenningCorrectie } from "../db/herkenningLog.js?v=20260921ar";
+import { reclassifyFromDataUrl } from "./diagramCaptureView.js?v=20260921ar";
+import { RECOGNITION_VERSION as NEW_MODEL_VERSION } from "../recognition/newClassify.js?v=20260921ar";
+import { CNN_RECOGNITION_VERSION as CNN_MODEL_VERSION } from "../recognition/cnnClassify.js?v=20260921ar";
 
 const MOEILIJKHEID_MAX = 5;
 
@@ -28,6 +29,7 @@ export async function renderEditorView(
     initialBoekstijl,
     initialAuteur,
     initialNummer,
+    initialOplossingTekst,
   } = {}
 ) {
   container.innerHTML = `
@@ -101,6 +103,7 @@ export async function renderEditorView(
           Klik op een eigen stuk en dan op het doelveld om de oplossing in te tikken. Verplichte slagen
           worden automatisch afgehandeld.
         </p>
+        <div data-role="bookSolution"></div>
         <div data-role="legacyOplossingRef"></div>
         <div data-role="solutionInput"></div>
 
@@ -330,11 +333,14 @@ export async function renderEditorView(
   }
   checkDuplicates();
 
-  function reinitSolutionInput(resetZetten) {
-    if (resetZetten) {
-      solutionZetten = [];
-      solutionZijvarianten = [];
-    }
+  // Oplossing uit het boek (bulk-import met geplakte oplossingen): wordt ingelezen op de stand zoals
+  // die nu op het bord staat, en opnieuw zodra het bord of "wie is aan zet" verandert — zo zie je
+  // meteen of de gecontroleerde stand bij de oplossing past.
+  const bookText = (initialOplossingTekst || "").trim();
+  const bookPanel = el('[data-role="bookSolution"]');
+  let bookTimer = null;
+
+  function mountSolutionInput() {
     createSolutionInput(solutionInputHost, {
       board: boardEditor.getBoard(),
       turn,
@@ -346,7 +352,92 @@ export async function renderEditorView(
       },
     });
   }
+
+  function scheduleBookSolution(delay) {
+    if (!bookText) return;
+    clearTimeout(bookTimer);
+    bookPanel.innerHTML = `<p style="font-size:0.85rem;color:#666;">Oplossing uit het boek wordt gelezen...</p>`;
+    bookTimer = setTimeout(applyBookSolution, delay);
+  }
+
+  function applyBookSolution() {
+    if (countPieces(boardEditor.getBoard(), isWhite) + countPieces(boardEditor.getBoard(), isBlack) === 0) {
+      bookPanel.innerHTML = `<p style="font-size:0.85rem;color:#666;">Er staat nog geen stand op het bord; de oplossing uit het boek wordt gelezen zodra die er staat.</p>`;
+      return;
+    }
+    const r = parseOplossing(bookText, { board: boardEditor.getBoard(), turn });
+    solutionZetten = r.zetten.map((m) => ({ ...m }));
+    solutionZijvarianten = r.zijvarianten.map((v) => ({ id: v.id, vanaf: v.vanaf, zetten: v.zetten.map((m) => ({ ...m })) }));
+    mountSolutionInput();
+    renderBookPanel(r);
+  }
+
+  function renderBookPanel(r) {
+    const aantal = r.zetten.length;
+    const varianten = r.zijvarianten.length;
+    const heeftFout = r.meldingen.some((m) => m.niveau === "fout");
+    const heeftLetOp = r.meldingen.some((m) => m.niveau === "let-op");
+    let kleur = "#1a5c38";
+    let achtergrond = "#eef7ef";
+    let kop;
+    if (r.volledig && !heeftLetOp) {
+      kop = `✔ Oplossing uit het boek ingelezen: ${aantal} zetten${varianten ? ` en ${varianten} variant${varianten > 1 ? "en" : ""}` : ""}, nagespeeld op deze stand. Controleer hem met de knoppen hieronder.`;
+    } else if (r.volledig) {
+      kop = `Oplossing uit het boek ingelezen (${aantal} zetten), maar controleer de punten hieronder.`;
+      kleur = "#8a4b00";
+      achtergrond = "#fff6e5";
+    } else if (aantal > 0) {
+      kop = `Oplossing uit het boek maar deels ingelezen (${aantal} zetten). Zie hieronder wat er niet klopte.`;
+      kleur = "#8a4b00";
+      achtergrond = "#fff6e5";
+    } else {
+      kop = "De oplossing uit het boek kon niet worden ingelezen.";
+      kleur = "#b00020";
+      achtergrond = "#fdecee";
+    }
+    const kleurVan = { fout: "#b00020", "let-op": "#8a4b00", info: "#555" };
+    const lijst = r.meldingen.length
+      ? `<ul style="margin:0.3rem 0 0 1.1rem;padding:0;font-size:0.85rem;">${r.meldingen
+          .map((m) => `<li style="color:${kleurVan[m.niveau] ?? "#555"};">${escapeHtml(m.tekst)}</li>`)
+          .join("")}</ul>`
+      : "";
+    const tip =
+      !r.volledig
+        ? `<p style="font-size:0.8rem;color:#555;margin:0.4rem 0 0;">Klopt het bord niet? Verbeter het bord (of wie er aan zet is): de oplossing wordt dan automatisch opnieuw gelezen. Wat al is ingevuld kun je hieronder aanvullen of aanpassen.</p>`
+        : "";
+    const andereKleur = turn === "white" ? "black" : "white";
+    const beurtKnop = r.fout?.andereBeurt
+      ? `<button type="button" class="secondary" data-action="book-turn">Zet ${andereKleur === "black" ? "zwart" : "wit"} aan zet</button>`
+      : "";
+    bookPanel.innerHTML = `
+      <div style="border:1px solid ${kleur};background:${achtergrond};border-radius:8px;padding:0.6rem 0.75rem;margin:0.4rem 0;">
+        <strong style="color:${kleur};">${escapeHtml(kop)}</strong>
+        ${lijst}${tip}
+        <details style="margin-top:0.4rem;font-size:0.8rem;color:#555;"><summary>Tekst uit het boek</summary><div style="white-space:pre-wrap;">${escapeHtml(bookText)}</div></details>
+        <div class="button-row" style="margin-top:0.5rem;">
+          <button type="button" class="secondary" data-action="book-retry">Opnieuw inlezen</button>
+          ${beurtKnop}
+        </div>
+      </div>`;
+    bookPanel.querySelector('[data-action="book-retry"]').addEventListener("click", () => scheduleBookSolution(0));
+    bookPanel.querySelector('[data-action="book-turn"]')?.addEventListener("click", () => {
+      turn = andereKleur;
+      for (const radio of container.querySelectorAll('input[name="turn"]')) radio.checked = radio.value === turn;
+      reinitSolutionInput(true);
+      checkDuplicates();
+    });
+  }
+
+  function reinitSolutionInput(resetZetten) {
+    if (resetZetten) {
+      solutionZetten = [];
+      solutionZijvarianten = [];
+    }
+    mountSolutionInput();
+    if (resetZetten) scheduleBookSolution(250);
+  }
   reinitSolutionInput(false);
+  scheduleBookSolution(0);
 
   el('[data-action="leeg"]').addEventListener("click", () => {
     boardEditor.setBoard(createEmptyBoard());

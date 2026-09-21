@@ -4,10 +4,13 @@
 // hoeken-stap (diagramCaptureView.js) — hier alleen verwijderen wat niet hoort en
 // zelf toevoegen wat gemist is.
 
-import { loadDrawable, drawableSize, WORKING_MAX_SIDE } from "./imageInput.js?v=20260921ap";
-import { detectBulkBoards } from "../recognition/bulkDetect.js?v=20260921ap";
-import { getList, addListValue } from "../db/lijsten.js?v=20260921ap";
-import { readDiagramNumbers, fillMissingNumbers } from "../recognition/numberOcr.js?v=20260921ap";
+import { loadDrawable, drawableSize, WORKING_MAX_SIDE } from "./imageInput.js?v=20260921ar";
+import { detectBulkBoards } from "../recognition/bulkDetect.js?v=20260921ar";
+import { getList, addListValue } from "../db/lijsten.js?v=20260921ar";
+import { readDiagramNumbers, fillMissingNumbers } from "../recognition/numberOcr.js?v=20260921ar";
+import { splitOplossingenTekst } from "../core/solutionParser.js?v=20260921ar";
+import { OPLOSSING_OPDRACHT, kopieerNaarKlembord } from "./oplossingOpdracht.js?v=20260921ar";
+import { getOplossingenTekst, setOplossingenTekst } from "../db/uiSettings.js?v=20260921ar";
 
 const COLORS = ["#d1495b", "#1a5c38", "#3a6ea5", "#e0a800", "#8854d0", "#009688"];
 
@@ -61,6 +64,27 @@ export async function renderBulkImportView(container, { onConfirmed } = {}) {
       </div>
       <div data-role="list" style="margin-top:0.75rem;display:flex;flex-direction:column;gap:0.4rem;"></div>
 
+      <div style="margin-top:1rem;padding:0.75rem;border:1px solid #cfd8cf;border-radius:8px;background:#f6faf6;">
+        <strong>Oplossingen erbij (optioneel)</strong>
+        <p style="font-size:0.85rem;color:#555;margin:0.35rem 0;">
+          Staan de oplossingen op andere pagina's van het boek? Laat Claude die overschrijven: kopieer de
+          opdracht, plak hem in een Claude-chat met de foto's van de oplossingenpagina's, en plak het
+          antwoord hieronder. De app koppelt elke oplossing aan het diagram met hetzelfde nummer en vult
+          hem in zodra je de stand controleert.
+        </p>
+        <div class="button-row" style="margin-top:0;align-items:center;">
+          <button type="button" class="secondary" data-action="copy-prompt">Kopieer opdracht voor Claude</button>
+          <span data-role="copy-status" style="font-size:0.85rem;color:#1a5c38;"></span>
+        </div>
+        <details style="margin:0.4rem 0;font-size:0.8rem;color:#555;">
+          <summary>Toon de opdracht</summary>
+          <pre style="white-space:pre-wrap;margin:0.3rem 0;" data-role="prompt-text"></pre>
+        </details>
+        <textarea data-field="oplossingen" rows="5" placeholder="Plak hier het antwoord van Claude (één oplossing per regel, beginnend met het nummer)"></textarea>
+        <p data-role="solution-status" style="font-size:0.85rem;margin:0.3rem 0 0;"></p>
+        <button type="button" class="secondary" data-action="clear-solutions" style="margin-top:0.4rem;">Wis geplakte tekst</button>
+      </div>
+
       <label style="margin-top:0.75rem;">Auteur (leeg = niet invullen) — geldt voor alle diagrammen op deze pagina</label>
       <input type="text" data-field="auteur" placeholder="bijv. M. Fabre" />
 
@@ -81,6 +105,10 @@ export async function renderBulkImportView(container, { onConfirmed } = {}) {
   const status = el('[data-role="status"]');
   const numberStatus = el('[data-role="number-status"]');
   const confirmBtn = el('[data-action="confirm"]');
+  const oplossingenField = el('[data-field="oplossingen"]');
+  const solutionStatus = el('[data-role="solution-status"]');
+  el('[data-role="prompt-text"]').textContent = OPLOSSING_OPDRACHT;
+  oplossingenField.value = getOplossingenTekst();
   const list = el('[data-role="list"]');
   const boekstijlHost = el('[data-role="boekstijl"]');
 
@@ -153,6 +181,47 @@ export async function renderBulkImportView(container, { onConfirmed } = {}) {
     });
   }
 
+  // Hoeveel van de geplakte oplossingen bij een diagram van deze pagina horen.
+  function updateSolutionStatus() {
+    const text = oplossingenField.value;
+    if (!text.trim()) {
+      solutionStatus.textContent = "";
+      return;
+    }
+    const { perNummer, volgorde, dubbel } = splitOplossingenTekst(text);
+    if (volgorde.length === 0) {
+      solutionStatus.style.color = "#b00020";
+      solutionStatus.textContent =
+        "Er is geen oplossing in de tekst gevonden. Elke oplossing moet op een eigen regel staan, beginnend met het nummer, bijvoorbeeld: 570. 1. 21 - 17 22 x 11 ...";
+      return;
+    }
+    const zonder = items.filter((it) => !(it.nummer && perNummer[it.nummer] !== undefined)).map((it) => it.nummer || "(zonder nummer)");
+    const gevonden = items.length - zonder.length;
+    solutionStatus.style.color = zonder.length ? "#8a4b00" : "#1a5c38";
+    solutionStatus.textContent =
+      `${volgorde.length} oplossing(en) in de tekst; gevonden voor ${gevonden} van ${items.length} diagrammen.` +
+      (zonder.length ? ` Geen oplossing voor: ${zonder.join(", ")}.` : "") +
+      (dubbel.length ? ` Let op: nummer ${dubbel.join(", ")} staat dubbel in de tekst (de laatste telt).` : "");
+  }
+
+  oplossingenField.addEventListener("input", () => {
+    setOplossingenTekst(oplossingenField.value);
+    updateSolutionStatus();
+  });
+  el('[data-action="clear-solutions"]').addEventListener("click", () => {
+    oplossingenField.value = "";
+    setOplossingenTekst("");
+    updateSolutionStatus();
+  });
+  el('[data-action="copy-prompt"]').addEventListener("click", async () => {
+    const ok = await kopieerNaarKlembord(OPLOSSING_OPDRACHT);
+    const copyStatus = el('[data-role="copy-status"]');
+    copyStatus.style.color = ok ? "#1a5c38" : "#b00020";
+    copyStatus.textContent = ok
+      ? "Gekopieerd. Plak dit in een Claude-chat, voeg de foto's toe en plak het antwoord hieronder."
+      : "Kopiëren lukte niet: open “Toon de opdracht” en kopieer de tekst zelf.";
+  });
+
   // Zet achter elk nummer een korte aanwijzing: afgeleid uit de reeks, of dubbel gebruikt.
   function updateHints() {
     const counts = new Map();
@@ -173,6 +242,7 @@ export async function renderBulkImportView(container, { onConfirmed } = {}) {
         hint.textContent = "";
       }
     }
+    updateSolutionStatus();
   }
 
   // Het nummer boven elk (automatisch gevonden) diagram lezen. Duurt even (de tekstlezer moet
@@ -341,11 +411,17 @@ export async function renderBulkImportView(container, { onConfirmed } = {}) {
       status.textContent = "Voeg eerst minstens één diagram toe.";
       return;
     }
+    const oplossingen = splitOplossingenTekst(oplossingenField.value);
     onConfirmed?.({
       drawable,
       boekstijl: selectedBoekstijl,
       auteur: el('[data-field="auteur"]').value.trim(),
-      diagrams: items.map((item) => ({ corners: item.corners, manual: item.manual, nummer: item.nummer })),
+      diagrams: items.map((item) => ({
+        corners: item.corners,
+        manual: item.manual,
+        nummer: item.nummer,
+        oplossingTekst: (item.nummer && oplossingen.perNummer[item.nummer]) || "",
+      })),
     });
   });
 }

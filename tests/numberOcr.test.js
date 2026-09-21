@@ -1,5 +1,5 @@
-import { describe, it, assertEqual, assertTrue } from "./test-runner.js?v=20260921ap";
-import { parseDiagramNumber, fillMissingNumbers, stripRect } from "../src/recognition/numberOcr.js?v=20260921ap";
+import { describe, it, assertEqual, assertTrue } from "./test-runner.js?v=20260921ar";
+import { parseDiagramNumber, fillMissingNumbers, stripRect } from "../src/recognition/numberOcr.js?v=20260921ar";
 
 describe("numberOcr: nummer uit gelezen tekst halen", () => {
   it("vindt het nummer achter een woord of met een sterretje erachter", () => {

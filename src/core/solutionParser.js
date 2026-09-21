@@ -1,4 +1,4 @@
-import { getLegalMoves, applyMove, opposite, plyColor, plyMoveNumber } from "./draughtsMoves.js?v=20260921ap";
+import { getLegalMoves, applyMove, opposite, plyColor, plyMoveNumber } from "./draughtsMoves.js?v=20260921ar";
 
 // Een oplossing zoals die in een boek staat (bv. "1. 31 - 27 8 - 12 2. 38 - 33 (2. 39 - 33)
 // 29 x 49 ... 9. 45 x 5 x.") omzetten in `zetten` + `zijvarianten`, zoals de klikbare
@@ -406,4 +406,35 @@ export function splitOplossingenPerNummer(tekst, nummers) {
     chunks[f.n] = tekst.slice(f.bodyStart, next ? next.start : tekst.length).replace(/^[\s.,]+/, "");
   });
   return chunks;
+}
+
+/**
+ * Verdeelt een geplakte tekst met meerdere oplossingen (één per regel, zoals de opdracht voor
+ * Claude die vraagt: "570. 1. 21 - 17 22 x 11 ...") in stukken per diagramnummer.
+ * Een regel begint een nieuwe oplossing als hij start met een nummer, een punt en dan vlak daarna
+ * "1." (het eerste zetnummer); andere regels horen bij de vorige oplossing. Volgorde van de
+ * nummers maakt niet uit. Opmaaktekens van een chat (```, **, opsommingstekens) worden genegeerd.
+ * @returns {{ perNummer: Record<string, string>, volgorde: string[], dubbel: string[] }}
+ */
+export function splitOplossingenTekst(tekst) {
+  const cleaned = String(tekst ?? "").replace(/```[a-zA-Z]*/g, "").replace(/[*`]/g, "");
+  const START = /^\s*(?:[-•]\s*)?(?:nr\.?\s*)?(\d{1,4})\s*[.):]\s*(.*)$/i;
+  const FIRST_MOVE = /^.{0,40}?(?<![\d])1\s*\.\s*(?:\.\.\s*)?\d/;
+  const perNummer = {};
+  const volgorde = [];
+  const dubbel = [];
+  let current = null;
+  for (const line of cleaned.split(/\r?\n/)) {
+    const m = START.exec(line);
+    if (m && FIRST_MOVE.test(m[2])) {
+      current = m[1];
+      if (perNummer[current] !== undefined) {
+        if (!dubbel.includes(current)) dubbel.push(current);
+      } else volgorde.push(current);
+      perNummer[current] = m[2].trim();
+    } else if (current && line.trim()) {
+      perNummer[current] += " " + line.trim();
+    }
+  }
+  return { perNummer, volgorde, dubbel };
 }

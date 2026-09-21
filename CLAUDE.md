@@ -284,10 +284,29 @@ server, geen build-stap.
 
 ## Openstaand / eerstvolgende stappen
 
-### Oplossingen via foto meesturen (plan + meting, 2026-09-21) — stap 1 en 2 gebouwd
+### Oplossingen via foto meesturen (plan + meting, 2026-09-21) — stap 1-4 gebouwd (via plakken)
 
-**Stand (2026-09-21, avond):** stap 1 en 2 zijn klaar en lokaal gecommit; stap 3-5 (scherm voor
-oplossingenpagina's, invullen in het klikbare bord, later koppelen) nog niet.
+**Stand (2026-09-21, avond):** stap 1-4 zijn klaar en lokaal gecommit. Jan heeft GEEN
+Anthropic-API-sleutel, dus stap 3 is gebouwd als **"Claude-chat als lezer + plakken"**: geen
+sleutel, geen server. Alleen "later koppelen aan al opgeslagen standen op nummer" (stap 5) en
+een eventuele echte API-aanroep (dan wordt het plakken automatisch; zelfde tekstvorm) ontbreken.
+- **Stap 3 — plakken:** in het bulk-overzicht (`bulkImportView.js`) een kader "Oplossingen erbij":
+  knop "Kopieer opdracht voor Claude" (`src/ui/oplossingOpdracht.js`, vaste opdracht: één
+  oplossing per regel "570. 1. 21 - 17 22 x 11 ...", niets corrigeren, varianten behouden, in één
+  codeblok) en een plakvak. `splitOplossingenTekst` (`solutionParser.js`) verdeelt per regel op
+  nummer (volgorde maakt niet uit; negeert ```/**/opsommingstekens). Live status "gevonden voor
+  X van Y diagrammen". De geplakte tekst blijft onthouden (`uiSettings.js`, localStorage) voor de
+  volgende foto; knop "Wis geplakte tekst".
+- **Stap 4 — invullen:** `bulkQueue`-diagram krijgt `oplossingTekst` -> `pendingRecognition` ->
+  `initialOplossingTekst` in `editorView.js`. Daar staat boven de klikbare oplossing een paneel
+  "Oplossing uit het boek": leest de tekst met `parseOplossing` op het huidige bord + beurt, vult
+  `zetten`/`zijvarianten` in, en meldt (groen/oranje/rood) wat er niet klopte. Zodra het bord of
+  "wie is aan zet" verandert, wordt opnieuw gelezen (250 ms uitstel) — zo dient het inlezen zelf
+  als controle op de herkende stand. Knoppen: "Opnieuw inlezen", en bij een oplossing die met de
+  andere kleur begint "Zet zwart/wit aan zet". Bij een bestaande stand (bewerken) is er geen
+  paneel. Uitgeprobeerd in de echte app met de 12 diagrammen 582-593 en de tekst van de 24
+  oplossingen: gewoon, deels (584), variant (586), weggelaten antwoorden (585), herstelde zet
+  (588) en de beurt-knop werken.
 - **Stap 2 — de gedeelde zetten-omzetter:** `src/core/solutionParser.js` (`parseOplossing`,
   `splitOplossingenPerNummer`); tests `tests/solutionParser.test.js`. Geeft `zetten` +
   `zijvarianten` (zelfde vorm als `solutionInput.js`) en `meldingen` in gewoon Nederlands
