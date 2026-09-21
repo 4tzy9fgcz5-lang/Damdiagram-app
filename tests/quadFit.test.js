@@ -1,5 +1,5 @@
-import { describe, it, assertTrue, assertEqual } from "./test-runner.js?v=20260921s";
-import { fitBoardQuad, findMissingBoards, patternSeparation } from "../src/recognition/quadFit.js?v=20260921s";
+import { describe, it, assertTrue, assertEqual } from "./test-runner.js?v=20260921am";
+import { fitBoardQuad, findMissingBoards, patternSeparation } from "../src/recognition/quadFit.js?v=20260921am";
 
 // Tekent een dambord (10x10, donkere velden waar rij+kolom oneven is) met dikke zwarte
 // rand op `ctx`, in het coördinatenstelsel van de huidige transformatie: het speelveld
@@ -122,5 +122,37 @@ describe("dambord-hoeken zoeken op het patroon (quadFit)", () => {
     const quads = spots.map(([x, y]) => [{ x, y }, { x: x + size, y }, { x: x + size, y: y + size }, { x, y: y + size }]);
     const found = findMissingBoards(ctx.getImageData(0, 0, 1000, 700), quads);
     assertEqual(found.length, 0);
+  });
+});
+
+describe("losse foto: bord in het midden met een ander diagram ernaast", () => {
+  // Zoals de foto's van Jan: het bedoelde bord in het midden, met er direct boven en onder een
+  // stuk van het volgende/vorige diagram (met een nummer ertussen).
+  function pageWithNeighbours() {
+    const { canvas, ctx } = canvasOf(600, 800);
+    const size = 300;
+    const spots = [[150, -170], [150, 250], [150, 670]]; // boven (half in beeld), midden, onder (half in beeld)
+    for (const [x, y] of spots) {
+      ctx.setTransform(1, 0, 0, 1, x, y);
+      drawBoard(ctx, size, 6);
+    }
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.fillStyle = "#000";
+    ctx.font = "bold 26px sans-serif";
+    ctx.fillText("195", 275, 218);
+    ctx.fillText("196", 275, 640);
+    return { imageData: ctx.getImageData(0, 0, 600, 800), middle: [150, 250, 450, 550] };
+  }
+
+  it("kiest het bord in het midden, niet een stuk van de buren of twee borden samen", async () => {
+    const { imageData, middle } = pageWithNeighbours();
+    const { detectPlayfieldFromImageData } = await import("../src/recognition/detectBoard.js?v=20260921am");
+    const found = detectPlayfieldFromImageData(imageData, 600, 800);
+    assertTrue(found !== null, "verwachtte een gevonden bord");
+    const xs = found.corners.map((p) => p.x);
+    const ys = found.corners.map((p) => p.y);
+    const [x0, y0, x1, y1] = middle;
+    assertTrue(Math.abs(Math.min(...xs) - x0) < 20 && Math.abs(Math.max(...xs) - x1) < 20, `links/rechts ${Math.min(...xs).toFixed(0)}-${Math.max(...xs).toFixed(0)} vs ${x0}-${x1} (${found.source})`);
+    assertTrue(Math.abs(Math.min(...ys) - y0) < 20 && Math.abs(Math.max(...ys) - y1) < 20, `boven/onder ${Math.min(...ys).toFixed(0)}-${Math.max(...ys).toFixed(0)} vs ${y0}-${y1} (${found.source})`);
   });
 });

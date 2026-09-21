@@ -241,6 +241,39 @@ dan de nieuwe. Aanpak en uitkomst:
   het herkennen i.p.v. bij het zoeken), of de schuifverstoring bij het trainen van het
   netwerkje vergroten. Testhulp: `tools/bulkCheck/` (server + driver). Tests:
   `tests/quadFit.test.js`.
+- **Losse foto met een stuk van een ander diagram erbij (Jan, 2026-09-21).** Foto's
+  `IMG_0747`/`IMG_0749` (`testdata/losse/`, gitignored): het bord in het midden, met
+  boven en onder een stuk van het volgende/vorige diagram. **Oorzaak:** de oude
+  losse-foto-detectie (`detectPlayfieldByBlob`: grootste donkere vlek -> Otsu ->
+  rechte rechthoek) pakt bij een buurdiagram dat het bord raakt een vlek die het bord
+  en een stuk van de buren omvat, en de rand-weg-snij-stap hoort dan een rechte
+  rechthoek te vinden op een vlek die er niet meer op lijkt (0747: kader half over
+  het buurbord; 0749: op 700px zelfs `null`, dus de vaste 12%-marge). **Oplossing**
+  (`detectPlayfieldFromImageData` in `detectBoard.js`, drie lagen): (1)
+  `findBoardNearCenterByBlobs`: dezelfde vlekken als de bulk-import, elke vlek met
+  `fitBoardQuad` op het patroon gepast, het bord dat het midden van de foto bevat wint;
+  eerst gewone gevoeligheid, dan gevoeliger (`BLOB_OFFSETS` 10/6/3; drempels
+  geruitheid >= 0,78, contrast >= 10, oppervlak >= 10%, een bord mag 97% van het beeld
+  vullen); (2) `findCenterBoard` (quadFit.js): grove+fijne vensterscan rond het midden
+  op patroon-contrast + zwakste-zijde-randsterkte, als er geen vlek een bord is; (3) de
+  oude aanpak als laatste terugval. ~0,15 s per foto (eerst een versie van 2 s: dure
+  fits op te kleine vlekken; nu eerst op vlekgrootte filteren). Nagemeten op alle 130
+  foto's uit `~/Downloads/Dammen` (`regress.mjs`-achtige vergelijking oud/nieuw):
+  ~36 veranderen, en de veranderingen zijn vrijwel altijd verbeteringen (titelregel/
+  nummer boven het bord valt uit het kader). **Bekende beperkingen (gemeten):**
+  (a) de patroonmaat gaat uit van de gebruikelijke oriëntatie (donker waar rij+kolom
+  oneven, linksboven licht) — dat is ook wat de rest van de app aanneemt
+  (`fieldToCoord`). Drie foto's uit de map Miniaturen (123, 125, 127) en een
+  zijwaarts genomen foto (054) hebben de donkere hoek aan de andere kant; daar zit
+  het kader precies één rij ernaast (of valt terug). Wil Jan die stijl ook, dan moet
+  er een spiegel/kantel-stap bij die de rest van de app ook nodig heeft. (b)
+  `IMG_9860` (veel borden dicht op elkaar in beeld) blijft fout, net als eerder.
+  (c) een schaduw over een deel van het bord (0749) laat de herkenner twee lege
+  donkere velden als zwarte schijf zien; die staan wel geel. **Testbord-fout
+  gevonden:** de synthetische testborden in `tests/detectBoard.test.js` hadden de
+  donkere velden op de "andere" plek (linksboven donker) en zaten daardoor een veld
+  ernaast; nu in de gebruikelijke oriëntatie. De test "snijdt nooit meer dan een
+  randbreedte weg" is vervangen door "vindt bij een 20% kader het echte 10x10-patroon".
 - **Damlogica uit.** `classifyWithComparison()` past de stand niet meer aan
   (`enforceRules` wordt niet meer aangeroepen) en markeert geen extra velden op
   basis van balans/"dam?". Alleen de waarschuwingen "geen enkel stuk herkend" en

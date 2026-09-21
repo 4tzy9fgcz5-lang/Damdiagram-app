@@ -1,5 +1,5 @@
-import { describe, it, assertTrue } from "./test-runner.js?v=20260921s";
-import { detectBoardCorners } from "../src/recognition/detectBoard.js?v=20260921s";
+import { describe, it, assertTrue } from "./test-runner.js?v=20260921am";
+import { detectBoardCorners } from "../src/recognition/detectBoard.js?v=20260921am";
 
 function approxEqual(a, b, eps) {
   return Math.abs(a - b) < eps;
@@ -89,7 +89,7 @@ describe("automatische hoekdetectie: rand wegsnijden tot het patroon", () => {
     ctx.fillRect(frame.x0, frame.y0, frame.x1 - frame.x0, frame.y1 - frame.y0);
     for (let row = 0; row < 10; row++) {
       for (let col = 0; col < 10; col++) {
-        ctx.fillStyle = (row + col) % 2 === 0 ? "#3a2a18" : "#c9b183";
+        ctx.fillStyle = (row + col) % 2 === 1 ? "#3a2a18" : "#c9b183";
         ctx.fillRect(playfield.x0 + col * cell, playfield.y0 + row * cell, cell, cell);
       }
     }
@@ -126,7 +126,7 @@ describe("automatische hoekdetectie: rand wegsnijden tot het patroon", () => {
     ctx.fillRect(playfield.x0 - 2, playfield.y0 - 2, playfield.x1 - playfield.x0 + 4, playfield.y1 - playfield.y0 + 4);
     for (let row = 0; row < 10; row++) {
       for (let col = 0; col < 10; col++) {
-        ctx.fillStyle = (row + col) % 2 === 0 ? "#3a2a18" : "#c9b183";
+        ctx.fillStyle = (row + col) % 2 === 1 ? "#3a2a18" : "#c9b183";
         ctx.fillRect(playfield.x0 + col * cell, playfield.y0 + row * cell, cell, cell);
       }
     }
@@ -139,10 +139,11 @@ describe("automatische hoekdetectie: rand wegsnijden tot het patroon", () => {
     assertTrue(approxEqual(Math.max(...xs), playfield.x1, 20), `rechterkant week te veel af: ${Math.max(...xs)}`);
   });
 
-  it("snijdt nooit meer dan een randbreedte weg, ook niet als het patroon verderop lijkt te beginnen", () => {
-    // Een kader van 20% (veel dikker dan een echte bordrand): het raster mag hooguit
-    // 8% per kant naar binnen schuiven, nooit een hele cel — anders krijg je een
-    // 8x8-selectie in plaats van 10x10.
+  it("vindt bij een heel dik kader (20%) het echte 10x10-patroon, dus geen 8x8- of te ruime selectie", () => {
+    // Een kader van 20% (veel dikker dan een echte bordrand). De oude aanpak snoeide daar maximaal
+    // 8% per kant af (de terugval `MAX_BORDER_FRACTION` bestaat nog); de patroonzoektocht
+    // (`quadFit.js`) controleert het 10x10-patroon zelf en hoort dus precies op het speelveld uit
+    // te komen: niet op het kader (te ruim) en niet een veld naar binnen (8x8).
     const size = 700;
     const frame = { x0: 100, y0: 100, x1: 600, y1: 600 };
     const playfield = { x0: 200, y0: 200, x1: 500, y1: 500 };
@@ -157,16 +158,16 @@ describe("automatische hoekdetectie: rand wegsnijden tot het patroon", () => {
     ctx.fillRect(frame.x0, frame.y0, frame.x1 - frame.x0, frame.y1 - frame.y0);
     for (let row = 0; row < 10; row++) {
       for (let col = 0; col < 10; col++) {
-        ctx.fillStyle = (row + col) % 2 === 0 ? "#3a2a18" : "#c9b183";
+        ctx.fillStyle = (row + col) % 2 === 1 ? "#3a2a18" : "#c9b183";
         ctx.fillRect(playfield.x0 + col * cell, playfield.y0 + row * cell, cell, cell);
       }
     }
     const corners = detectBoardCorners(canvas);
     assertTrue(corners !== null, "verwachtte een gevonden bord");
-    const maxInset = (frame.x1 - frame.x0) * 0.08 + 6;
-    assertTrue(Math.min(...corners.map((p) => p.x)) <= frame.x0 + maxInset, "links te ver naar binnen");
-    assertTrue(Math.max(...corners.map((p) => p.x)) >= frame.x1 - maxInset, "rechts te ver naar binnen");
-    assertTrue(Math.min(...corners.map((p) => p.y)) <= frame.y0 + maxInset, "boven te ver naar binnen");
-    assertTrue(Math.max(...corners.map((p) => p.y)) >= frame.y1 - maxInset, "onder te ver naar binnen");
+    const near = (a, b) => Math.abs(a - b) <= cell * 0.6;
+    assertTrue(near(Math.min(...corners.map((p) => p.x)), playfield.x0), `links ${Math.min(...corners.map((p) => p.x)).toFixed(0)} vs ${playfield.x0}`);
+    assertTrue(near(Math.max(...corners.map((p) => p.x)), playfield.x1), `rechts ${Math.max(...corners.map((p) => p.x)).toFixed(0)} vs ${playfield.x1}`);
+    assertTrue(near(Math.min(...corners.map((p) => p.y)), playfield.y0), `boven ${Math.min(...corners.map((p) => p.y)).toFixed(0)} vs ${playfield.y0}`);
+    assertTrue(near(Math.max(...corners.map((p) => p.y)), playfield.y1), `onder ${Math.max(...corners.map((p) => p.y)).toFixed(0)} vs ${playfield.y1}`);
   });
 });

@@ -1,16 +1,16 @@
-import { createBoardEditor, createPalette } from "./boardEditor.js?v=20260921s";
-import { createSolutionInput } from "./solutionInput.js?v=20260921s";
-import { createEmptyBoard, countPieces, isWhite, isBlack } from "../core/board.js?v=20260921s";
-import { parseFen, boardToFen, FenParseError } from "../core/fen.js?v=20260921s";
-import { parseStandInput, QuickTextParseError } from "../core/quicktext.js?v=20260921s";
-import { validateBoard } from "../core/validate.js?v=20260921s";
-import { saveStand, getStand, findDuplicates } from "../db/standen.js?v=20260921s";
-import { getList, addListValue } from "../db/lijsten.js?v=20260921s";
-import { getAllCategorieen } from "../db/categorieen.js?v=20260921s";
-import { logHerkenningCorrectie } from "../db/herkenningLog.js?v=20260921s";
-import { reclassifyFromDataUrl } from "./diagramCaptureView.js?v=20260921s";
-import { RECOGNITION_VERSION as NEW_MODEL_VERSION } from "../recognition/newClassify.js?v=20260921s";
-import { CNN_RECOGNITION_VERSION as CNN_MODEL_VERSION } from "../recognition/cnnClassify.js?v=20260921s";
+import { createBoardEditor, createPalette } from "./boardEditor.js?v=20260921am";
+import { createSolutionInput } from "./solutionInput.js?v=20260921am";
+import { createEmptyBoard, countPieces, isWhite, isBlack } from "../core/board.js?v=20260921am";
+import { parseFen, boardToFen, FenParseError } from "../core/fen.js?v=20260921am";
+import { parseStandInput, QuickTextParseError } from "../core/quicktext.js?v=20260921am";
+import { validateBoard } from "../core/validate.js?v=20260921am";
+import { saveStand, getStand, findDuplicates } from "../db/standen.js?v=20260921am";
+import { getList, addListValue } from "../db/lijsten.js?v=20260921am";
+import { getAllCategorieen } from "../db/categorieen.js?v=20260921am";
+import { logHerkenningCorrectie } from "../db/herkenningLog.js?v=20260921am";
+import { reclassifyFromDataUrl } from "./diagramCaptureView.js?v=20260921am";
+import { RECOGNITION_VERSION as NEW_MODEL_VERSION } from "../recognition/newClassify.js?v=20260921am";
+import { CNN_RECOGNITION_VERSION as CNN_MODEL_VERSION } from "../recognition/cnnClassify.js?v=20260921am";
 
 const MOEILIJKHEID_MAX = 5;
 

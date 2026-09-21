@@ -1,6 +1,7 @@
-import { computeHomography, applyHomography, warpPerspective } from "./homography.js?v=20260921s";
-import { gridFitScore } from "./gridFit.js?v=20260921s";
-import { fitBoardQuad, findMissingBoards } from "./quadFit.js?v=20260921s";
+import { computeHomography, applyHomography, warpPerspective } from "./homography.js?v=20260921am";
+import { gridFitScore } from "./gridFit.js?v=20260921am";
+import { fitBoardQuad, findMissingBoards, findCenterBoard } from "./quadFit.js?v=20260921am";
+import { detectMultipleCornersFromImageData } from "./detectMultiBoard.js?v=20260921am";
 
 // Automatische hoekdetectie van het dambord op een foto — zonder externe
 // bibliotheken (de app blijft een platte, server-loze website). Gevalideerd
@@ -629,7 +630,7 @@ function quadArea(c) {
 // bord aanziet voor het hele bord) en de oude vaste marge — en de beste wint.
 // Geeft { outer, corners, source, scores } terug, of null als niets op een
 // dambordpatroon lijkt.
-export function detectPlayfieldFromImageData(imageData, width, height) {
+function detectPlayfieldByBlob(imageData, width, height) {
   const outer = detectCornersFromImageData(imageData, width, height);
   const whole = [
     { x: 0, y: 0 },
@@ -678,6 +679,84 @@ export function detectPlayfieldFromImageData(imageData, width, height) {
     source: chosen.source,
     scores: Object.fromEntries(candidates.map((c) => [c.source, c.score])),
   };
+}
+
+// Losse foto van één diagram: het bedoelde bord staat meestal in het midden, maar er kan
+// een stuk van een ander diagram (of meerdere) naast, boven of onder staan. De oude
+// aanpak (de grootste donkere vlek, rand weggesneden) pakt dan een vlek die twee borden
+// samen beslaat of het verkeerde bord. Daarom drie lagen, van betrouwbaar naar breed:
+//  1. "vlek+patroon": dezelfde vlekken als de bulk-import (`detectMultiBoard.js`), elke vlek
+//     hoek voor hoek op het dambordpatroon gepast (`fitBoardQuad`); het bord dat het
+//     midden van de foto bevat wint. Gevoeliger zoeken als er niets gevonden wordt.
+//  2. "midden": geen enkele vlek is een bord (vaag gedrukt, schaduw): de patroon-zoektocht
+//     rond het midden van de foto (`findCenterBoard`).
+//  3. de oude aanpak (zie `detectPlayfieldByBlob` hierboven).
+const BLOB_OFFSETS = [10, 6, 3]; // gevoeligheid van de vlekkenzoeker, van standaard naar gevoelig
+// Gemeten op losse foto's van één bord: echte borden 0,84 en hoger (ook met schaduw); tekst,
+// een hand of een half bord bleven onder 0,6.
+const BLOB_MIN_SEPARATION = 0.78;
+const BLOB_MIN_CONTRAST = 10;
+const BLOB_MIN_AREA = 0.1; // van de foto
+const BLOB_MAX_AREA = 0.97; // een bord op een losse foto mag bijna het hele beeld vullen
+
+function quadCenter(q) {
+  return { x: q.reduce((s, p) => s + p.x, 0) / 4, y: q.reduce((s, p) => s + p.y, 0) / 4 };
+}
+
+function quadContains(q, x, y) {
+  let inside = false;
+  for (let i = 0, j = 3; i < 4; j = i++) {
+    const a = q[i];
+    const b = q[j];
+    if (a.y > y !== b.y > y && x < ((b.x - a.x) * (y - a.y)) / (b.y - a.y) + a.x) inside = !inside;
+  }
+  return inside;
+}
+
+function findBoardNearCenterByBlobs(imageData, width, height) {
+  for (const offset of BLOB_OFFSETS) {
+    // Eerst de grootte van de ruwe vlek (goedkoop), pas daarna de dure fit: op een losse foto is
+    // het bord groot, kleine vlekken (een schijf, een stuk van een ander diagram) vallen zo af.
+    const boards = detectMultipleCornersFromImageData(imageData, width, height, offset, BLOB_MAX_AREA)
+      .filter((rough) => quadAreaOf(rough) >= 0.6 * BLOB_MIN_AREA * width * height)
+      .map((rough) => fitBoardQuad(imageData, rough))
+      .filter((fit) => fit.separation >= BLOB_MIN_SEPARATION && fit.score >= BLOB_MIN_CONTRAST)
+      .filter((fit) => quadAreaOf(fit.corners) >= BLOB_MIN_AREA * width * height);
+    if (!boards.length) continue;
+    const cx = width / 2;
+    const cy = height / 2;
+    const scored = boards.map((fit) => {
+      const c = quadCenter(fit.corners);
+      return { fit, inside: quadContains(fit.corners, cx, cy), distance: Math.hypot(c.x - cx, c.y - cy) };
+    });
+    scored.sort((a, b) => (a.inside === b.inside ? a.distance - b.distance : a.inside ? -1 : 1));
+    return scored[0].fit;
+  }
+  return null;
+}
+
+function quadAreaOf(c) {
+  let sum = 0;
+  for (let i = 0; i < 4; i++) {
+    const p = c[i];
+    const q = c[(i + 1) % 4];
+    sum += p.x * q.y - q.x * p.y;
+  }
+  return Math.abs(sum) / 2;
+}
+
+export function detectPlayfieldFromImageData(imageData, width, height, { useCenterSearch = true } = {}) {
+  if (useCenterSearch) {
+    const byBlob = findBoardNearCenterByBlobs(imageData, width, height);
+    if (byBlob) {
+      return { outer: byBlob.corners, corners: byBlob.corners, source: "vlek+patroon", scores: { patroon: byBlob.separation } };
+    }
+    const center = findCenterBoard(imageData);
+    if (center) {
+      return { outer: center.corners, corners: center.corners, source: "midden", scores: { patroon: center.separation } };
+    }
+  }
+  return detectPlayfieldByBlob(imageData, width, height);
 }
 
 // Bulk-import: de vier echte hoeken van één gevonden diagram bepalen (zie quadFit.js).

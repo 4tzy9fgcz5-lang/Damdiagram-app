@@ -4,9 +4,9 @@
 // hoeken-stap (diagramCaptureView.js) — hier alleen verwijderen wat niet hoort en
 // zelf toevoegen wat gemist is.
 
-import { loadDrawable, drawableSize, WORKING_MAX_SIDE } from "./imageInput.js?v=20260921s";
-import { detectBulkBoards } from "../recognition/bulkDetect.js?v=20260921s";
-import { getList, addListValue } from "../db/lijsten.js?v=20260921s";
+import { loadDrawable, drawableSize, WORKING_MAX_SIDE } from "./imageInput.js?v=20260921am";
+import { detectBulkBoards } from "../recognition/bulkDetect.js?v=20260921am";
+import { getList, addListValue } from "../db/lijsten.js?v=20260921am";
 
 const COLORS = ["#d1495b", "#1a5c38", "#3a6ea5", "#e0a800", "#8854d0", "#009688"];
 

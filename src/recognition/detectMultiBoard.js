@@ -64,11 +64,11 @@ function localMean(gray, width, height, radius) {
   return mean;
 }
 
-function adaptiveMask(gray, width, height) {
+function adaptiveMask(gray, width, height, offset = ADAPTIVE_OFFSET) {
   const radius = Math.round(width * 0.06);
   const mean = localMean(gray, width, height, radius);
   const mask = new Uint8Array(width * height);
-  for (let i = 0; i < gray.length; i++) mask[i] = gray[i] < mean[i] - ADAPTIVE_OFFSET ? 1 : 0;
+  for (let i = 0; i < gray.length; i++) mask[i] = gray[i] < mean[i] - offset ? 1 : 0;
   return mask;
 }
 
@@ -105,7 +105,7 @@ function dilate(mask, width, height, iterations) {
 }
 
 // Alle samenhangende vlekken die op een dambord lijken (i.p.v. alleen de grootste).
-function allBoardLikeComponents(mask, width, height) {
+function allBoardLikeComponents(mask, width, height, maxAreaFraction = MAX_AREA_FRACTION) {
   const visited = new Uint8Array(width * height);
   const imgArea = width * height;
   const minPixels = Math.max(30, Math.round(imgArea * MIN_AREA_FRACTION * 0.5));
@@ -159,7 +159,7 @@ function allBoardLikeComponents(mask, width, height) {
       if (aspect < MIN_ASPECT || aspect > MAX_ASPECT) continue;
       const bboxArea = bboxW * bboxH;
       const areaFrac = bboxArea / imgArea;
-      if (areaFrac < MIN_AREA_FRACTION || areaFrac > MAX_AREA_FRACTION) continue;
+      if (areaFrac < MIN_AREA_FRACTION || areaFrac > maxAreaFraction) continue;
       const fill = count / bboxArea;
       if (fill < MIN_FILL) continue;
 
@@ -239,10 +239,14 @@ function orderCorners(pts) {
 // in detectBoard.js. Geeft een lijst van kandidaten terug, gesorteerd in
 // leesvolgorde (boven naar beneden, links naar rechts), elk als [{x,y} x4] in
 // dezelfde (mogelijk verkleinde) pixel-coördinaten als het meegegeven beeld.
-export function detectMultipleCornersFromImageData(imageData, width, height) {
+// offset: hoeveel donkerder dan zijn omgeving een pixel moet zijn om mee te tellen (lager =
+// gevoeliger, voor vaag gedrukte of in de schaduw liggende borden).
+// maxAreaFraction: grootste deel van de foto dat één bord mag beslaan (bij een losse foto van
+// één diagram vult het bord het grootste deel van het beeld).
+export function detectMultipleCornersFromImageData(imageData, width, height, offset = ADAPTIVE_OFFSET, maxAreaFraction = MAX_AREA_FRACTION) {
   const gray = toGrayscale(imageData);
-  const mask = dilate(adaptiveMask(gray, width, height), width, height, DILATE_ITERATIONS);
-  const components = allBoardLikeComponents(mask, width, height);
+  const mask = dilate(adaptiveMask(gray, width, height, offset), width, height, DILATE_ITERATIONS);
+  const components = allBoardLikeComponents(mask, width, height, maxAreaFraction);
 
   const candidates = components
     .map(({ points }) => {

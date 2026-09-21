@@ -1,4 +1,4 @@
-import { computeHomography, applyHomography } from "./homography.js?v=20260921s";
+import { computeHomography, applyHomography } from "./homography.js?v=20260921am";
 
 // Zoekt de vier echte hoeken van een dambordpatroon rond een grove beginschatting.
 // Bedoeld voor de bulk-import: daar levert `detectMultiBoard.js` een rechte
@@ -202,9 +202,10 @@ const MOVES = [
   [[1, 1, 0], [2, 1, 0]], [[1, -1, 0], [2, -1, 0]], // rechterrand
 ];
 
-function climb(gray, w, h, start, initial, side, maxDrift) {
+function climb(gray, w, h, start, initial, side, maxDrift, mag = null, edgeWeight = 0) {
+  const objective = (q) => patternContrast(gray, w, h, q) + (edgeWeight ? edgeWeight * weakestSideEnergy(mag, w, h, q) : 0);
   let best = start;
-  let bestScore = patternContrast(gray, w, h, best);
+  let bestScore = objective(best);
   const initialArea = quadArea(initial);
   for (const stepFraction of STEPS) {
     const step = stepFraction * side;
@@ -223,7 +224,7 @@ function climb(gray, w, h, start, initial, side, maxDrift) {
         if (!ok || !isConvex(trial)) continue;
         const area = quadArea(trial) / initialArea;
         if (area < MIN_AREA || area > MAX_AREA) continue;
-        const score = patternContrast(gray, w, h, trial);
+        const score = objective(trial);
         if (score > bestScore + 1e-6) {
           best = trial;
           bestScore = score;
@@ -234,6 +235,55 @@ function climb(gray, w, h, start, initial, side, maxDrift) {
     }
   }
   return { corners: best, score: bestScore };
+}
+
+// Vervaagt een kaart met een gemiddelde over (2r+1)x(2r+1) (twee keer, dus een zachte
+// klok). Voor de grove scan: de randsterkte van een dunne lijn is anders alleen zichtbaar
+// als het venster op een paar pixels nauwkeurig ligt.
+function boxBlur(src, w, h, r) {
+  let a = src;
+  for (let pass = 0; pass < 2; pass++) {
+    const tmp = new Float32Array(w * h);
+    for (let y = 0; y < h; y++) {
+      let sum = 0;
+      for (let x = -r; x <= r; x++) sum += a[y * w + Math.min(w - 1, Math.max(0, x))];
+      for (let x = 0; x < w; x++) {
+        tmp[y * w + x] = sum / (2 * r + 1);
+        sum += a[y * w + Math.min(w - 1, x + r + 1)] - a[y * w + Math.max(0, x - r)];
+      }
+    }
+    const out = new Float32Array(w * h);
+    for (let x = 0; x < w; x++) {
+      let sum = 0;
+      for (let y = -r; y <= r; y++) sum += tmp[Math.min(h - 1, Math.max(0, y)) * w + x];
+      for (let y = 0; y < h; y++) {
+        out[y * w + x] = sum / (2 * r + 1);
+        sum += tmp[Math.min(h - 1, y + r + 1) * w + x] - tmp[Math.max(0, y - r) * w + x];
+      }
+    }
+    a = out;
+  }
+  return a;
+}
+
+// Zoals boundaryEnergy, maar geeft de ZWAKSTE van de vier zijden terug: een kader dat aan
+// één kant op het patroon (of het papier) ligt in plaats van op de rand van het bord,
+// valt dan meteen op.
+function weakestSideEnergy(mag, w, h, quad) {
+  const STEPS = 50;
+  let weakest = Infinity;
+  for (let e = 0; e < 4; e++) {
+    const a = quad[e];
+    const b = quad[(e + 1) % 4];
+    let sum = 0;
+    for (let k = 1; k < STEPS; k++) {
+      const x = a.x + ((b.x - a.x) * k) / STEPS;
+      const y = a.y + ((b.y - a.y) * k) / STEPS;
+      sum += neighbourhoodMax(mag, w, h, x, y);
+    }
+    weakest = Math.min(weakest, sum / (STEPS - 1));
+  }
+  return weakest;
 }
 
 // --- Fijnafstelling op de rasterlijnen ------------------------------------------------
@@ -340,7 +390,7 @@ function polish(gray, mag, w, h, start, side) {
 // opties: drift = hoe ver een hoek van zijn beginplek mag komen (deel van de zijde);
 // shifts = ook beginposities proberen die een stuk verschoven zijn (voor een grove
 // beginschatting, bv. een zoekvenster in plaats van een gevonden vlek).
-export function fitBoardQuad(imageData, initialQuad, { drift = MAX_DRIFT, shifts = false } = {}) {
+export function fitBoardQuad(imageData, initialQuad, { drift = MAX_DRIFT, shifts = false, edgeWeight = 0 } = {}) {
   const { width: w, height: h } = imageData;
   const gray = toGray(imageData);
   const side = Math.sqrt(quadArea(initialQuad));
@@ -353,10 +403,10 @@ export function fitBoardQuad(imageData, initialQuad, { drift = MAX_DRIFT, shifts
       }
     }
   }
-  const results = starts.map((start) => climb(gray, w, h, start, initialQuad, side, drift));
+  const mag = gradientMagnitude(gray, w, h);
+  const results = starts.map((start) => climb(gray, w, h, start, initialQuad, side, drift, mag, edgeWeight));
   const top = Math.max(...results.map((r) => r.score));
   // Van de bijna-even-goede oplossingen: die met het kader op een echte lijn.
-  const mag = gradientMagnitude(gray, w, h);
   let best = null;
   let bestEdge = -1;
   for (const r of results) {
@@ -371,7 +421,7 @@ export function fitBoardQuad(imageData, initialQuad, { drift = MAX_DRIFT, shifts
   // en zou bij tekst of een foto de maat kunstmatig kunnen opkrikken.
   const separation = patternSeparation(gray, w, h, best.corners);
   const corners = polish(gray, mag, w, h, best.corners, side);
-  return { corners, score: patternContrast(gray, w, h, corners), startScore, separation };
+  return { corners, score: patternContrast(gray, w, h, corners), startScore, separation, edge: boundaryEnergy(mag, w, h, corners), weakSide: weakestSideEnergy(mag, w, h, corners) };
 }
 
 // --- Ontbrekende borden zoeken --------------------------------------------------------
@@ -460,4 +510,115 @@ export function findMissingBoards(imageData, found, debug = null) {
     }
   }
   return result;
+}
+
+// --- Het bord in het midden van een losse foto zoeken --------------------------------
+// Bij een foto van één diagram staat het bedoelde bord meestal in het midden, maar er
+// kan een stuk van een ander diagram (of van meerdere) naast, boven of onder staan. De
+// oude aanpak (de grootste donkere vlek) pakt dan al snel de verkeerde vlek of een
+// stuk van twee borden samen. Hier: schuif vierkante vensters van verschillende grootte
+// rond het midden van de foto, kijk welke het best op een dambordpatroon lijken (een
+// venster dat half over twee borden ligt past niet: de afwisseling licht/donker klopt
+// dan niet), maak de beste hoek voor hoek nauwkeurig met `fitBoardQuad`, en kies
+// daarvan het bord dat het dichtst bij het midden ligt.
+
+const CENTER_SIZES = Array.from({ length: 14 }, (_, i) => 0.35 + i * 0.05); // van de kortste zijde van de foto (0,35 t/m 1,0)
+const CENTER_SHIFTS = Array.from({ length: 9 }, (_, i) => -0.25 + i * 0.0625); // van de kortste zijde
+const CENTER_COARSE_CANDIDATES = 24; // krijgen een fijne scan
+const CENTER_TOP_CANDIDATES = 8; // van de verfijnde krijgen de beste een nauwkeurige fit
+// Randsterkte telt mee in de zoektocht (schaal: contrast in grijswaarden, randsterkte in
+// Sobel-eenheden, ruim 3x zo groot): een schaduw over een deel van de foto trekt het
+// contrast-optimum scheef, de rand van het bord niet.
+const CENTER_EDGE_WEIGHT = 0.5;
+const CENTER_MIN_SEPARATION = 0.7;
+const CENTER_MIN_CONTRAST = 10;
+const CENTER_CONTRAST_FRACTION = 0.6; // kandidaten met minstens dit deel van het beste contrast doen mee
+
+// Geeft { corners, score, separation } terug, of null als er geen duidelijk bord is.
+export function findCenterBoard(imageData, debug = null) {
+  const { width: w, height: h } = imageData;
+  const gray = toGray(imageData);
+  const mag = gradientMagnitude(gray, w, h);
+  const softMag = boxBlur(mag, w, h, Math.max(3, Math.round(0.012 * Math.max(w, h))));
+  // Grove scan: met de vervaagde randkaart (ruime marge); fijne scan en fit: de scherpe.
+  const coarseObjective = (quad) =>
+    patternContrast(gray, w, h, quad, [-0.3, 0, 0.3]) + CENTER_EDGE_WEIGHT * weakestSideEnergy(softMag, w, h, quad);
+  const objective = (quad) =>
+    patternContrast(gray, w, h, quad, [-0.3, 0, 0.3]) + CENTER_EDGE_WEIGHT * weakestSideEnergy(mag, w, h, quad);
+  const m = Math.min(w, h);
+  const hits = [];
+  for (const f of CENTER_SIZES) {
+    const size = f * m;
+    for (const dx of CENTER_SHIFTS) {
+      for (const dy of CENTER_SHIFTS) {
+        const cx = w / 2 + dx * m;
+        const cy = h / 2 + dy * m;
+        if (cx - size / 2 < -0.03 * m || cy - size / 2 < -0.03 * m || cx + size / 2 > w + 0.03 * m || cy + size / 2 > h + 0.03 * m) continue;
+        hits.push({ cx, cy, size, score: coarseObjective(rectQuad(cx, cy, size)) });
+      }
+    }
+  }
+  hits.sort((a, b) => b.score - a.score);
+  const picked = [];
+  for (const hit of hits) {
+    if (picked.length >= CENTER_COARSE_CANDIDATES) break;
+    if (picked.some((p) => Math.hypot(p.cx - hit.cx, p.cy - hit.cy) < 0.2 * hit.size && Math.abs(p.size - hit.size) < 0.2 * hit.size)) continue;
+    picked.push(hit);
+  }
+  // Het patroon-contrast piekt binnen een halve cel van de juiste plek, dus de grove scan
+  // (stappen van 6% van de foto) mist het echte bord makkelijk op net te veel afstand.
+  // Rond elke kandidaat daarom een fijne scan (stappen van 1,25% van het venster).
+  const refined = picked.map((hit) => {
+    let best = { ...hit, score: objective(rectQuad(hit.cx, hit.cy, hit.size)) };
+    for (const zoom of [0.94, 1, 1.06]) {
+      const size = hit.size * zoom;
+      for (let i = -4; i <= 4; i++) {
+        for (let j = -4; j <= 4; j++) {
+          const cx = hit.cx + i * 0.0125 * hit.size;
+          const cy = hit.cy + j * 0.0125 * hit.size;
+          const score = objective(rectQuad(cx, cy, size));
+          if (score > best.score) best = { cx, cy, size, score };
+        }
+      }
+    }
+    return best;
+  });
+  refined.sort((a, b) => b.score - a.score);
+  const finalists = [];
+  for (const hit of refined) {
+    if (finalists.length >= CENTER_TOP_CANDIDATES) break;
+    if (finalists.some((p) => Math.hypot(p.cx - hit.cx, p.cy - hit.cy) < 0.1 * hit.size && Math.abs(p.size - hit.size) < 0.1 * hit.size)) continue;
+    finalists.push(hit);
+  }
+  const fits = [];
+  for (const hit of finalists) {
+    const fit = fitBoardQuad(imageData, rectQuad(hit.cx, hit.cy, hit.size), { drift: 0.25, edgeWeight: CENTER_EDGE_WEIGHT });
+    if (fit.separation < CENTER_MIN_SEPARATION || fit.score < CENTER_MIN_CONTRAST) continue;
+    fits.push(fit);
+  }
+  debug?.push({ picked: finalists, fits: fits.map((f) => ({ corners: f.corners.map((p) => [Math.round(p.x), Math.round(p.y)]), score: f.score, sep: f.separation, edge: f.edge, weakSide: f.weakSide })) });
+  if (!fits.length) return null;
+  // Een bord dat twee of vier velden verschoven ligt (of half over het buurdiagram) heeft
+  // bijna hetzelfde patroon-contrast als het echte, omdat de buren "in de pas" liggen.
+  // Wat het echte bord onderscheidt: er zit een lijn (de rand) om het kader heen, en
+  // het patroon klopt over het hele kader. Daarom kiezen op randsterkte x geruitheid.
+  const best = Math.max(...fits.map((f) => f.score));
+  const contenders = fits.filter((f) => f.score >= CENTER_CONTRAST_FRACTION * best);
+  const chosen = contenders.reduce((a, b) => (b.weakSide * b.separation > a.weakSide * a.separation ? b : a));
+  return { corners: chosen.corners, score: chosen.score, separation: chosen.separation };
+}
+
+// Meetwaarden van één vierhoek op een foto (voor onderzoek/afstemmen): patroonmaat,
+// geruitheid en gemiddelde randsterkte langs het kader.
+export function quadDiagnostics(imageData, quad) {
+  const { width: w, height: h } = imageData;
+  const gray = toGray(imageData);
+  const mag = gradientMagnitude(gray, w, h);
+  return {
+    score: patternContrast(gray, w, h, quad),
+    separation: patternSeparation(gray, w, h, quad),
+    edge: boundaryEnergy(mag, w, h, quad),
+    weakSide: weakestSideEnergy(mag, w, h, quad),
+    lineScore: gridLineScore(mag, w, h, quad),
+  };
 }
