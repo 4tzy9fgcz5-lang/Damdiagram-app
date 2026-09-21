@@ -392,6 +392,20 @@ diagram en oplossing op DEZELFDE pagina.
   bulk-import (`File`-objecten bewaren, per pagina inlezen; niet alle foto's tegelijk als
   bitmap in het geheugen) en diagram+oplossing op één foto (dezelfde foto naar Claude sturen).
 
+**Meerdere foto's tegelijk in de bulk-import (stap 1 van het plan "hele boek", 2026-09-22):**
+`bulkImportView.js` is herschreven: "Kies foto's uit galerij" neemt meerdere bestanden (op naam
+gesorteerd, dus boekvolgorde bij IMG_-nummers), "+ Meer foto's toevoegen" mag ook tijdens het
+inlezen. Elke foto wordt achter elkaar ingelezen (diagrammen zoeken -> nummers lezen met één
+gedeelde tekstlezer, `createNumberReader` in `numberOcr.js`); per foto een blokje met voorbeeld,
+kaders, nummervelden en "Foto verwijderen"; "Doorgaan" is geblokkeerd tot alles ingelezen is. Na het
+inlezen worden de nummers over alle foto's heen aangevuld (`applyGlobalFill`, daarna nog per foto
+voor wat op een fotogrens vastzit). Geheugen: alleen tijdens het inlezen staat een foto op volle
+resolutie in het geheugen; daarna een voorbeeld van max 700 px + het `File`. `bulkQueue` in `app.js`
+heeft nu `pages: [{file, name}]` en per diagram `page`; `getBulkDrawable()` laadt de volle foto pas als
+een diagram ervan aan de beurt is en laat hem los bij een andere foto. Getest in de echte app met
+3 foto's tegelijk (28 diagrammen; 26 nummers direct goed, rest afgeleid) en doorlopen van foto 1
+naar foto 2 in de rij. Nog NIET gebouwd: stap 2 (automatische modus zonder hoekenscherm).
+
 ### Neuraal netwerkje (2026-09-21) — nu de standaardherkenner
 
 Aanleiding: hertrainen van de oude logistische regressie (`damscan/`) op Jans 140

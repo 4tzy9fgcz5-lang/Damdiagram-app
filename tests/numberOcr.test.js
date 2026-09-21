@@ -1,5 +1,5 @@
-import { describe, it, assertEqual, assertTrue } from "./test-runner.js?v=20260921at";
-import { parseDiagramNumber, fillMissingNumbers, stripRect } from "../src/recognition/numberOcr.js?v=20260921at";
+import { describe, it, assertEqual, assertTrue } from "./test-runner.js?v=20260921av";
+import { parseDiagramNumber, fillMissingNumbers, stripRect } from "../src/recognition/numberOcr.js?v=20260921av";
 
 describe("numberOcr: nummer uit gelezen tekst halen", () => {
   it("vindt het nummer achter een woord of met een sterretje erachter", () => {
@@ -49,6 +49,14 @@ describe("numberOcr: ontbrekende nummers aanvullen", () => {
     assertEqual(r[11], { nummer: 593, afgeleid: true });
     const mid = fillMissingNumbers(grid([570, 571, 572, 573, 574, 575, 576, 77, 578, 579, 580, 581]));
     assertEqual(mid[7], { nummer: 577, afgeleid: true });
+  });
+
+  it("werkt ook over pagina's heen: nummers van foto 1 en foto 2 lopen door", () => {
+    // twee foto's met elk 2 rijen van 2 diagrammen; foto 2 begint met twee onleesbare nummers
+    const page = (nrs, p) => nrs.map((nummer, i) => ({ nummer, cx: p * 100000 + 200 + (i % 2) * 400, cy: 200 + Math.floor(i / 2) * 400, breedte: 300 }));
+    const r = fillMissingNumbers([...page([21, 22, 23, 24], 0), ...page([null, null, 27, 28], 1)]);
+    assertEqual(r.map((x) => x.nummer), [21, 22, 23, 24, 25, 26, 27, 28]);
+    assertEqual(r.map((x) => x.afgeleid), [false, false, false, false, true, true, false, false]);
   });
 
   it("vult niets aan als het niet zeker is", () => {

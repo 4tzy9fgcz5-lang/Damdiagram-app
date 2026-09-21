@@ -1,23 +1,40 @@
-import { renderEditorView } from "./editorView.js?v=20260921at";
-import { renderDatabaseView } from "./databaseView.js?v=20260921at";
-import { renderStandDetailView } from "./standDetailView.js?v=20260921at";
-import { renderStencilsListView } from "./stencilsListView.js?v=20260921at";
-import { renderStencilView, addStandenToStencil } from "./stencilView.js?v=20260921at";
-import { saveStencil } from "../db/stencils.js?v=20260921at";
-import { getLastBackupDate } from "./backupView.js?v=20260921at";
-import { renderSettingsView } from "./settingsView.js?v=20260921at";
-import { renderImportView } from "./importView.js?v=20260921at";
-import { renderPhotoImportView } from "./photoImportView.js?v=20260921at";
-import { renderBulkImportView } from "./bulkImportView.js?v=20260921at";
-import { renderDiagramCapture, cropAroundCorners } from "./diagramCaptureView.js?v=20260921at";
-import { listStanden } from "../db/standen.js?v=20260921at";
+import { renderEditorView } from "./editorView.js?v=20260921av";
+import { renderDatabaseView } from "./databaseView.js?v=20260921av";
+import { renderStandDetailView } from "./standDetailView.js?v=20260921av";
+import { renderStencilsListView } from "./stencilsListView.js?v=20260921av";
+import { renderStencilView, addStandenToStencil } from "./stencilView.js?v=20260921av";
+import { saveStencil } from "../db/stencils.js?v=20260921av";
+import { getLastBackupDate } from "./backupView.js?v=20260921av";
+import { renderSettingsView } from "./settingsView.js?v=20260921av";
+import { renderImportView } from "./importView.js?v=20260921av";
+import { renderPhotoImportView } from "./photoImportView.js?v=20260921av";
+import { renderBulkImportView } from "./bulkImportView.js?v=20260921av";
+import { loadDrawable } from "./imageInput.js?v=20260921av";
+import { renderDiagramCapture, cropAroundCorners } from "./diagramCaptureView.js?v=20260921av";
+import { listStanden } from "../db/standen.js?v=20260921av";
 
 const routes = ["nieuw", "foto", "bulk", "bulk-diagram", "database", "stand", "stencils", "stencil", "instellingen", "import"];
 let pendingRecognition = null;
-// Actieve bulk-import-rij: { drawable (hele paginafoto), diagrams: [{corners}], index }.
+// Actieve bulk-import-rij: { pages: [{ file, name }] (de foto's), diagrams: [{ page (plek in pages),
+// corners, manual, nummer, oplossingTekst }], boekstijl, auteur, index }.
 // Alleen in het geheugen — bij een paginaherlaad ben je de voortgang kwijt (zie
 // CLAUDE.md-plan, "tussentijds hervatten" is een latere stap).
 let bulkQueue = null;
+// De volle foto van het diagram dat nu aan de beurt is: pas geladen als het nodig is en bij een
+// andere foto (of aan het eind van de rij) weer losgelaten, zodat een heel boek aan foto's niet
+// tegelijk in het geheugen zit.
+let bulkDrawable = null;
+function releaseBulkDrawable() {
+  bulkDrawable?.drawable.close?.();
+  bulkDrawable = null;
+}
+async function getBulkDrawable(pageIndex) {
+  if (bulkDrawable && bulkDrawable.queue === bulkQueue && bulkDrawable.pageIndex === pageIndex) return bulkDrawable.drawable;
+  releaseBulkDrawable();
+  const drawable = await loadDrawable(bulkQueue.pages[pageIndex].file);
+  bulkDrawable = { queue: bulkQueue, pageIndex, drawable };
+  return drawable;
+}
 // Onthoudt van waaruit een standdetailpagina geopend is (database of een
 // opgaveblad), zodat "Terug" naar de juiste plek gaat in plaats van altijd
 // naar de database.
@@ -84,6 +101,7 @@ async function render() {
   if (bulkQueue && name !== "bulk" && name !== "bulk-diagram" && !(name === "nieuw" && !param)) {
     bulkQueue = null;
   }
+  if (!bulkQueue) releaseBulkDrawable();
 
   for (const btn of document.querySelectorAll(".app-nav button")) {
     btn.classList.toggle("active", btn.dataset.route === NAV_FOR_ROUTE[name]);
@@ -187,8 +205,8 @@ async function render() {
   } else if (name === "bulk") {
     bulkQueue = null;
     await renderBulkImportView(app, {
-      onConfirmed: ({ drawable, diagrams, boekstijl, auteur }) => {
-        bulkQueue = { drawable, diagrams, boekstijl, auteur, index: 0 };
+      onConfirmed: ({ pages, diagrams, boekstijl, auteur }) => {
+        bulkQueue = { pages, diagrams, boekstijl, auteur, index: 0 };
         location.hash = "#/bulk-diagram";
       },
     });
@@ -197,8 +215,15 @@ async function render() {
       location.hash = "#/bulk";
       return;
     }
-    const { drawable, diagrams, index } = bulkQueue;
+    const { diagrams, index } = bulkQueue;
     const diagram = diagrams[index];
+    let drawable;
+    try {
+      drawable = await getBulkDrawable(diagram.page);
+    } catch (err) {
+      app.innerHTML = `<p>Kon de foto niet meer openen (${err.message}). <a href="#/bulk">Opnieuw beginnen</a></p>`;
+      return;
+    }
     // Automatisch gevonden diagrammen: een ruim uitgesneden stukje rond de al
     // vrij nauwkeurige hoeken (lekker groot en makkelijk te verslepen). Zelf
     // toegevoegde diagrammen staan op een gok-positie — daar toont dit juist de
@@ -213,7 +238,7 @@ async function render() {
     renderDiagramCapture(app, {
       drawable: stepDrawable,
       initialCorners: stepCorners,
-      heading: `Diagram ${index + 1} van ${diagrams.length}${diagram.nummer ? ` — nr. ${diagram.nummer}` : ""}`,
+      heading: `Diagram ${index + 1} van ${diagrams.length}${diagram.nummer ? ` — nr. ${diagram.nummer}` : ""}${bulkQueue.pages.length > 1 ? ` (foto ${diagram.page + 1} van ${bulkQueue.pages.length})` : ""}`,
       onRecognized: (result) => {
         pendingRecognition = { ...result, boekstijl: bulkQueue.boekstijl, auteur: bulkQueue.auteur, nummer: diagram.nummer ?? "", oplossingTekst: diagram.oplossingTekst ?? "" };
         location.hash = "#/nieuw";

@@ -99,33 +99,47 @@ export function parseDiagramNumber(text) {
   return best === null ? null : Number(best);
 }
 
-// Leest het nummer boven elk bord. `cornersList` = [[{x,y} x4]] in de coördinaten van `drawable`.
-// Geeft per bord het nummer (getal) of null. Gooit een fout als de tekstlezer niet te laden is.
-export async function readDiagramNumbers(drawable, cornersList, { onProgress } = {}) {
+// Een tekstlezer die je voor meerdere pagina's achter elkaar kunt gebruiken (het opstarten kost
+// enkele seconden, dus niet per foto opnieuw). `read(drawable, cornersList, { onProgress })`
+// geeft per bord het nummer (getal) of null; `close()` ruimt op. Gooit een fout als de tekstlezer
+// niet te laden is.
+export async function createNumberReader() {
   const Tesseract = await loadTesseract();
   const worker = await Tesseract.createWorker("eng");
-  const results = [];
-  try {
-    await worker.setParameters({ tessedit_pageseg_mode: "6" });
-    for (let i = 0; i < cornersList.length; i++) {
-      onProgress?.(i, cornersList.length);
-      let number = null;
-      try {
-        const strip = cropStrip(drawable, cornersList[i]);
-        if (strip) {
-          const { data } = await worker.recognize(strip);
-          number = parseDiagramNumber(data.text);
+  await worker.setParameters({ tessedit_pageseg_mode: "6" });
+  return {
+    async read(drawable, cornersList, { onProgress } = {}) {
+      const results = [];
+      for (let i = 0; i < cornersList.length; i++) {
+        onProgress?.(i, cornersList.length);
+        let number = null;
+        try {
+          const strip = cropStrip(drawable, cornersList[i]);
+          if (strip) {
+            const { data } = await worker.recognize(strip);
+            number = parseDiagramNumber(data.text);
+          }
+        } catch {
+          number = null;
         }
-      } catch {
-        number = null;
+        results.push(number);
       }
-      results.push(number);
-    }
-    onProgress?.(cornersList.length, cornersList.length);
+      onProgress?.(cornersList.length, cornersList.length);
+      return results;
+    },
+    close: () => worker.terminate(),
+  };
+}
+
+// Leest het nummer boven elk bord van één foto. `cornersList` = [[{x,y} x4]] in de coördinaten van
+// `drawable`. Geeft per bord het nummer (getal) of null.
+export async function readDiagramNumbers(drawable, cornersList, opties = {}) {
+  const reader = await createNumberReader();
+  try {
+    return await reader.read(drawable, cornersList, opties);
   } finally {
-    await worker.terminate();
+    await reader.close();
   }
-  return results;
 }
 
 // ---------- ontbrekende nummers aanvullen uit de doorlopende reeks ----------
