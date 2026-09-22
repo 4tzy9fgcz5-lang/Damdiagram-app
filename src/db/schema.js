@@ -1,11 +1,14 @@
 export const DB_NAME = "damstencil_app";
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 3;
 
 export const STORE_STANDEN = "standen";
 export const STORE_LIJSTEN = "lijsten";
 export const STORE_STENCILS = "stencils";
 export const STORE_META = "meta";
 export const STORE_HERKENNING_LOG = "herkenningCorrecties";
+// Eigen opslagplaats voor eindspelen (combinaties blijven in STORE_STANDEN)
+// sinds de uitbreiding "aparte database voor eindspelen", zie CLAUDE.md.
+export const STORE_EINDSPELEN = "eindspelen";
 
 // De twee filtercategorieën waar de app ooit mee gestart is — sindsdien
 // (2026-09-18) kan Jan er via Instellingen -> Database zelf categorieën bij
@@ -43,5 +46,15 @@ export const MIGRATIONS = {
   2(db) {
     const log = db.createObjectStore(STORE_HERKENNING_LOG, { keyPath: "id" });
     log.createIndex("createdAt", "createdAt", { unique: false });
+  },
+  // Nieuw: aparte opslagplaats voor eindspelen, met dezelfde indexen als
+  // STORE_STANDEN. Raakt de bestaande "standen"-store niet aan.
+  3(db) {
+    const eindspelen = db.createObjectStore(STORE_EINDSPELEN, { keyPath: "id" });
+    eindspelen.createIndex("fen", "fen", { unique: false });
+    eindspelen.createIndex("mirrorFen", "mirrorFen", { unique: false });
+    eindspelen.createIndex("createdAt", "createdAt", { unique: false });
+    eindspelen.createIndex("jaartal", "jaartal", { unique: false });
+    eindspelen.createIndex("auteur", "auteur", { unique: false });
   },
 };

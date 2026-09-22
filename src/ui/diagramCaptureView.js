@@ -3,28 +3,28 @@
 // foto-import als elke stap van de bulk-import (rij-door-diagrammen) precies
 // dezelfde, vertrouwde flow gebruiken.
 
-import { warpToSquareCanvas } from "../recognition/homography.js?v=20260921bb";
-import { classifyBoard, CONFIDENCE_THRESHOLD, RECOGNITION_VERSION } from "../recognition/classify.js?v=20260921bb";
+import { warpToSquareCanvas } from "../recognition/homography.js?v=20260922a";
+import { classifyBoard, CONFIDENCE_THRESHOLD, RECOGNITION_VERSION } from "../recognition/classify.js?v=20260922a";
 import {
   createClassifier as createNewClassifier,
   FLAG_BELOW as NEW_FLAG_BELOW,
   RECOGNITION_VERSION as NEW_RECOGNITION_VERSION,
-} from "../recognition/newClassify.js?v=20260921bb";
+} from "../recognition/newClassify.js?v=20260922a";
 import {
   createCnnClassifier,
   CNN_FLAG_BELOW,
   CNN_RECOGNITION_VERSION,
-} from "../recognition/cnnClassify.js?v=20260921bb";
-import { refineGrid } from "../recognition/gridRefine.js?v=20260921bb";
-import { checkPlausibility } from "../recognition/plausibility.js?v=20260921bb";
+} from "../recognition/cnnClassify.js?v=20260922a";
+import { refineGrid } from "../recognition/gridRefine.js?v=20260922a";
+import { checkPlausibility } from "../recognition/plausibility.js?v=20260922a";
 import {
   buildCornersOverlay,
   buildGridOverlay,
   buildFieldCrops,
   buildRawFieldCrops,
-} from "../recognition/debugRender.js?v=20260921bb";
-import { FIELD_COUNT, createEmptyBoard, PIECE_TYPES } from "../core/board.js?v=20260921bb";
-import { drawableSize, WORKING_MAX_SIDE } from "./imageInput.js?v=20260921bb";
+} from "../recognition/debugRender.js?v=20260922a";
+import { FIELD_COUNT, createEmptyBoard, PIECE_TYPES } from "../core/board.js?v=20260922a";
+import { drawableSize, WORKING_MAX_SIDE } from "./imageInput.js?v=20260922a";
 
 // Ligt buiten het bereik van het cache-bust-bompscript (dat kijkt alleen naar JS-
 // imports/HTML-tags) — bij het trainen van een nieuw damscan/weights.json dus ook

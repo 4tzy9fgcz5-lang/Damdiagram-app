@@ -1,5 +1,5 @@
-import { describe, it, assertEqual, assertTrue } from "./test-runner.js?v=20260921bb";
-import { buildCsv, buildPdnText } from "../src/export/portable.js?v=20260921bb";
+import { describe, it, assertEqual, assertTrue } from "./test-runner.js?v=20260922a";
+import { buildCsv, buildPdnText } from "../src/export/portable.js?v=20260922a";
 
 const stand = {
   fen: "W:W13,15,33:B1,5,30",

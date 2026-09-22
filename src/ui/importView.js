@@ -1,7 +1,7 @@
-import { importAll } from "../db/backup.js?v=20260921bb";
-import { decodeShareData } from "../db/shareLink.js?v=20260921bb";
-import { renderDiagramSVG } from "../diagram/render.js?v=20260921bb";
-import { parseFen } from "../core/fen.js?v=20260921bb";
+import { importAll } from "../db/backup.js?v=20260922a";
+import { decodeShareData } from "../db/shareLink.js?v=20260922a";
+import { renderDiagramSVG } from "../diagram/render.js?v=20260922a";
+import { parseFen } from "../core/fen.js?v=20260922a";
 
 export async function renderImportView(container, { encoded, onDone } = {}) {
   let data;

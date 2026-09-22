@@ -1,21 +1,22 @@
-import { renderEditorView } from "./editorView.js?v=20260921bb";
-import { renderDatabaseView } from "./databaseView.js?v=20260921bb";
-import { renderStandDetailView } from "./standDetailView.js?v=20260921bb";
-import { renderStencilsListView } from "./stencilsListView.js?v=20260921bb";
-import { renderStencilView, addStandenToStencil } from "./stencilView.js?v=20260921bb";
-import { saveStencil } from "../db/stencils.js?v=20260921bb";
-import { getLastBackupDate } from "./backupView.js?v=20260921bb";
-import { renderSettingsView } from "./settingsView.js?v=20260921bb";
-import { renderImportView } from "./importView.js?v=20260921bb";
-import { renderPhotoImportView } from "./photoImportView.js?v=20260921bb";
-import { renderBulkImportView } from "./bulkImportView.js?v=20260921bb";
-import { loadDrawable } from "./imageInput.js?v=20260921bb";
-import { renderBulkPrepare } from "./bulkPrepareView.js?v=20260921bb";
-import { reviewReason } from "../core/bulkReview.js?v=20260921bb";
-import { renderDiagramCapture, cropAroundCorners } from "./diagramCaptureView.js?v=20260921bb";
-import { listStanden } from "../db/standen.js?v=20260921bb";
+import { renderEditorView } from "./editorView.js?v=20260922a";
+import { renderDatabaseView } from "./databaseView.js?v=20260922a";
+import { renderEindspelenView } from "./eindspelenView.js?v=20260922a";
+import { renderStandDetailView } from "./standDetailView.js?v=20260922a";
+import { renderStencilsListView } from "./stencilsListView.js?v=20260922a";
+import { renderStencilView, addStandenToStencil } from "./stencilView.js?v=20260922a";
+import { saveStencil } from "../db/stencils.js?v=20260922a";
+import { getLastBackupDate } from "./backupView.js?v=20260922a";
+import { renderSettingsView } from "./settingsView.js?v=20260922a";
+import { renderImportView } from "./importView.js?v=20260922a";
+import { renderPhotoImportView } from "./photoImportView.js?v=20260922a";
+import { renderBulkImportView } from "./bulkImportView.js?v=20260922a";
+import { loadDrawable } from "./imageInput.js?v=20260922a";
+import { renderBulkPrepare } from "./bulkPrepareView.js?v=20260922a";
+import { reviewReason } from "../core/bulkReview.js?v=20260922a";
+import { renderDiagramCapture, cropAroundCorners } from "./diagramCaptureView.js?v=20260922a";
+import { listStanden } from "../db/standen.js?v=20260922a";
 
-const routes = ["nieuw", "zelf", "foto", "bulk", "bulk-voorbereiden", "bulk-diagram", "database", "stand", "stencils", "stencil", "instellingen", "import"];
+const routes = ["nieuw", "zelf", "foto", "bulk", "bulk-voorbereiden", "bulk-diagram", "database", "eindspelen", "stand", "stencils", "stencil", "instellingen", "import"];
 let pendingRecognition = null;
 // Actieve bulk-import-rij: { pages: [{ file, name }] (de foto's), diagrams: [{ page (plek in pages),
 // corners, manual, nummer, oplossingTekst }], auteur, publicatie, categorieen, index }.
@@ -91,6 +92,7 @@ const NAV_FOR_ROUTE = {
   "bulk-voorbereiden": "nieuw",
   "bulk-diagram": "nieuw",
   database: "database",
+  eindspelen: "eindspelen",
   stand: "database",
   stencils: "stencils",
   stencil: "stencils",
@@ -158,6 +160,8 @@ async function render() {
         location.hash = `#/stencil/${stencilId}`;
       },
     });
+  } else if (name === "eindspelen") {
+    await renderEindspelenView(app);
   } else if (name === "stencils") {
     await renderStencilsListView(app, {
       onOpenStencil: (id) => {
