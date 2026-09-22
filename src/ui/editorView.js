@@ -6,6 +6,7 @@ import { parseFen, boardToFen, FenParseError } from "../core/fen.js?v=20260922a"
 import { parseStandInput, QuickTextParseError } from "../core/quicktext.js?v=20260922a";
 import { validateBoard } from "../core/validate.js?v=20260922a";
 import { saveStand, getStand, findDuplicates } from "../db/standen.js?v=20260922a";
+import { saveEindspel, findEindspelDuplicates } from "../db/eindspelen.js?v=20260922a";
 import { getList, addListValue } from "../db/lijsten.js?v=20260922a";
 import { getAllCategorieen } from "../db/categorieen.js?v=20260922a";
 import { logHerkenningCorrectie } from "../db/herkenningLog.js?v=20260922a";
@@ -14,6 +15,11 @@ import { RECOGNITION_VERSION as NEW_MODEL_VERSION } from "../recognition/newClas
 import { CNN_RECOGNITION_VERSION as CNN_MODEL_VERSION } from "../recognition/cnnClassify.js?v=20260922a";
 
 import { renderStarRating } from "./starRating.js?v=20260922a";
+
+// Onthoudt de laatst gekozen "Combinaties"/"Eindspelen"-keuze voor de rest van
+// dit tabblad (niet in de database), zodat je 'm niet bij elke volgende stand
+// opnieuw hoeft om te zetten tijdens bijvoorbeeld een reeks eindspelen.
+let lastDoel = "combinatie";
 
 export async function renderEditorView(
   container,
@@ -38,6 +44,15 @@ export async function renderEditorView(
 ) {
   container.innerHTML = `
     <h2>Nieuwe stand invoeren</h2>
+    <div data-role="doelToggle" class="quick-actions" style="margin-bottom:0.75rem;">
+      <strong style="margin-right:0.3rem;">Opslaan bij:</strong>
+      <label style="display:inline-flex;align-items:center;gap:0.3rem;font-weight:normal;margin:0;">
+        <input type="radio" name="doel" value="combinatie" /> Combinaties
+      </label>
+      <label style="display:inline-flex;align-items:center;gap:0.3rem;font-weight:normal;margin:0;">
+        <input type="radio" name="doel" value="eindspel" /> Eindspelen
+      </label>
+    </div>
     <div data-role="duplicateWarning"></div>
     <div data-role="bulkInfo"></div>
     <div class="card editor-layout">
@@ -116,6 +131,15 @@ export async function renderEditorView(
         <div data-role="legacyOplossingRef"></div>
         <div data-role="solutionInput"></div>
 
+        <div data-role="toelichtingBlock" style="display:none;">
+          <label>Toelichting / winstprincipe</label>
+          <p style="font-size:0.85rem;color:#666;margin:0.25rem 0;">
+            Voor eindspelen waarvan de winst niet (alleen) in een harde zetreeks te vatten is: leg hier in
+            gewone tekst het principe uit. Mag naast of in plaats van de zetreeks hierboven.
+          </p>
+          <textarea data-field="toelichting"></textarea>
+        </div>
+
         <div class="field-row">
           <div>
             <label>Auteur</label>
@@ -164,9 +188,42 @@ export async function renderEditorView(
   const solutionInputHost = el('[data-role="solutionInput"]');
   const legacyOplossingRefHost = el('[data-role="legacyOplossingRef"]');
   const boekstijlHost = el('[data-role="boekstijl"]');
+  const doelToggleHost = el('[data-role="doelToggle"]');
+  const toelichtingBlock = el('[data-role="toelichtingBlock"]');
+  const saveStencilBtn = el('[data-action="save-stencil"]');
+  const saveBtn = el('[data-action="save"]');
 
   let existingStand = null;
   let turn = initialTurn === "black" ? "black" : "white";
+
+  // Combinaties en eindspelen delen dit scherm, maar zijn twee losse
+  // opslagplaatsen (zie CLAUDE.md, uitbreiding "aparte database voor
+  // eindspelen"). Bewerk je een bestaande stand (standId), of zit je in een
+  // bulk-rij (die is altijd voor combinaties), dan is er niets te kiezen. De
+  // keuze doet verder alle onderdelen hieronder (dubbel-check, kenmerken,
+  // opgaveblad-knop, opslaan) naar de juiste plek wijzen.
+  let doel = standId || bulkInfo ? "combinatie" : lastDoel;
+  if (standId || bulkInfo) {
+    doelToggleHost.style.display = "none";
+  } else {
+    for (const radio of doelToggleHost.querySelectorAll('input[name="doel"]')) {
+      radio.checked = radio.value === doel;
+      radio.addEventListener("change", (e) => {
+        if (!e.target.checked) return;
+        doel = e.target.value;
+        lastDoel = doel;
+        updateDoelUI();
+      });
+    }
+  }
+
+  function updateDoelUI() {
+    toelichtingBlock.style.display = doel === "eindspel" ? "block" : "none";
+    categorieenHost.style.display = doel === "eindspel" ? "none" : "";
+    saveStencilBtn.style.display = doel === "eindspel" ? "none" : "";
+    if (!bulkInfo) saveBtn.textContent = doel === "eindspel" ? "Opslaan bij eindspelen" : "Opslaan bij combinaties";
+    checkDuplicates();
+  }
 
   // Automatische bulk-modus: waar je in de rij zit, waarom dit diagram extra aandacht vraagt, en de
   // mogelijkheid om (als het kader niet klopt) alsnog de hoeken opnieuw aan te wijzen.
@@ -353,16 +410,18 @@ export async function renderEditorView(
       return;
     }
     const fen = boardToFen(board, turn);
-    const { exact, mirrored } = await findDuplicates(fen);
+    const { exact, mirrored } =
+      doel === "eindspel" ? await findEindspelDuplicates(fen) : await findDuplicates(fen);
     if (myToken !== dupCheckToken) return;
     if (exact.length === 0 && mirrored.length === 0) {
       dupWarningHost.innerHTML = "";
       return;
     }
     const soort = exact.length > 0 ? "Deze stand" : "De gespiegelde versie van deze stand";
+    const plek = doel === "eindspel" ? "bij eindspelen" : "bij combinaties";
     dupWarningHost.innerHTML = `
       <div style="border:2px solid #b00020;background:#fdecee;border-radius:8px;padding:0.75rem 1rem;margin:0 0 0.75rem;font-size:1.05rem;">
-        <strong style="color:#b00020;">Let op:</strong> ${soort} staat al in de database.
+        <strong style="color:#b00020;">Let op:</strong> ${soort} staat al ${plek}.
         <div class="button-row" style="margin-top:0.5rem;">
           <button type="button" class="secondary" data-action="skip-diagram">Diagram overslaan</button>
         </div>
@@ -370,7 +429,7 @@ export async function renderEditorView(
     `;
     dupWarningHost.querySelector('[data-action="skip-diagram"]').addEventListener("click", () => onSkip?.());
   }
-  checkDuplicates();
+  updateDoelUI();
 
   // Oplossing uit het boek (bulk-import met geplakte oplossingen): wordt ingelezen op de stand zoals
   // die nu op het bord staat, en opnieuw zodra het bord of "wie is aan zet" verandert — zo zie je
@@ -623,6 +682,7 @@ export async function renderEditorView(
       categorieen: Object.fromEntries(Object.entries(selectedCategorieen).map(([k, v]) => [k, [...v]])),
       moeilijkheid: selectedMoeilijkheid,
       notities: el('[data-field="notities"]').value.trim(),
+      toelichting: el('[data-field="toelichting"]').value.trim(),
       foto: photoDataUrl ?? existingStand?.foto ?? null,
       boekstijl: selectedBoekstijl || existingStand?.boekstijl || "",
       gebruiktIn: existingStand?.gebruiktIn ?? [],
@@ -640,7 +700,7 @@ export async function renderEditorView(
     // Geen aparte bevestigingsvraag meer hier — als deze stand al bestaat, is
     // dat allang zichtbaar geweest via de melding direct onder het bord (zie
     // checkDuplicates hierboven), ruim voordat je de rest was gaan invullen.
-    const saved = await saveStand(input);
+    const saved = doel === "eindspel" ? await saveEindspel(input) : await saveStand(input);
     existingStand = saved;
 
     // Alleen lokaal: bewaar wat de fotoherkenning dacht en wat het uiteindelijk werd,
@@ -660,7 +720,7 @@ export async function renderEditorView(
       }
     }
 
-    onSaved?.(saved, { addToStencil });
+    onSaved?.(saved, { addToStencil, soort: doel });
   }
 
   el('[data-action="save"]').addEventListener("click", () => doSave({ addToStencil: false }));

@@ -332,7 +332,7 @@ async function render() {
       initialOplossingTekst: recognition?.oplossingTekst,
       initialTurn: recognition?.beurt,
       bulkInfo: recognition?.bulkInfo,
-      onSaved: (stand, { addToStencil }) => {
+      onSaved: (stand, { addToStencil, soort }) => {
         if (bulkQueue) {
           bulkQueue.index += 1;
           if (bulkQueue.index < bulkQueue.diagrams.length) {
@@ -345,7 +345,16 @@ async function render() {
           }
           return;
         }
-        showToast(addToStencil ? "Opgeslagen. Kies of maak nu een opgaveblad." : "Opgeslagen in de database.");
+        if (soort === "eindspel") {
+          // Eindspelen hebben nog geen detailpagina of opgaveblad-koppeling
+          // (dat komt in een latere stap) — meteen een leeg invoerscherm voor
+          // het volgende eindspel.
+          showToast("Opgeslagen bij eindspelen.");
+          location.hash = name === "zelf" ? "#/zelf" : "#/nieuw";
+          render();
+          return;
+        }
+        showToast(addToStencil ? "Opgeslagen. Kies of maak nu een opgaveblad." : "Opgeslagen bij combinaties.");
         if (addToStencil) {
           location.hash = "#/stencils";
         } else if (param) {
