@@ -1,8 +1,8 @@
-import { openDb, tx, promisify, newId } from "./db.js?v=20260921ba";
-import { STORE_STANDEN } from "./schema.js?v=20260921ba";
-import { parseFen, boardToFen } from "../core/fen.js?v=20260921ba";
-import { mirrorBoard } from "../core/board.js?v=20260921ba";
-import { formatZettenMetVarianten } from "../core/draughtsMoves.js?v=20260921ba";
+import { openDb, tx, promisify, newId } from "./db.js?v=20260921bb";
+import { STORE_STANDEN } from "./schema.js?v=20260921bb";
+import { parseFen, boardToFen } from "../core/fen.js?v=20260921bb";
+import { mirrorBoard } from "../core/board.js?v=20260921bb";
+import { formatZettenMetVarianten } from "../core/draughtsMoves.js?v=20260921bb";
 
 function canonicalFens(fenString) {
   const { board, turn } = parseFen(fenString);

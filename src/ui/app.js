@@ -1,19 +1,19 @@
-import { renderEditorView } from "./editorView.js?v=20260921ba";
-import { renderDatabaseView } from "./databaseView.js?v=20260921ba";
-import { renderStandDetailView } from "./standDetailView.js?v=20260921ba";
-import { renderStencilsListView } from "./stencilsListView.js?v=20260921ba";
-import { renderStencilView, addStandenToStencil } from "./stencilView.js?v=20260921ba";
-import { saveStencil } from "../db/stencils.js?v=20260921ba";
-import { getLastBackupDate } from "./backupView.js?v=20260921ba";
-import { renderSettingsView } from "./settingsView.js?v=20260921ba";
-import { renderImportView } from "./importView.js?v=20260921ba";
-import { renderPhotoImportView } from "./photoImportView.js?v=20260921ba";
-import { renderBulkImportView } from "./bulkImportView.js?v=20260921ba";
-import { loadDrawable } from "./imageInput.js?v=20260921ba";
-import { renderBulkPrepare } from "./bulkPrepareView.js?v=20260921ba";
-import { reviewReason } from "../core/bulkReview.js?v=20260921ba";
-import { renderDiagramCapture, cropAroundCorners } from "./diagramCaptureView.js?v=20260921ba";
-import { listStanden } from "../db/standen.js?v=20260921ba";
+import { renderEditorView } from "./editorView.js?v=20260921bb";
+import { renderDatabaseView } from "./databaseView.js?v=20260921bb";
+import { renderStandDetailView } from "./standDetailView.js?v=20260921bb";
+import { renderStencilsListView } from "./stencilsListView.js?v=20260921bb";
+import { renderStencilView, addStandenToStencil } from "./stencilView.js?v=20260921bb";
+import { saveStencil } from "../db/stencils.js?v=20260921bb";
+import { getLastBackupDate } from "./backupView.js?v=20260921bb";
+import { renderSettingsView } from "./settingsView.js?v=20260921bb";
+import { renderImportView } from "./importView.js?v=20260921bb";
+import { renderPhotoImportView } from "./photoImportView.js?v=20260921bb";
+import { renderBulkImportView } from "./bulkImportView.js?v=20260921bb";
+import { loadDrawable } from "./imageInput.js?v=20260921bb";
+import { renderBulkPrepare } from "./bulkPrepareView.js?v=20260921bb";
+import { reviewReason } from "../core/bulkReview.js?v=20260921bb";
+import { renderDiagramCapture, cropAroundCorners } from "./diagramCaptureView.js?v=20260921bb";
+import { listStanden } from "../db/standen.js?v=20260921bb";
 
 const routes = ["nieuw", "zelf", "foto", "bulk", "bulk-voorbereiden", "bulk-diagram", "database", "stand", "stencils", "stencil", "instellingen", "import"];
 let pendingRecognition = null;
@@ -374,6 +374,10 @@ async function render() {
       },
     });
   }
+  // Een hash-navigatie naar een route zonder passend element-id scrollt de browser niet vanzelf naar
+  // boven (anders dan een "echte" link) — vooral hinderlijk bij de bulk-rij, waar je bij elk volgend
+  // diagram weer bovenaan wilt beginnen (stand controleren, dan pas naar beneden voor de oplossing).
+  window.scrollTo(0, 0);
   await checkBackupReminder();
 }
 

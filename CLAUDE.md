@@ -458,6 +458,19 @@ een paginaherlaad ben je de rij kwijt (tussentijds hervatten is niet gebouwd).
   overgenomen (287) en een twijfelmelding bij een dubbele naam (289); "Rij stoppen" en de
   bescherming tegen wegnavigeren; "Zelf invoeren" toont het lege bord. Alle 195 tests slagen.
 
+**Scroll terug naar boven bij elk volgend diagram in de bulk-rij (2026-09-22):** een
+hash-navigatie naar een route zonder passend element-id (zoals `#/nieuw`) scrollt de browser niet
+vanzelf naar boven — bij de bulk-rij bleef je daardoor op je scrollpositie van het vorige diagram
+staan. `render()` in `app.js` doet nu `window.scrollTo(0, 0)` aan het eind, na elke render (dus bij
+elke hash-navigatie, ook buiten de bulk-rij). Andere views die de scrollpositie bewust bewaren bij
+een interne update zonder route-wijziging (bv. `stencilView.js`'s `persistStanden`) gebruiken hun
+eigen, aparte re-render-functie en lopen niet via deze `render()`, dus die blijven ongemoeid.
+**Val bij het testen in getrapt:** een `navigate` naar dezelfde `index.html` met alleen een andere
+`#`-hash, op een tabblad dat die pagina al toonde, doet in de browser een kale hash-wijziging (geen
+echte herlaad) — de module blijft dan de al geladen (oudere) versie draaien, ook als het
+cachenummer intussen is opgehoogd. Bij het testen van een JS-wijziging op een bestaand tabblad dus
+altijd een NIEUW tabblad gebruiken (of `location.reload()`), niet hetzelfde tabblad hernavigeren.
+
 ### Neuraal netwerkje (2026-09-21) — nu de standaardherkenner
 
 Aanleiding: hertrainen van de oude logistische regressie (`damscan/`) op Jans 140
