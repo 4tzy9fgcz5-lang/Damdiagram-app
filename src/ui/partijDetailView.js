@@ -1,11 +1,11 @@
-import { createStartBoard } from "../core/board.js?v=20260923o";
-import { parseFen } from "../core/fen.js?v=20260923o";
-import { naamWeergave } from "../core/namen.js?v=20260923o";
-import { getPartij, deletePartij } from "../db/partijen.js?v=20260923o";
-import { getAllCategorieen } from "../db/categorieen.js?v=20260923o";
-import { createZettenboomPlayer } from "./zettenboomPlayer.js?v=20260923o";
-import { buildPartijDocxBlob } from "../export/partijDocx.js?v=20260923o";
-import { downloadBlob } from "../export/docx.js?v=20260923o";
+import { createStartBoard } from "../core/board.js?v=20260923p";
+import { parseFen } from "../core/fen.js?v=20260923p";
+import { naamWeergave } from "../core/namen.js?v=20260923p";
+import { getPartij, deletePartij } from "../db/partijen.js?v=20260923p";
+import { getAllCategorieen } from "../db/categorieen.js?v=20260923p";
+import { createZettenboomPlayer } from "./zettenboomPlayer.js?v=20260923p";
+import { buildPartijDocxBlob } from "../export/partijDocx.js?v=20260923p";
+import { downloadBlob } from "../export/docx.js?v=20260923p";
 
 function escapeHtml(str) {
   return String(str ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -13,7 +13,7 @@ function escapeHtml(str) {
 
 // Fase 2, stap 3 (uitbreiding): een partij bekijken, alleen-lezen (net als standDetailView.js
 // voor een gewone stand) — de boom-viewer uit fase 1 met de partijgegevens eronder.
-export async function renderPartijDetailView(container, { partijId, onEdit, onDeleted, onBack, onFilm } = {}) {
+export async function renderPartijDetailView(container, { partijId, onEdit, onDeleted, onBack, onFilm, onAnnoteren } = {}) {
   const partij = await getPartij(partijId);
   if (!partij) {
     container.innerHTML = `<p>Deze partij bestaat niet (meer).</p>`;
@@ -53,6 +53,7 @@ export async function renderPartijDetailView(container, { partijId, onEdit, onDe
       <div class="button-row" style="justify-content:center;">
         <button type="button" class="secondary" data-action="word">Downloaden als Word</button>
         <button type="button" class="secondary" data-action="film">Filmmodule</button>
+        <button type="button" class="secondary" data-action="annoteren">Annoteren</button>
         <button type="button" class="secondary" data-action="edit">Bewerken</button>
         <button type="button" class="secondary" data-action="delete">Verwijderen</button>
       </div>
@@ -70,6 +71,7 @@ export async function renderPartijDetailView(container, { partijId, onEdit, onDe
 
   container.querySelector('[data-action="back"]').addEventListener("click", () => onBack?.());
   container.querySelector('[data-action="film"]').addEventListener("click", () => onFilm?.(partij.id));
+  container.querySelector('[data-action="annoteren"]').addEventListener("click", () => onAnnoteren?.(partij.id));
   container.querySelector('[data-action="edit"]').addEventListener("click", () => onEdit?.(partij.id));
   container.querySelector('[data-action="delete"]').addEventListener("click", async () => {
     if (!confirm(`Deze partij (${titel}) verwijderen? Dit kan niet ongedaan worden gemaakt.`)) return;

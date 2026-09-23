@@ -1,6 +1,6 @@
-import { describe, it, assertTrue } from "./test-runner.js?v=20260923o";
-import { gridFitScore } from "../src/recognition/gridFit.js?v=20260923o";
-import { detectBoardCorners } from "../src/recognition/detectBoard.js?v=20260923o";
+import { describe, it, assertTrue } from "./test-runner.js?v=20260923p";
+import { gridFitScore } from "../src/recognition/gridFit.js?v=20260923p";
+import { detectBoardCorners } from "../src/recognition/detectBoard.js?v=20260923p";
 
 // Een schaakbordpatroon van 10x10 velden dat de hele foto vult (geen rand, geen
 // papier eromheen) — zoals een strak bijgesneden diagram.

@@ -1,6 +1,6 @@
-import { listPartijen } from "../db/partijen.js?v=20260923o";
-import { getAllCategorieen } from "../db/categorieen.js?v=20260923o";
-import { naamWeergave } from "../core/namen.js?v=20260923o";
+import { listPartijen } from "../db/partijen.js?v=20260923p";
+import { getAllCategorieen } from "../db/categorieen.js?v=20260923p";
+import { naamWeergave } from "../core/namen.js?v=20260923p";
 
 function escapeHtml(str) {
   return String(str ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));

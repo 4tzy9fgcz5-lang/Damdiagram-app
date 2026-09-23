@@ -1,10 +1,10 @@
-import { describe, it, assertEqual, assertTrue } from "./test-runner.js?v=20260923o";
-import { openDb, tx, promisify, resetDatabaseForTests } from "../src/db/db.js?v=20260923o";
-import { STORE_PARTIJEN } from "../src/db/schema.js?v=20260923o";
-import { savePartij, getPartij, deletePartij, listPartijen } from "../src/db/partijen.js?v=20260923o";
-import { createStartBoard } from "../src/core/board.js?v=20260923o";
-import { getLegalMoves } from "../src/core/draughtsMoves.js?v=20260923o";
-import { maakWortel, voegZetToe } from "../src/core/zettenboom.js?v=20260923o";
+import { describe, it, assertEqual, assertTrue } from "./test-runner.js?v=20260923p";
+import { openDb, tx, promisify, resetDatabaseForTests } from "../src/db/db.js?v=20260923p";
+import { STORE_PARTIJEN } from "../src/db/schema.js?v=20260923p";
+import { savePartij, getPartij, deletePartij, listPartijen } from "../src/db/partijen.js?v=20260923p";
+import { createStartBoard } from "../src/core/board.js?v=20260923p";
+import { getLegalMoves } from "../src/core/draughtsMoves.js?v=20260923p";
+import { maakWortel, voegZetToe } from "../src/core/zettenboom.js?v=20260923p";
 
 async function freshDb() {
   await resetDatabaseForTests();

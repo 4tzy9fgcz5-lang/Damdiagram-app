@@ -1,24 +1,25 @@
-import { renderEditorView } from "./editorView.js?v=20260923o";
-import { renderDatabaseView } from "./databaseView.js?v=20260923o";
-import { renderEindspelenView } from "./eindspelenView.js?v=20260923o";
-import { renderStandDetailView } from "./standDetailView.js?v=20260923o";
-import { renderStencilsListView } from "./stencilsListView.js?v=20260923o";
-import { renderStencilView, addStandenToStencil } from "./stencilView.js?v=20260923o";
-import { saveStencil } from "../db/stencils.js?v=20260923o";
-import { getLastBackupDate } from "./backupView.js?v=20260923o";
-import { renderSettingsView } from "./settingsView.js?v=20260923o";
-import { renderImportView } from "./importView.js?v=20260923o";
-import { renderPhotoImportView } from "./photoImportView.js?v=20260923o";
-import { renderBulkImportView } from "./bulkImportView.js?v=20260923o";
-import { loadDrawable } from "./imageInput.js?v=20260923o";
-import { renderBulkPrepare } from "./bulkPrepareView.js?v=20260923o";
-import { reviewReason } from "../core/bulkReview.js?v=20260923o";
-import { renderDiagramCapture, cropAroundCorners } from "./diagramCaptureView.js?v=20260923o";
-import { listStanden } from "../db/standen.js?v=20260923o";
-import { renderPartijInvoer } from "./partijInvoerView.js?v=20260923o";
-import { renderPartijenListView } from "./partijenListView.js?v=20260923o";
-import { renderPartijDetailView } from "./partijDetailView.js?v=20260923o";
-import { renderFilmModuleView } from "./filmModuleView.js?v=20260923o";
+import { renderEditorView } from "./editorView.js?v=20260923p";
+import { renderDatabaseView } from "./databaseView.js?v=20260923p";
+import { renderEindspelenView } from "./eindspelenView.js?v=20260923p";
+import { renderStandDetailView } from "./standDetailView.js?v=20260923p";
+import { renderStencilsListView } from "./stencilsListView.js?v=20260923p";
+import { renderStencilView, addStandenToStencil } from "./stencilView.js?v=20260923p";
+import { saveStencil } from "../db/stencils.js?v=20260923p";
+import { getLastBackupDate } from "./backupView.js?v=20260923p";
+import { renderSettingsView } from "./settingsView.js?v=20260923p";
+import { renderImportView } from "./importView.js?v=20260923p";
+import { renderPhotoImportView } from "./photoImportView.js?v=20260923p";
+import { renderBulkImportView } from "./bulkImportView.js?v=20260923p";
+import { loadDrawable } from "./imageInput.js?v=20260923p";
+import { renderBulkPrepare } from "./bulkPrepareView.js?v=20260923p";
+import { reviewReason } from "../core/bulkReview.js?v=20260923p";
+import { renderDiagramCapture, cropAroundCorners } from "./diagramCaptureView.js?v=20260923p";
+import { listStanden } from "../db/standen.js?v=20260923p";
+import { renderPartijInvoer } from "./partijInvoerView.js?v=20260923p";
+import { renderPartijenListView } from "./partijenListView.js?v=20260923p";
+import { renderPartijDetailView } from "./partijDetailView.js?v=20260923p";
+import { renderFilmModuleView } from "./filmModuleView.js?v=20260923p";
+import { renderPartijAnnoteren } from "./partijAnnoterenView.js?v=20260923p";
 
 const routes = [
   "nieuw",
@@ -38,6 +39,7 @@ const routes = [
   "partijen",
   "partij",
   "partij-film",
+  "partij-annoteren",
 ];
 let pendingRecognition = null;
 // Actieve bulk-import-rij: { pages: [{ file, name }] (de foto's), diagrams: [{ page (plek in pages),
@@ -124,6 +126,7 @@ const NAV_FOR_ROUTE = {
   partij: "partijen",
   "partij-nieuw": "partijen",
   "partij-film": "partijen",
+  "partij-annoteren": "partijen",
 };
 
 const BACKUP_REMINDER_DAYS = 14;
@@ -267,6 +270,9 @@ async function render() {
       onFilm: (id) => {
         location.hash = `#/partij-film/${id}`;
       },
+      onAnnoteren: (id) => {
+        location.hash = `#/partij-annoteren/${id}`;
+      },
       onDeleted: () => {
         showToast("Verwijderd.");
         location.hash = "#/partijen";
@@ -279,6 +285,17 @@ async function render() {
     await renderFilmModuleView(app, {
       partijId: param,
       onBack: () => {
+        location.hash = `#/partij/${param}`;
+      },
+    });
+  } else if (name === "partij-annoteren") {
+    await renderPartijAnnoteren(app, {
+      partijId: param,
+      onDone: (saved) => {
+        showToast("Aantekeningen opgeslagen.");
+        location.hash = `#/partij/${saved.id}`;
+      },
+      onCancel: () => {
         location.hash = `#/partij/${param}`;
       },
     });

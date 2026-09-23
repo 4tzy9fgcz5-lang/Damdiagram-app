@@ -1,9 +1,9 @@
-import * as docxLib from "../../lib/docx.mjs?v=20260923o";
-import { createStartBoard } from "../core/board.js?v=20260923o";
-import { parseFen } from "../core/fen.js?v=20260923o";
-import { plyColor, plyMoveNumber } from "../core/draughtsMoves.js?v=20260923o";
-import { hoofdlijnKnopen, notatieKortMetVoorloopnul } from "../core/zettenboom.js?v=20260923o";
-import { naamPrint } from "../core/namen.js?v=20260923o";
+import * as docxLib from "../../lib/docx.mjs?v=20260923p";
+import { createStartBoard } from "../core/board.js?v=20260923p";
+import { parseFen } from "../core/fen.js?v=20260923p";
+import { plyColor, plyMoveNumber } from "../core/draughtsMoves.js?v=20260923p";
+import { hoofdlijnKnopen, notatieKortMetVoorloopnul } from "../core/zettenboom.js?v=20260923p";
+import { naamPrint } from "../core/namen.js?v=20260923p";
 
 const { Document, Packer, Paragraph, TextRun, convertMillimetersToTwip } = docxLib;
 

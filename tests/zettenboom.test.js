@@ -1,9 +1,9 @@
-import { describe, it, assertEqual, assertTrue, assertThrows } from "./test-runner.js?v=20260923o";
-import { parseFen } from "../src/core/fen.js?v=20260923o";
-import { createEmptyBoard, PIECE_TYPES } from "../src/core/board.js?v=20260923o";
-import { getLegalMoves, applyMove, opposite } from "../src/core/draughtsMoves.js?v=20260923o";
-import { moveNotation } from "../src/core/solutionParser.js?v=20260923o";
-import { leesPartijTekst } from "../src/core/pdn.js?v=20260923o";
+import { describe, it, assertEqual, assertTrue, assertThrows } from "./test-runner.js?v=20260923p";
+import { parseFen } from "../src/core/fen.js?v=20260923p";
+import { createEmptyBoard, PIECE_TYPES } from "../src/core/board.js?v=20260923p";
+import { getLegalMoves, applyMove, opposite } from "../src/core/draughtsMoves.js?v=20260923p";
+import { moveNotation } from "../src/core/solutionParser.js?v=20260923p";
+import { leesPartijTekst } from "../src/core/pdn.js?v=20260923p";
 import {
   maakWortel,
   vindToegestaneZet,
@@ -17,7 +17,7 @@ import {
   notatieMetVoorloopnul,
   notatieKortMetVoorloopnul,
   formatteerBoomTekst,
-} from "../src/core/zettenboom.js?v=20260923o";
+} from "../src/core/zettenboom.js?v=20260923p";
 
 const START_FEN =
   "W:W31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50:B1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20";
