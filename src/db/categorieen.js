@@ -1,6 +1,6 @@
-import { openDb, tx, promisify } from "./db.js?v=20260923b";
-import { STORE_LIJSTEN } from "./schema.js?v=20260923b";
-import { getList, addListValue } from "./lijsten.js?v=20260923b";
+import { openDb, tx, promisify } from "./db.js?v=20260923c";
+import { STORE_LIJSTEN } from "./schema.js?v=20260923c";
+import { getList, addListValue } from "./lijsten.js?v=20260923c";
 
 // Filtercategorieën (Speelsysteem, Type, en wat Jan er zelf bij maakt via
 // Instellingen -> Database) zitten in dezelfde IndexedDB-store als de oude,
