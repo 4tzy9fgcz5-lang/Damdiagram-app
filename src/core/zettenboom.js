@@ -1,5 +1,5 @@
-import { getLegalMoves, applyMove, opposite, plyColor, plyMoveNumber, moveToNotation } from "./draughtsMoves.js?v=20260923n";
-import { moveNotation } from "./solutionParser.js?v=20260923n";
+import { getLegalMoves, applyMove, opposite, plyColor, plyMoveNumber, moveToNotation } from "./draughtsMoves.js?v=20260923o";
+import { moveNotation } from "./solutionParser.js?v=20260923o";
 
 // De zettenboom: het gedeelde model voor studies, partijen en openingen (zie CLAUDE.md,
 // "Uitbreiding: dam-toolkit" -> "Doelarchitectuur"). Een knoop is één zet, met eventueel
@@ -65,6 +65,19 @@ export function vindToegestaneZet(bord, beurt, notatie) {
 export function notatieMetVoorloopnul(zet) {
   const pad2 = (n) => String(n).padStart(2, "0");
   return zet.geslagen.length === 0 ? `${pad2(zet.van)}-${pad2(zet.pad[0])}` : `${pad2(zet.van)}x${zet.pad.map(pad2).join("x")}`;
+}
+
+// Weergave MET voorloopnul, en bij een slag ALLEEN begin- en eindveld (geen tussenliggende
+// landingsvelden) — Jans wens voor het printen van een partij (CLAUDE.md-feedback 2026-09-23):
+// "bij slagen alleen beginveld en eindveld in notatie opnemen". Dit is precies de vorm die
+// `vindToegestaneZet` hierboven al accepteert (via `moveNotation` uit solutionParser.js, dat ZELF
+// ook al alleen begin/eind schrijft) — een print in dit formaat is dus altijd weer in te lezen,
+// ook als er een ringslag is die op twee manieren hetzelfde begin/eind geeft (zie CLAUDE.md,
+// "Notatie": een bekende, geaccepteerde onnauwkeurigheid van deze korte vorm, niet nieuw hier).
+export function notatieKortMetVoorloopnul(zet) {
+  const pad2 = (n) => String(n).padStart(2, "0");
+  if (zet.geslagen.length === 0) return `${pad2(zet.van)}-${pad2(zet.pad[0])}`;
+  return `${pad2(zet.van)}x${pad2(zet.pad[zet.pad.length - 1])}`;
 }
 
 // Voegt een zet toe aan `ouder` (als hoofdvoortzetting, of als variant als er al een

@@ -1,5 +1,5 @@
-import { describe, it, assertEqual, assertTrue } from "./test-runner.js?v=20260923n";
-import { reviewScore, reviewReason, orderForReview, reviewCounts } from "../src/core/bulkReview.js?v=20260923n";
+import { describe, it, assertEqual, assertTrue } from "./test-runner.js?v=20260923o";
+import { reviewScore, reviewReason, orderForReview, reviewCounts } from "../src/core/bulkReview.js?v=20260923o";
 
 const good = (nr) => ({ nr, result: { uncertainFields: [], warnings: [] }, oplossingStatus: "ok" });
 const yellow = (nr, n) => ({ nr, result: { uncertainFields: Array.from({ length: n }, (_, i) => i + 1), warnings: [] }, oplossingStatus: "" });

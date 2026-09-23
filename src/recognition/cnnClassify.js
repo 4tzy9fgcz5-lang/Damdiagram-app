@@ -4,7 +4,7 @@
 //
 //   const clf = createCnnClassifier(weightsJson); // damscan/cnn_weights.json
 //   const { squares } = clf.classifyBoard(crops);  // 50 crops, veld 1..50
-import { classifyBoardCnn, weightsFromJson } from "./cnnModel.js?v=20260923n";
+import { classifyBoardCnn, weightsFromJson } from "./cnnModel.js?v=20260923o";
 
 // Onder deze zekerheid krijgt een veld de gele "onzeker"-rand. Op de meting met een
 // onbekende boekstijl vangt 0,95 ruim de helft van de fouten bij ~5% gemarkeerde

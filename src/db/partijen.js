@@ -1,7 +1,7 @@
-import { openDb, tx, promisify, newId } from "./db.js?v=20260923n";
-import { STORE_PARTIJEN } from "./schema.js?v=20260923n";
-import { maakWortel } from "../core/zettenboom.js?v=20260923n";
-import { splitNaam } from "../core/namen.js?v=20260923n";
+import { openDb, tx, promisify, newId } from "./db.js?v=20260923o";
+import { STORE_PARTIJEN } from "./schema.js?v=20260923o";
+import { maakWortel } from "../core/zettenboom.js?v=20260923o";
+import { splitNaam } from "../core/namen.js?v=20260923o";
 
 // Fase 2 van de dam-toolkit-uitbreiding (CLAUDE.md, "Fasering"): hele partijen. Zelfde opzet als
 // standen.js/eindspelen.js (saveX/getX/listX/deleteX), maar met een paar echte verschillen:

@@ -1,10 +1,10 @@
-import { createStartBoard } from "../core/board.js?v=20260923n";
-import { leesPartijTekst } from "../core/pdn.js?v=20260923n";
-import { splitNaam } from "../core/namen.js?v=20260923n";
-import { savePartij, getPartij } from "../db/partijen.js?v=20260923n";
-import { getAllCategorieen } from "../db/categorieen.js?v=20260923n";
-import { getList, addListValue } from "../db/lijsten.js?v=20260923n";
-import { createZettenboomPlayer } from "./zettenboomPlayer.js?v=20260923n";
+import { createStartBoard } from "../core/board.js?v=20260923o";
+import { leesPartijTekst } from "../core/pdn.js?v=20260923o";
+import { splitNaam } from "../core/namen.js?v=20260923o";
+import { savePartij, getPartij } from "../db/partijen.js?v=20260923o";
+import { getAllCategorieen } from "../db/categorieen.js?v=20260923o";
+import { getList, addListValue } from "../db/lijsten.js?v=20260923o";
+import { createZettenboomPlayer } from "./zettenboomPlayer.js?v=20260923o";
 
 function escapeHtml(str) {
   return str.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));

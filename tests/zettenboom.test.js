@@ -1,9 +1,9 @@
-import { describe, it, assertEqual, assertTrue, assertThrows } from "./test-runner.js?v=20260923n";
-import { parseFen } from "../src/core/fen.js?v=20260923n";
-import { createEmptyBoard, PIECE_TYPES } from "../src/core/board.js?v=20260923n";
-import { getLegalMoves, applyMove, opposite } from "../src/core/draughtsMoves.js?v=20260923n";
-import { moveNotation } from "../src/core/solutionParser.js?v=20260923n";
-import { leesPartijTekst } from "../src/core/pdn.js?v=20260923n";
+import { describe, it, assertEqual, assertTrue, assertThrows } from "./test-runner.js?v=20260923o";
+import { parseFen } from "../src/core/fen.js?v=20260923o";
+import { createEmptyBoard, PIECE_TYPES } from "../src/core/board.js?v=20260923o";
+import { getLegalMoves, applyMove, opposite } from "../src/core/draughtsMoves.js?v=20260923o";
+import { moveNotation } from "../src/core/solutionParser.js?v=20260923o";
+import { leesPartijTekst } from "../src/core/pdn.js?v=20260923o";
 import {
   maakWortel,
   vindToegestaneZet,
@@ -15,8 +15,9 @@ import {
   boomVanPlatteOplossing,
   platteOplossingVanBoom,
   notatieMetVoorloopnul,
+  notatieKortMetVoorloopnul,
   formatteerBoomTekst,
-} from "../src/core/zettenboom.js?v=20260923n";
+} from "../src/core/zettenboom.js?v=20260923o";
 
 const START_FEN =
   "W:W31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50:B1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20";
@@ -246,6 +247,18 @@ describe("zettenboom: notatieMetVoorloopnul", () => {
     assertEqual(notatieMetVoorloopnul({ van: 6, pad: [11], geslagen: [] }), "06-11");
     assertEqual(notatieMetVoorloopnul({ van: 32, pad: [28], geslagen: [] }), "32-28");
     assertEqual(notatieMetVoorloopnul({ van: 17, pad: [8, 3], geslagen: [12, 5] }), "17x08x03");
+  });
+});
+
+describe("zettenboom: notatieKortMetVoorloopnul (2026-09-23, voor printen)", () => {
+  it("zet een veld 1-9 om naar twee cijfers, en laat 10-50 met rust", () => {
+    assertEqual(notatieKortMetVoorloopnul({ van: 6, pad: [11], geslagen: [] }), "06-11");
+    assertEqual(notatieKortMetVoorloopnul({ van: 32, pad: [28], geslagen: [] }), "32-28");
+  });
+
+  it("laat bij een meerslag alleen begin- en eindveld staan, geen tussenliggende landingsvelden", () => {
+    assertEqual(notatieKortMetVoorloopnul({ van: 17, pad: [8, 3], geslagen: [12, 5] }), "17x03");
+    assertEqual(notatieKortMetVoorloopnul({ van: 22, pad: [33, 40], geslagen: [28, 36] }), "22x40");
   });
 });
 
