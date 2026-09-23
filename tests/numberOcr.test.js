@@ -1,5 +1,5 @@
-import { describe, it, assertEqual, assertTrue } from "./test-runner.js?v=20260923a";
-import { parseDiagramNumber, fillMissingNumbers, stripRect, stripQuad } from "../src/recognition/numberOcr.js?v=20260923a";
+import { describe, it, assertEqual, assertTrue } from "./test-runner.js?v=20260923b";
+import { parseDiagramNumber, fillMissingNumbers, stripRect, stripQuad } from "../src/recognition/numberOcr.js?v=20260923b";
 
 describe("numberOcr: nummer uit gelezen tekst halen", () => {
   it("vindt het nummer achter een woord of met een sterretje erachter", () => {
@@ -105,6 +105,27 @@ describe("numberOcr: nummers die niet bij de rest van de import passen (2026-09-
     // niets aanpassen dan een gok wagen (zie ook "vult niets aan als het niet zeker is" hierboven).
     const r = fillMissingNumbers(row([151, 45, 8, 297]));
     assertEqual(r[0], { nummer: 151, afgeleid: false });
+  });
+
+  it("vergelijkt met de eigen BUURT, niet met het midden van een heel boek (1 t/m 300)", () => {
+    // Bij een bulk-import van een heel boek lopen de nummers over veel meer dan 25 uiteen (hier
+    // 1..300) — een diagram vroeg of laat in het boek zou t.o.v. het MIDDEN van de hele import
+    // (~150) altijd als "te ver weg" afgekeurd worden als de vergelijking niet lokaal was.
+    const heelBoek = Array.from({ length: 300 }, (_, i) => i + 1);
+    const r = fillMissingNumbers(row(heelBoek));
+    assertEqual(r.map((x) => x.nummer), heelBoek, "niets uit het begin of eind van het boek wordt afgekeurd");
+    assertTrue(r.every((x) => !x.afgeleid));
+  });
+
+  it("herkent ook een fout gelezen nummer dat zelf niet als 'gat' opvalt, met genoeg buren (echte foto van Jan)", () => {
+    // Precies de situatie uit testdata/nummers/IMG_0795.jpg: 152 werd gelezen als "132" (Tesseract
+    // verwisselt de 5 met een 3) — dat getal zit niet "midden in een reeks" (findOutliers ziet dus
+    // niets), maar wijkt wel duidelijk af van de buurt eromheen.
+    const goedDaarvoor = Array.from({ length: 20 }, (_, i) => 131 + i); // 131..150
+    const raw = [...goedDaarvoor, 151, 132, 153, 154]; // 152 gelezen als 132
+    const r = fillMissingNumbers(row(raw));
+    assertEqual(r.slice(20).map((x) => x.nummer), [151, 152, 153, 154]);
+    assertTrue(r[21].afgeleid, "132 wordt verworpen en via 151/153 hersteld tot 152");
   });
 });
 

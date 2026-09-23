@@ -15,7 +15,7 @@
 // en `fillMissingNumbers` verwerpt nu ook een lezing die qua grootte duidelijk niet bij de rest
 // van de import past, zelfs als hij zelf geen "gat" is (zie `findImplausible`).
 
-import { computeHomography, warpPerspective } from "./homography.js?v=20260923a";
+import { computeHomography, warpPerspective } from "./homography.js?v=20260923b";
 
 const TESSERACT_URL = "https://cdn.jsdelivr.net/npm/tesseract.js@7/dist/tesseract.min.js";
 
@@ -44,7 +44,10 @@ export function loadTesseract() {
 // Hoeveel van de bordbreedte/-hoogte het strookje boven het bord beslaat, en hoeveel breder dan
 // het bord het aan weerszijden uitsteekt (een nummer/onderschrift staat vaak net iets breder dan
 // het bord zelf, en dit vangt ook een klein beetje scheefstand tussen bord en tekst op).
-const STRIP_HEIGHT_FRACTION = 0.3;
+// Was 0,3 — op Jans eigen foto's (testdata/nummers/, 2026-09-23) bleek dat véél te ruim: het
+// strookje raakte dan ook de kop erboven of het onderschrift van de vórige rij diagrammen mee,
+// wat Tesseract in de war bracht. Op 0,16 blijft (bij deze foto's) alleen het nummer zelf over.
+const STRIP_HEIGHT_FRACTION = 0.16;
 const STRIP_SIDE_MARGIN = 0.05;
 // Uitvoerbreedte van het rechtgetrokken strookje: ruim, zodat een klein brongebied (een dicht
 // opeengepakte pagina met veel diagrammen) tóch genoeg pixels voor Tesseract oplevert.
@@ -183,9 +186,11 @@ export function parseDiagramNumber(text) {
 
 // Onder deze zekerheid (Tesseract's eigen inschatting, 0-100) wordt een lezing genegeerd — beter
 // "niet gelezen" (en dus zelf in te vullen of uit de reeks af te leiden) dan een overtuigend
-// ogend maar fout getal. Nog niet scherpgesteld op echte foto's; bijstellen zodra dat kan (zie
-// CLAUDE.md).
-export const NUMBER_MIN_CONFIDENCE = 35;
+// ogend maar fout getal. Op Jans eigen foto's (2026-09-23) bleek zekerheid hier weinig te
+// betekenen: een fout gelezen "198" (voor 158) kwam op 93% uit, een goed gelezen "160" op 24% —
+// dus expres LAAG gezet (dit vangt alleen "vrijwel niets herkend", niet "twijfelachtig"); het
+// nummer-op-nummer verschil moet vooral van `findImplausible` hieronder komen.
+export const NUMBER_MIN_CONFIDENCE = 15;
 
 // Een tekstlezer die je voor meerdere pagina's achter elkaar kunt gebruiken (het opstarten kost
 // enkele seconden, dus niet per foto opnieuw). `read(drawable, cornersList, { onProgress })`
@@ -194,7 +199,11 @@ export const NUMBER_MIN_CONFIDENCE = 35;
 export async function createNumberReader() {
   const Tesseract = await loadTesseract();
   const worker = await Tesseract.createWorker("eng");
-  await worker.setParameters({ tessedit_pageseg_mode: "6" });
+  // "6" (uniform blok tekst) liet Tesseract op Jans foto's opvallend vaak he-le-maal niets
+  // teruggeven (lege tekst, 0% zeker) op een strookje dat verder prima leesbaar was — "11"
+  // (verspreide tekst, geen volgorde) vond het nummer daar wél. Gemeten op 10 diagrammen uit twee
+  // van Jans eigen foto's (testdata/nummers/): met "6" 1-3 van de 10 goed, met "11" 5-6 van de 10.
+  await worker.setParameters({ tessedit_pageseg_mode: "11" });
   return {
     async read(drawable, cornersList, { onProgress } = {}) {
       const results = [];
@@ -282,29 +291,41 @@ function findOutliers(order, values) {
   return out;
 }
 
-// Hoever een gelezen nummer minimaal van de rest van de import mag afliggen voordat het als
-// "hoort hier niet bij" (dus vermoedelijk een leesfout) wordt behandeld. Ruim genomen: bij één
-// pagina met bv. 4-12 diagrammen lopen de echte nummers meestal niet meer dan een paar tientallen
-// uiteen; bij meerdere pagina's tegelijk (de gewone bulk-import) geeft dat des te meer houvast.
-const MAX_DEVIATION_FROM_MEDIAN = 30;
+// Hoever een gelezen nummer minimaal van zijn eigen buurt mag afliggen voordat het als "hoort
+// hier niet bij" (dus vermoedelijk een leesfout) wordt behandeld. Gemeten op Jans eigen foto's
+// (testdata/nummers/, 2026-09-23): een pagina met 151/153/154/157/160 goed en 152 gelezen als
+// "132" (dus 20 te weinig) — 25 vangt dat net, ruim genoeg om normale spreiding binnen één pagina
+// niet aan te zien voor een fout.
+const MAX_DEVIATION_FROM_MEDIAN = 25;
+// Met hoeveel van de dichtstbijzijnde ANDERE bekende nummers (qua plek in de reeks, niet qua
+// waarde) de vergelijking gebeurt.
+const LOCAL_WINDOW = 10;
 
-// Nummers die, ongeacht hun plek in de reeks, sterk afwijken van de rest van de gelezen nummers in
-// deze import (mediaan van alles wat wél gelezen is) — dit vangt een lezing die zelf geen "gat"
-// slaat (bv. een op zichzelf keurig oplopend maar véél te laag reeksje "0, 1, 2" tussen verder
-// correcte nummers van 150+) en die `findOutliers` hierboven daarom niet ziet. Bewust voorzichtig:
-// bij te weinig gegevens (< 4 bekende nummers), of als het zoveel zou wegstrepen dat er niks van
-// een referentie overblijft, gebeurt er niets — beter een gemiste fout dan een goed nummer kwijt.
-function findImplausible(raw) {
-  const known = raw.filter((v) => v != null);
-  if (known.length < 4) return [];
-  const sorted = [...known].sort((a, b) => a - b);
-  const mid = Math.floor(sorted.length / 2);
-  const median = sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+// Nummers die duidelijk afwijken van hun eigen BUURT in de reeks (mediaan van de dichtstbijzijnde
+// bekende nummers ervoor/erna) — dit vangt een lezing die zelf geen "gat" slaat (bv. een op
+// zichzelf keurig oplopend maar véél te laag reeksje "0, 1, 2" tussen verder correcte nummers van
+// 150+) en die `findOutliers` hierboven daarom niet ziet. Bewust een LOKALE buurt en niet het
+// midden van de hele import: bij een heel boek (nummers 1 t/m 300 door elkaar) ligt een diagram
+// vroeg of laat in het boek ver van het gemiddelde van de HELE import, maar hoort het wél gewoon
+// bij zijn eigen buurt. Bewust voorzichtig: bij te weinig buren (< 4), gebeurt er niets — beter
+// een gemiste fout dan een goed nummer kwijt.
+function findImplausible(order, raw) {
+  const seq = order.map((i) => raw[i]);
+  const known = seq.map((v, k) => (v != null ? k : -1)).filter((k) => k >= 0);
   const out = [];
-  raw.forEach((v, i) => {
-    if (v != null && Math.abs(v - median) > MAX_DEVIATION_FROM_MEDIAN) out.push(i);
-  });
-  return out.length < known.length ? out : [];
+  for (const k of known) {
+    const buren = known
+      .filter((k2) => k2 !== k)
+      .sort((a, b) => Math.abs(a - k) - Math.abs(b - k))
+      .slice(0, LOCAL_WINDOW)
+      .map((k2) => seq[k2])
+      .sort((a, b) => a - b);
+    if (buren.length < 4) continue;
+    const mid = Math.floor(buren.length / 2);
+    const mediaan = buren.length % 2 ? buren[mid] : (buren[mid - 1] + buren[mid]) / 2;
+    if (Math.abs(seq[k] - mediaan) > MAX_DEVIATION_FROM_MEDIAN) out.push(order[k]);
+  }
+  return out;
 }
 
 /**
@@ -322,7 +343,12 @@ export function fillMissingNumbers(items) {
   // einde van de reeks), of dat sterk afwijkt van de rest van de import (bv. "45" tussen verder
   // allemaal 150-achtige nummers), is bijna zeker een leesfout: dat wordt als "niet gelezen"
   // behandeld en zo mogelijk uit de reeks afgeleid.
-  const suspect = new Set([...findOutliers(readingOrder, raw), ...findOutliers(colOrder, raw), ...findImplausible(raw)]);
+  const suspect = new Set([
+    ...findOutliers(readingOrder, raw),
+    ...findOutliers(colOrder, raw),
+    ...findImplausible(readingOrder, raw),
+    ...findImplausible(colOrder, raw),
+  ]);
   const values = raw.map((v, i) => (suspect.has(i) ? null : v));
   const a = fillAlong(readingOrder, values);
   const b = fillAlong(colOrder, values);

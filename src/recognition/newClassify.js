@@ -3,7 +3,7 @@
 // classifier, nog niet de standaard in de app. Zie tests/compare.html voor de
 // vergelijking met de bestaande classifier (src/recognition/classify.js).
 //
-//   import { createClassifier } from "./newClassify.js?v=20260923a";
+//   import { createClassifier } from "./newClassify.js?v=20260923b";
 //   const clf = createClassifier(weights); // weights = damscan/weights.json
 //   const result = clf.classifyBoard(crops); // crops[i] = {gray,width,height} of {data,width,height}
 //
@@ -11,8 +11,8 @@
 // kenmerken worden genormaliseerd t.o.v. de andere 49 velden van hetzelfde
 // diagram — dat is precies wat de classifier ongevoelig maakt voor de drukstijl
 // van het boek. Een los veld classificeren kan dus niet meer, en dat is met opzet.
-import { extractFeatures, toGray, boardRelative } from "./newFeatures.js?v=20260923a";
-import { predict } from "./newModel.js?v=20260923a";
+import { extractFeatures, toGray, boardRelative } from "./newFeatures.js?v=20260923b";
+import { predict } from "./newModel.js?v=20260923b";
 
 // Gele rand hieronder; drempel uit de tabel van damscan/train.js (0,90 vangt op de
 // huidige gelabelde set 85% van de fouten bij ongeveer een derde van de velden

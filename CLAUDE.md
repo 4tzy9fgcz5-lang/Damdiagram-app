@@ -507,52 +507,75 @@ de geladen pagina met een ouder `?v=` dan er op schijf staat. Oplossing: een cac
 eigen query op de PAGINA-URL zelf toevoegen, bv. `http://localhost:8000/tests/tests.html?bust=123`
 (elke keer een ander getal) — dat forceert een echte nieuwe download van de HTML zelf.
 
-### Nummerherkenning bij scheve diagrammen verbeterd (2026-09-23)
+### Nummerherkenning verbeterd, nu gemeten op Jans eigen foto's (2026-09-23)
 
-Jan meldde dat het diagramnummer boven een diagram in de bulk-import bij sommige boeken vaak fout
-gelezen wordt (foto's meegestuurd: bv. "153" gelezen als "45", "152" als "8", "154" als "297" op
-één pagina; "155" als "0", "156" als "1", "158" niet gelezen, op een andere). Diagnose: bij deze
-foto's staat een deel van de diagrammen scheef op de foto (fotohoek/gebogen pagina). Het strookje
-boven het bord werd tot nu toe uitgesneden als een **assen-gelijk kader om de 4 hoekpunten**
-(`stripRect` in `numberOcr.js`) — bij een scheef diagram is dat kader altijd ruimer dan het
-diagram zelf en staat het er niet loodrecht op, waardoor Tesseract vaak een deel van het label mist
-of scheve tekst krijgt (vandaar cijfers die dooreen staan, zoals "45" i.p.v. "153"). Bevestigd met
-een eigen proef (synthetisch, 12° scheef "273"-label): oude uitsnede -> Tesseract leest "713"
-(52% zekerheid), nieuwe uitsnede -> leest "273" (96% zekerheid).
+Jan meldde fout gelezen diagramnummers in de bulk-import (bv. "153" gelezen als "45"). Eerste
+diagnose (zie git-historie van dit bestand) was scheefstand van het diagram op de foto, met een
+eigen SYNTHETISCHE testfoto als bewijs. Jan stuurde daarna de ECHTE foto's
+(`testdata/nummers/IMG_0795.jpg`+`IMG_0796.jpg`, 10 diagrammen, nummers 151-160 bekend uit de
+foto zelf) — en daarmee bleek scheefstand NIET de hoofdoorzaak op dít boek. Twee andere, grotere
+oorzaken kwamen naar boven, gevonden door bij een crop die er zelf prima leesbaar uitzag maar toch
+niks opleverde de tussenstappen stuk voor stuk te bekijken:
 
-Drie onafhankelijke verbeteringen, samen in `src/recognition/numberOcr.js`:
-1. **Het strookje volgt nu de scheefstand van het diagram** (`stripQuad()` + `warpQuadToCanvas()`,
-   dezelfde homografie-aanpak als het bord zelf rechttrekken, zie `homography.js`) in plaats van
-   een los kader om de hoekpunten. Terugval op de oude, assen-gelijke uitsnede (`stripRect`, blijft
-   bestaan en getest) als de vierhoek ontaardt. Dit is de belangrijkste fix (raakt de oorzaak).
-2. **Een lezing met een lage zekerheid van Tesseract zelf wordt genegeerd** in plaats van
-   overgenomen (`NUMBER_MIN_CONFIDENCE = 35`, `createNumberReader`) — beter "niet gelezen" (zelf
-   invullen of uit de reeks afleiden) dan een overtuigend ogend maar fout getal. **Nog niet scherp
-   te stellen zonder echte foto's:** in een eigen proef op een synthetische pagina zat een duidelijk
-   fout gelezen "4" op 52% zekerheid, vlak naast een correct gelezen "153" (ondanks ruis in de
-   tekst) op 51% — bij dít soort foto's ligt "goed" en "fout" dus niet netjes uit elkaar op
-   zekerheid alleen, en is verbeterpunt 3 hieronder de belangrijkste vangnet tegen zo'n geval.
-3. **`fillMissingNumbers` verwerpt nu ook een lezing die qua GROOTTE niet bij de rest van de import
-   past** (`findImplausible`, mediaan van alle gelezen nummers ± 30), zelfs als hij op zichzelf een
-   kloppend reeksje vormt en dus niet als "gat" wordt gezien (dat was het echte probleem bij "0, 1,
-   2" i.p.v. "155, 156, 157" — lokaal een prima reeks, maar mijlenver van de rest van het boek).
-   Bewust pas actief vanaf 4 bekende nummers, en doet niets als het te veel zou wegstrepen — beter
-   een gemiste fout dan een goed nummer kwijt. **Werkt het best bij een importronde met veel
-   diagrammen tegelijk** (de gewone bulk-import van een heel boek): met tientallen andere, goed
-   gelezen nummers als anker is een afwijkende pagina makkelijk te herkennen en te herstellen; bij
-   een klein, op zichzelf geïmporteerd paginaatje (zoals Jans testfoto's, 4-6 diagrammen) is er
-   soms te weinig houvast (geverifieerd met een test die dat expliciet vaststelt).
+1. **Het strookje was véél te hoog (`STRIP_HEIGHT_FRACTION` was 0,3):** het raakte daardoor de
+   paragraaf tekst erboven of het "выигрыш"-onderschrift van de vórige rij diagrammen mee, wat
+   Tesseract in de war bracht (meerdere "tekstregels" door elkaar). Op 0,16 blijft alleen het
+   nummer zelf over. **Grootste boosdoener, en niet wat de eerste (synthetische) diagnose had
+   voorspeld** — een goede les: een synthetische proef bewijst dat een mechanisme (scheefstand)
+   ÍETS uitmaakt, niet dat het de hoofdoorzaak van een echt probleem is.
+2. **De pagina-segmentatiemodus van Tesseract ("6", "één blok tekst") gaf op dit soort kleine,
+   verder lege crops opvallend vaak he-le-maal NIKS terug** (lege tekst, 0% zekerheid) — op een
+   crop die er verder prima leesbaar uitzag. Modus "11" ("verspreide tekst, geen vaste volgorde")
+   vond het nummer op dezelfde crop meestal wél. Rechtstreeks gemeten met de ECHTE Tesseract in de
+   browser op Jans 10 diagrammen: modus "6" 1-3 van de 10 goed, modus "11" 5-6 van de 10.
+3. **Zekerheid van Tesseract zelf bleek geen betrouwbare graadmeter** op dit materiaal: een fout
+   gelezen "198" (voor 158) kwam op 93% zekerheid uit, een goed gelezen "160" op 24% — dus
+   `NUMBER_MIN_CONFIDENCE` van 35 naar 15 (vangt alleen nog "vrijwel niks herkend", niet meer
+   "twijfelachtig"). Consequentie: puur op zekerheid filteren werkt hier niet, punt 4 hieronder
+   moet het merendeel van het filterwerk doen.
+4. **`findImplausible` (in `fillMissingNumbers`) vergelijkt nu met de eigen BUURT in de reeks, niet
+   met het midden van de HELE import** — de eerste versie gebruikte één globale mediaan over alle
+   gelezen nummers samen; bij een bulk-import van een heel boek (nummers pakweg 1 t/m 300) zou dat
+   een diagram vroeg of laat in het boek altijd als "te ver van het midden" hebben afgekeurd. Nu:
+   mediaan van de 10 dichtstbijzijnde bekende nummers ervoor/erna in de reeks (`LOCAL_WINDOW`),
+   `MAX_DEVIATION_FROM_MEDIAN` = 25 (gemeten: "152" gelezen als "132" — 20 te weinig — moest hier
+   nét onder blijven). Dit ving op Jans foto's alsnog "132" (voor 152) op, ook al vormde dat getal
+   zelf geen "gat" in de reeks.
+- **De scheefstand-correctie uit de eerste diagnose (`stripQuad`/`warpQuadToCanvas`, homografie
+  i.p.v. een assen-gelijk kader) bleef aantoonbaar zinvol op een sterk scheve, synthetische proef
+  (12°: oud leest "713", nieuw "273"), maar maakte op Jans (mild scheve) echte foto's, MET de
+  juiste hoogtefractie en pagina-modus, geen aantoonbaar verschil (5-6/10 in beide varianten) —
+  blijft aanstaan (kan bij een sterker scheve foto nog steeds schelen, en kost niets), maar was
+  hier niet de hefboom.
 
-Getest: alle bestaande tests blijven groen; nieuwe tests in `tests/numberOcr.test.js` voor de
-scheefstand-meegaande vierhoek (rekenkundig, geen foto nodig) en voor het herstellen van een
-"foute pagina" tussen 20 verder goede nummers. Ook een keer met de ECHTE Tesseract-tekstlezer in
-de browser gedraaid (niet alleen unit-tests): op een zelfgemaakte scheve testfoto met 3 diagrammen
-werd het eerste (95% zekerheid) en tweede (51%, ondanks ruis) goed gelezen, het derde fout ("4",
-52% zekerheid) — dus een merkbare verbetering, maar géén garantie dat het bij Jans eigen boeken nu
-foutloos is. **Nog te doen: meten op Jans eigen foto's** (de twee boeken uit zijn melding) om de
-twee constantes (`NUMBER_MIN_CONFIDENCE`, `MAX_DEVIATION_FROM_MEDIAN`) op echte cijfers te zetten
-in plaats van beredeneerde startwaarden — zelfde aanpak als bij de foto-herkenning zelf
-(`tools/meetHoekdetectie.mjs` e.d.).
+**Eindmeting met de complete, huidige pijplijn** (`createNumberReader` + `fillMissingNumbers`
+samen, zoals de app het ook doet) op Jans 10 diagrammen: **4 van de 10 automatisch goed, 0 fout,
+6 "niet gelezen"** (moet Jan zelf invullen) — was vóór vandaag (metingen met de originele
+instellingen): 2 van de 10 goed, en verschillende foute nummers ("45", "8", "297", "0", "1")
+kwamen ONGEMARKEERD door. **Belangrijkste winst is dus niet "meer automatisch goed" maar "geen
+foute nummers meer die je niet ziet"** — de 6 die overblijven staan duidelijk als "niet gelezen".
+Twee resterende, niet (verder) opgeloste knelpunten, allebei bij dít specifieke oude boek:
+- Een deel van de fouten is een **hardnekkige, foutieve maar zeer zeker ogende tekenverwarring**
+  van Tesseract in dit lettertype (5↔3, 5↔9: "152"->"132", "158"->"198", allebei >75% zekerheid) —
+  dat is geen instelling die dit oplost, een taalmodel met beeld (zie hieronder) zou dit
+  waarschijnlijk wel goed lezen.
+- `findImplausible`/`fillAlong` konden op déze twee LOSSE pagina's (10 diagrammen in één klein
+  testje) de weggestreepte nummers niet altijd terugvinden — te weinig bekende buren binnen
+  bereik. **Zou in een echte, complete bulk-import van het hele boek (tientallen/honderden
+  diagrammen tegelijk) juist wél moeten lukken**, want dan zijn er per pagina veel meer
+  betrouwbaar gelezen buurnummers om op te leunen — dit is nog niet met een echte, volledige
+  import gemeten (Jan stuurde 2 losse pagina's, geen heel boek).
+
+Getest: alle 202 tests slagen (`tests/numberOcr.test.js` incl. een test die met opzet 1-300 als
+hele-boek-reeks gebruikt om de "eigen buurt i.p.v. globale mediaan"-fix vast te leggen, en een
+test met exact Jans "152 -> 132"-geval). Meetscripts (niet in git, browser-console-eenmalig): de
+strookjes opgeslagen en zelf bekeken (`p1_0_nieuw.png` e.d.) om de te-hoge crop met eigen ogen te
+zien, en fractie/modus-vergelijkingen met de echte Tesseract-worker in de browser gedraaid.
+**Suggestie voor een volgende stap, nog niet besproken met Jan:** áls dit boek met Tesseract een
+hardnekkig plafond blijft houden, is het inlezen van het NUMMER boven een diagram (net als bij
+"oplossingen via foto meesturen" hierboven) een kandidaat voor het Claude-chat-plak-patroon in
+plaats van Tesseract — het gaat om losse, korte strookjes tekst, dus dat zou in dezelfde
+opdracht-tekst als de oplossingen kunnen meeliften.
 
 ### Neuraal netwerkje (2026-09-21) — nu de standaardherkenner
 
