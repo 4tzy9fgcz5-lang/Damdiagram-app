@@ -224,6 +224,9 @@ async function render() {
       onDone: () => checkBackupReminder(),
     });
   } else if (name === "foto") {
+    // De keuze combinaties/eindspelen komt van het allereerste scherm
+    // (bulkImportView.js, via setDefaultDoel) en staat dan al klaar in de
+    // editor; hier is niets extra's nodig.
     await renderPhotoImportView(app, {
       onRecognized: (result) => {
         pendingRecognition = result;
@@ -241,8 +244,8 @@ async function render() {
     }
     bulkQueue = null;
     await renderBulkImportView(app, {
-      onConfirmed: ({ pages, diagrams, auteur, publicatie, categorieen, auto }) => {
-        bulkQueue = { pages, diagrams, auteur, publicatie, categorieen, auto, index: 0 };
+      onConfirmed: ({ pages, diagrams, auteur, publicatie, categorieen, auto, doel }) => {
+        bulkQueue = { pages, diagrams, auteur, publicatie, categorieen, auto, doel, index: 0 };
         location.hash = auto ? "#/bulk-voorbereiden" : "#/bulk-diagram";
       },
     });
@@ -279,6 +282,7 @@ async function render() {
         auteur: bulkQueue.auteur,
         publicatie: bulkQueue.publicatie,
         categorieen: bulkQueue.categorieen,
+        doel: bulkQueue.doel,
         nummer: diagram.nummer ?? "",
         oplossingTekst: diagram.oplossingTekst ?? "",
         beurt: diagram.beurt,
@@ -311,7 +315,7 @@ async function render() {
       heading: `Diagram ${index + 1} van ${diagrams.length}${diagram.nummer ? ` — nr. ${diagram.nummer}` : ""}${bulkQueue.pages.length > 1 ? ` (foto ${diagram.page + 1} van ${bulkQueue.pages.length})` : ""}`,
       onRecognized: (result) => {
         diagram.hoekenOpnieuw = false;
-        pendingRecognition = { ...result, auteur: bulkQueue.auteur, publicatie: bulkQueue.publicatie, categorieen: bulkQueue.categorieen, nummer: diagram.nummer ?? "", oplossingTekst: diagram.oplossingTekst ?? "", bulkInfo: bulkQueue.auto ? makeBulkInfo(diagram, index, false) : undefined };
+        pendingRecognition = { ...result, auteur: bulkQueue.auteur, publicatie: bulkQueue.publicatie, categorieen: bulkQueue.categorieen, doel: bulkQueue.doel, nummer: diagram.nummer ?? "", oplossingTekst: diagram.oplossingTekst ?? "", bulkInfo: bulkQueue.auto ? makeBulkInfo(diagram, index, false) : undefined };
         location.hash = "#/nieuw";
       },
     });
@@ -331,6 +335,7 @@ async function render() {
       initialNummer: recognition?.nummer,
       initialOplossingTekst: recognition?.oplossingTekst,
       initialTurn: recognition?.beurt,
+      initialDoel: recognition?.doel,
       bulkInfo: recognition?.bulkInfo,
       onSaved: (stand, { addToStencil, soort }) => {
         if (bulkQueue) {

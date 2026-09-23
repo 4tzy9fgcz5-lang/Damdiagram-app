@@ -21,6 +21,15 @@ import { renderStarRating } from "./starRating.js?v=20260922a";
 // opnieuw hoeft om te zetten tijdens bijvoorbeeld een reeks eindspelen.
 let lastDoel = "combinatie";
 
+// Wordt aangeroepen vanaf het allereerste scherm ("Nieuwe stand toevoegen",
+// zie bulkImportView.js) zodra daar Combinaties/Eindspelen gekozen wordt —
+// zodat die keuze hier al klaarstaat tegen de tijd dat de editor in beeld
+// komt (voor foto, bulk en zelf invoeren), in plaats van 'm hier opnieuw te
+// moeten maken.
+export function setDefaultDoel(doel) {
+  lastDoel = doel === "eindspel" ? "eindspel" : "combinatie";
+}
+
 export async function renderEditorView(
   container,
   {
@@ -39,6 +48,7 @@ export async function renderEditorView(
     initialCategorieen,
     initialOplossingTekst,
     initialTurn,
+    initialDoel,
     bulkInfo,
   } = {}
 ) {
@@ -198,11 +208,15 @@ export async function renderEditorView(
 
   // Combinaties en eindspelen delen dit scherm, maar zijn twee losse
   // opslagplaatsen (zie CLAUDE.md, uitbreiding "aparte database voor
-  // eindspelen"). Bewerk je een bestaande stand (standId), of zit je in een
-  // bulk-rij (die is altijd voor combinaties), dan is er niets te kiezen. De
-  // keuze doet verder alle onderdelen hieronder (dubbel-check, kenmerken,
-  // opgaveblad-knop, opslaan) naar de juiste plek wijzen.
-  let doel = standId || bulkInfo ? "combinatie" : lastDoel;
+  // eindspelen"). De keuze wordt op het allereerste scherm gemaakt
+  // (bulkImportView.js) en komt hier binnen als initialDoel (bulk-rij) of via
+  // setDefaultDoel (foto/zelf); bewerk je een bestaande stand (standId), dan
+  // is er niets te kiezen — dat blijft altijd een combinatie. Tijdens een
+  // bulk-rij (bulkInfo) staat de keuze al vast voor de hele rij, dus geen
+  // toggle per diagram. De keuze doet verder alle onderdelen hieronder
+  // (dubbel-check, kenmerken, opgaveblad-knop, opslaan) naar de juiste plek
+  // wijzen.
+  let doel = standId ? "combinatie" : (initialDoel ?? lastDoel);
   if (standId || bulkInfo) {
     doelToggleHost.style.display = "none";
   } else {

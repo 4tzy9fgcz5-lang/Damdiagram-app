@@ -16,6 +16,7 @@ import { createNumberReader, fillMissingNumbers } from "../recognition/numberOcr
 import { splitOplossingenTekst } from "../core/solutionParser.js?v=20260922a";
 import { OPLOSSING_OPDRACHT, kopieerNaarKlembord } from "./oplossingOpdracht.js?v=20260922a";
 import { getOplossingenTekst, setOplossingenTekst } from "../db/uiSettings.js?v=20260922a";
+import { setDefaultDoel } from "./editorView.js?v=20260922a";
 
 const COLORS = ["#d1495b", "#1a5c38", "#3a6ea5", "#e0a800", "#8854d0", "#009688"];
 const THUMB_MAX_SIDE = 700;
@@ -46,6 +47,20 @@ const tick = () => new Promise((r) => setTimeout(r, 0));
 export async function renderBulkImportView(container, { onConfirmed } = {}) {
   container.innerHTML = `
     <h2>Nieuwe stand toevoegen</h2>
+    <div class="card" style="margin-bottom:1rem;">
+      <label style="margin:0;">Opslaan bij</label>
+      <div class="quick-actions" style="margin-top:0.3rem;">
+        <label style="display:inline-flex;align-items:center;gap:0.3rem;font-weight:normal;margin:0;">
+          <input type="radio" name="doel" value="combinatie" checked /> Combinaties
+        </label>
+        <label style="display:inline-flex;align-items:center;gap:0.3rem;font-weight:normal;margin:0;">
+          <input type="radio" name="doel" value="eindspel" /> Eindspelen
+        </label>
+      </div>
+      <p style="font-size:0.85rem;color:#666;margin:0.4rem 0 0;">
+        Geldt voor alles wat je hierna op dit scherm toevoegt (foto's, bulk-import of zelf invoeren).
+      </p>
+    </div>
     <div class="card" data-role="pick">
       <p>Kies één of meer foto's van boekpagina's met meerdere diagrammen erop (selecteer er gerust
         een heleboel tegelijk), of maak een foto. De app zoekt daarna per foto zelf de diagrammen en
@@ -149,6 +164,28 @@ export async function renderBulkImportView(container, { onConfirmed } = {}) {
   let processing = false;
   // Gekozen speelsysteem/type/... voor alle diagrammen: { [categorie-key]: string[] }
   const selectedCategorieen = {};
+
+  // ---------- combinaties of eindspelen ----------
+  // De keuze bovenaan dit scherm geldt voor de hele import: bulk (via
+  // onConfirmed), en ook "Eén foto van één diagram"/"Zelf invoeren" hieronder
+  // (die navigeren meteen weg, dus die lezen 'm niet uit onConfirmed maar uit
+  // setDefaultDoel, dat de editor er hierna zelf vandaan haalt).
+  let doel = "combinatie";
+  function updateDoelUI() {
+    setDefaultDoel(doel);
+    // Speelsysteem/Type horen bij combinaties (stap 3 van de eindspelen-
+    // uitbreiding geeft eindspelen hun eigen categorie) — tonen ze hier bij
+    // Eindspelen is verwarrend, dus dan blijft het rijtje weg.
+    categorieenHost.style.display = doel === "eindspel" ? "none" : "";
+  }
+  updateDoelUI();
+  for (const radio of container.querySelectorAll('input[name="doel"]')) {
+    radio.addEventListener("change", (e) => {
+      if (!e.target.checked) return;
+      doel = e.target.value;
+      updateDoelUI();
+    });
+  }
 
   // ---------- speelsysteem, type (en andere categorieën) ----------
   // Zelfde keuzelijsten als op het invoerscherm (Instellingen -> Database beheert welke categorieën er
@@ -653,6 +690,7 @@ export async function renderBulkImportView(container, { onConfirmed } = {}) {
       auteur: el('[data-field="auteur"]').value.trim(),
       publicatie: el('[data-field="publicatie"]').value.trim(),
       categorieen: Object.fromEntries(Object.entries(selectedCategorieen).filter(([, v]) => v.length > 0).map(([k, v]) => [k, [...v]])),
+      doel,
     });
   });
 
