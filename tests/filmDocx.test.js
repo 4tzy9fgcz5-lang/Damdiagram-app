@@ -1,8 +1,8 @@
-import { describe, it, assertTrue, assertEqual } from "./test-runner.js?v=20260923l";
-import { buildFilmDocxBlob } from "../src/export/filmDocx.js?v=20260923l";
-import { createStartBoard } from "../src/core/board.js?v=20260923l";
-import { getLegalMoves, applyMove, opposite } from "../src/core/draughtsMoves.js?v=20260923l";
-import { maakWortel, voegZetToe } from "../src/core/zettenboom.js?v=20260923l";
+import { describe, it, assertTrue, assertEqual } from "./test-runner.js?v=20260923m";
+import { buildFilmDocxBlob } from "../src/export/filmDocx.js?v=20260923m";
+import { createStartBoard } from "../src/core/board.js?v=20260923m";
+import { getLegalMoves, applyMove, opposite } from "../src/core/draughtsMoves.js?v=20260923m";
+import { maakWortel, voegZetToe } from "../src/core/zettenboom.js?v=20260923m";
 
 async function readMagicBytes(blob, count) {
   const buf = await blob.slice(0, count).arrayBuffer();
@@ -24,7 +24,7 @@ function eenPartijMetZetten(aantal) {
     b = applyMove(b, zet);
     t = opposite(t);
   }
-  return { wit: "A", zwart: "B", toernooi: "Test", beginFen: null, wortel };
+  return { witAchternaam: "A", zwartAchternaam: "B", toernooi: "Test", beginFen: null, wortel };
 }
 
 describe("filmmodule-export (.docx)", () => {

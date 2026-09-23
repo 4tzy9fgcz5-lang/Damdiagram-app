@@ -1,11 +1,14 @@
-import { listPartijen } from "../db/partijen.js?v=20260923l";
+import { listPartijen } from "../db/partijen.js?v=20260923m";
+import { naamWeergave } from "../core/namen.js?v=20260923m";
 
 function escapeHtml(str) {
   return String(str ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
 
 function titel(partij) {
-  return [partij.wit, partij.zwart].filter(Boolean).join(" - ") || "(nog geen namen)";
+  const wit = naamWeergave(partij.witVoornaam, partij.witAchternaam);
+  const zwart = naamWeergave(partij.zwartVoornaam, partij.zwartAchternaam);
+  return [wit, zwart].filter(Boolean).join(" - ") || "(nog geen namen)";
 }
 
 function subtekst(partij) {
@@ -37,7 +40,11 @@ export async function renderPartijenListView(container, { onOpenPartij, onNieuwe
 
   function toon(zoekterm) {
     const q = zoekterm.trim().toLowerCase();
-    const gefilterd = q ? partijen.filter((p) => `${p.wit} ${p.zwart} ${p.toernooi} ${p.datum}`.toLowerCase().includes(q)) : partijen;
+    const gefilterd = q
+      ? partijen.filter((p) =>
+          `${p.witVoornaam} ${p.witAchternaam} ${p.zwartVoornaam} ${p.zwartAchternaam} ${p.toernooi} ${p.datum}`.toLowerCase().includes(q)
+        )
+      : partijen;
 
     list.innerHTML = "";
     emptyMsg.style.display = gefilterd.length ? "none" : "block";

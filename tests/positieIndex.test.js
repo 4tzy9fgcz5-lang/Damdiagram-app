@@ -1,9 +1,9 @@
-import { describe, it, assertEqual, assertTrue } from "./test-runner.js?v=20260923l";
-import { createStartBoard } from "../src/core/board.js?v=20260923l";
-import { boardToFen } from "../src/core/fen.js?v=20260923l";
-import { getLegalMoves, applyMove, opposite } from "../src/core/draughtsMoves.js?v=20260923l";
-import { maakWortel, voegZetToe } from "../src/core/zettenboom.js?v=20260923l";
-import { indexeerBoom, zoekPositie } from "../src/core/positieIndex.js?v=20260923l";
+import { describe, it, assertEqual, assertTrue } from "./test-runner.js?v=20260923m";
+import { createStartBoard } from "../src/core/board.js?v=20260923m";
+import { boardToFen } from "../src/core/fen.js?v=20260923m";
+import { getLegalMoves, applyMove, opposite } from "../src/core/draughtsMoves.js?v=20260923m";
+import { maakWortel, voegZetToe } from "../src/core/zettenboom.js?v=20260923m";
+import { indexeerBoom, zoekPositie } from "../src/core/positieIndex.js?v=20260923m";
 
 function verwacht(bord, beurt) {
   return boardToFen(bord, beurt);

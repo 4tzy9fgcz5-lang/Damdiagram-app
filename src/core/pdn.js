@@ -1,6 +1,6 @@
-import { createStartBoard } from "./board.js?v=20260923l";
-import { applyMove, opposite } from "./draughtsMoves.js?v=20260923l";
-import { maakWortel, voegZetToe } from "./zettenboom.js?v=20260923l";
+import { createStartBoard } from "./board.js?v=20260923m";
+import { applyMove, opposite } from "./draughtsMoves.js?v=20260923m";
+import { maakWortel, voegZetToe } from "./zettenboom.js?v=20260923m";
 
 // Leest partij-/studietekst in het formaat uit CLAUDE.md ("Doelarchitectuur"): zetnummers,
 // `{commentaar}` en geneste `(varianten)`, met !/?/!!/??-tekens direct achter een zet — zoals
@@ -29,6 +29,30 @@ function normalizeText(raw) {
 
 function stripTags(text) {
   return text.replace(/\[[A-Za-z]+\s+"[^"]*"\]/g, " ");
+}
+
+// Welke `[Tag "waarde"]`-regels we herkennen (zoals toernooibase en andere PDN-bronnen ze
+// schrijven) en onder welke Nederlandse veldnaam die horen — voor het formulier van
+// partijInvoerView.js, zodat plakken ook de partijgegevens zelf alvast invult (Jans wens
+// "makkelijkere manier van importeren", CLAUDE.md-feedback 2026-09-23). `White`/`Black` komen
+// er in de vorm "Voornaam Achternaam" uit (ook bij toernooibase, gecontroleerd) — het
+// invoerscherm splitst dat zelf verder (zie `splitNaam` in partijen.js).
+const TAG_VELD = { White: "wit", Black: "zwart", Event: "toernooi", Round: "ronde", Date: "datum", Result: "uitslag" };
+const GELDIGE_UITSLAGEN = new Set(["2-0", "1-1", "0-2"]);
+
+// Leest alleen de `[Tag "waarde"]`-kopregels uit een geplakte partijtekst (zonder de zetten
+// zelf te ontleden) — een los stapje, zodat het invoerscherm dit apart van de boom kan tonen.
+export function leesKopregels(tekst) {
+  const kopregels = {};
+  const re = /\[([A-Za-z]+)\s+"([^"]*)"\]/g;
+  let match;
+  while ((match = re.exec(String(tekst ?? "")))) {
+    const veld = TAG_VELD[match[1]];
+    if (veld && match[2]) kopregels[veld] = match[2];
+  }
+  if (kopregels.datum) kopregels.datum = kopregels.datum.replace(/\./g, "-"); // PDN: "2026.09.15"
+  if (kopregels.uitslag && !GELDIGE_UITSLAGEN.has(kopregels.uitslag)) delete kopregels.uitslag; // onbekend formaat: niet gokken
+  return kopregels;
 }
 
 const MOVE_NUMBER = /^\d{1,3}\.{1,3}/;
@@ -173,9 +197,10 @@ function ontleedReeks(state, ouderKnoop, bord0, beurt0, meldingen, vrijeTekstMel
 // (voor een partij die gewoon begint), geef een andere stand mee voor een studie/fragment dat
 // ergens anders begint.
 export function leesPartijTekst(tekst, { bord = createStartBoard(), beurt = "white" } = {}) {
+  const ruw = String(tekst ?? "");
   const meldingen = [];
   const wortel = maakWortel();
-  const state = { tekst: normalizeText(stripKopregel(stripTags(String(tekst ?? "")))), i: 0 };
+  const state = { tekst: normalizeText(stripKopregel(stripTags(ruw))), i: 0 };
   ontleedReeks(state, wortel, bord, beurt, meldingen, { gemeld: false });
-  return { boom: wortel, meldingen };
+  return { boom: wortel, meldingen, kopregels: leesKopregels(ruw) };
 }

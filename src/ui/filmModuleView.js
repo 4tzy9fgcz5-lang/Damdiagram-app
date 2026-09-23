@@ -1,11 +1,12 @@
-import { createStartBoard } from "../core/board.js?v=20260923l";
-import { parseFen } from "../core/fen.js?v=20260923l";
-import { applyMove, plyColor, plyMoveNumber, moveToNotation } from "../core/draughtsMoves.js?v=20260923l";
-import { hoofdlijnKnopen } from "../core/zettenboom.js?v=20260923l";
-import { renderDiagramSVG } from "../diagram/render.js?v=20260923l";
-import { getPartij, savePartij } from "../db/partijen.js?v=20260923l";
-import { buildFilmDocxBlob } from "../export/filmDocx.js?v=20260923l";
-import { downloadBlob } from "../export/docx.js?v=20260923l";
+import { createStartBoard } from "../core/board.js?v=20260923m";
+import { parseFen } from "../core/fen.js?v=20260923m";
+import { applyMove, plyColor, plyMoveNumber, moveToNotation } from "../core/draughtsMoves.js?v=20260923m";
+import { hoofdlijnKnopen } from "../core/zettenboom.js?v=20260923m";
+import { renderDiagramSVG } from "../diagram/render.js?v=20260923m";
+import { naamWeergave } from "../core/namen.js?v=20260923m";
+import { getPartij, savePartij } from "../db/partijen.js?v=20260923m";
+import { buildFilmDocxBlob } from "../export/filmDocx.js?v=20260923m";
+import { downloadBlob } from "../export/docx.js?v=20260923m";
 
 function escapeHtml(str) {
   return String(str ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -38,7 +39,10 @@ export async function renderFilmModuleView(container, { partijId, onBack } = {})
   let aantal = partij.film?.aantalDiagrammen ?? 6;
   const gekozen = new Set(partij.film?.zetIndices ?? []);
 
-  const titel = [partij.wit, partij.zwart].filter(Boolean).join(" - ") || "Partij";
+  const titel =
+    [naamWeergave(partij.witVoornaam, partij.witAchternaam), naamWeergave(partij.zwartVoornaam, partij.zwartAchternaam)]
+      .filter(Boolean)
+      .join(" - ") || "Partij";
   container.innerHTML = `
     <button type="button" class="secondary" data-action="back" style="margin-bottom:0.75rem;">&#8592; Terug naar de partij</button>
     <h2>Filmmodule — ${escapeHtml(titel)}</h2>

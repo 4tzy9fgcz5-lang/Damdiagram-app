@@ -1,8 +1,8 @@
-import { describe, it, assertTrue, assertEqual } from "./test-runner.js?v=20260923l";
-import { buildPartijDocxBlob } from "../src/export/partijDocx.js?v=20260923l";
-import { createStartBoard } from "../src/core/board.js?v=20260923l";
-import { getLegalMoves } from "../src/core/draughtsMoves.js?v=20260923l";
-import { maakWortel, voegZetToe } from "../src/core/zettenboom.js?v=20260923l";
+import { describe, it, assertTrue, assertEqual } from "./test-runner.js?v=20260923m";
+import { buildPartijDocxBlob } from "../src/export/partijDocx.js?v=20260923m";
+import { createStartBoard } from "../src/core/board.js?v=20260923m";
+import { getLegalMoves } from "../src/core/draughtsMoves.js?v=20260923m";
+import { maakWortel, voegZetToe } from "../src/core/zettenboom.js?v=20260923m";
 
 async function readMagicBytes(blob, count) {
   const buf = await blob.slice(0, count).arrayBuffer();
@@ -14,8 +14,10 @@ function eenPartij() {
   const wortel = maakWortel();
   voegZetToe(wortel, board, "white", getLegalMoves(board, "white")[0], { teken: "!" });
   return {
-    wit: "Wiersma",
-    zwart: "G. Jansen",
+    witVoornaam: "",
+    witAchternaam: "Wiersma",
+    zwartVoornaam: "G.",
+    zwartAchternaam: "Jansen",
     toernooi: "NK 1998",
     ronde: "5",
     datum: "1998-05-20",
@@ -37,7 +39,7 @@ describe("partij-export (.docx)", () => {
   });
 
   it("werkt ook voor een partij zonder zetten (nog niets ingevoerd)", async () => {
-    const blob = await buildPartijDocxBlob({ wit: "A", zwart: "B", wortel: maakWortel() });
+    const blob = await buildPartijDocxBlob({ witAchternaam: "A", zwartAchternaam: "B", wortel: maakWortel() });
     assertTrue(blob.size > 500);
   });
 });

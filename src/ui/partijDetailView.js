@@ -1,9 +1,10 @@
-import { createStartBoard } from "../core/board.js?v=20260923l";
-import { parseFen } from "../core/fen.js?v=20260923l";
-import { getPartij, deletePartij } from "../db/partijen.js?v=20260923l";
-import { createZettenboomPlayer } from "./zettenboomPlayer.js?v=20260923l";
-import { buildPartijDocxBlob } from "../export/partijDocx.js?v=20260923l";
-import { downloadBlob } from "../export/docx.js?v=20260923l";
+import { createStartBoard } from "../core/board.js?v=20260923m";
+import { parseFen } from "../core/fen.js?v=20260923m";
+import { naamWeergave } from "../core/namen.js?v=20260923m";
+import { getPartij, deletePartij } from "../db/partijen.js?v=20260923m";
+import { createZettenboomPlayer } from "./zettenboomPlayer.js?v=20260923m";
+import { buildPartijDocxBlob } from "../export/partijDocx.js?v=20260923m";
+import { downloadBlob } from "../export/docx.js?v=20260923m";
 
 function escapeHtml(str) {
   return String(str ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -18,7 +19,9 @@ export async function renderPartijDetailView(container, { partijId, onEdit, onDe
     return;
   }
 
-  const titel = [partij.wit, partij.zwart].filter(Boolean).join(" - ") || "(nog geen namen)";
+  const wit = naamWeergave(partij.witVoornaam, partij.witAchternaam);
+  const zwart = naamWeergave(partij.zwartVoornaam, partij.zwartAchternaam);
+  const titel = [wit, zwart].filter(Boolean).join(" - ") || "(nog geen namen)";
   const rows = [
     ["Toernooi", partij.toernooi],
     ["Ronde", partij.ronde],

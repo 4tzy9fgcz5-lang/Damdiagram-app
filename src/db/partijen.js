@@ -1,6 +1,7 @@
-import { openDb, tx, promisify, newId } from "./db.js?v=20260923l";
-import { STORE_PARTIJEN } from "./schema.js?v=20260923l";
-import { maakWortel } from "../core/zettenboom.js?v=20260923l";
+import { openDb, tx, promisify, newId } from "./db.js?v=20260923m";
+import { STORE_PARTIJEN } from "./schema.js?v=20260923m";
+import { maakWortel } from "../core/zettenboom.js?v=20260923m";
+import { splitNaam } from "../core/namen.js?v=20260923m";
 
 // Fase 2 van de dam-toolkit-uitbreiding (CLAUDE.md, "Fasering"): hele partijen. Zelfde opzet als
 // standen.js/eindspelen.js (saveX/getX/listX/deleteX), maar met een paar echte verschillen:
@@ -16,14 +17,32 @@ function nowIso() {
   return new Date().toISOString();
 }
 
+// Sinds 2026-09-23 (CLAUDE.md-feedback): namen als los voornaam/achternaam-veld i.p.v. één
+// ongesplitst veld, zodat de afdruk "Achternaam Voornaam" kan tonen zonder te hoeven gokken.
+// Een partij die vóór deze wijziging is opgeslagen heeft alleen het oude `wit`/`zwart`-veld —
+// die wordt hier alsnog gesplitst (net als `normalizeCategorieen` in standen.js), zonder dat er
+// iets aan de opgeslagen data verandert totdat je 'm opnieuw opslaat.
+function normalizeSpelers(record) {
+  if (record.witVoornaam != null || record.witAchternaam != null) {
+    return {
+      witVoornaam: record.witVoornaam ?? "",
+      witAchternaam: record.witAchternaam ?? "",
+      zwartVoornaam: record.zwartVoornaam ?? "",
+      zwartAchternaam: record.zwartAchternaam ?? "",
+    };
+  }
+  const wit = splitNaam(record.wit);
+  const zwart = splitNaam(record.zwart);
+  return { witVoornaam: wit.voornaam, witAchternaam: wit.achternaam, zwartVoornaam: zwart.voornaam, zwartAchternaam: zwart.achternaam };
+}
+
 export async function savePartij(input) {
   const db = await openDb();
   const isNew = !input.id;
 
   const record = {
     id: input.id ?? newId(),
-    wit: input.wit ?? "",
-    zwart: input.zwart ?? "",
+    ...normalizeSpelers(input),
     datum: input.datum ?? "",
     toernooi: input.toernooi ?? "",
     ronde: input.ronde ?? "",
@@ -52,7 +71,9 @@ export async function savePartij(input) {
 
 export async function getPartij(id) {
   const db = await openDb();
-  return tx(db, STORE_PARTIJEN, "readonly", (store) => promisify(store.get(id)));
+  const record = await tx(db, STORE_PARTIJEN, "readonly", (store) => promisify(store.get(id)));
+  if (!record) return record;
+  return { ...record, ...normalizeSpelers(record) };
 }
 
 export async function deletePartij(id) {
@@ -66,5 +87,5 @@ export async function deletePartij(id) {
 export async function listPartijen() {
   const db = await openDb();
   const all = await tx(db, STORE_PARTIJEN, "readonly", (store) => promisify(store.getAll()));
-  return all.sort((a, b) => (b.datum || "").localeCompare(a.datum || ""));
+  return all.map((record) => ({ ...record, ...normalizeSpelers(record) })).sort((a, b) => (b.datum || "").localeCompare(a.datum || ""));
 }

@@ -1,9 +1,10 @@
-import { describe, it, assertEqual, assertTrue } from "./test-runner.js?v=20260923l";
-import { resetDatabaseForTests } from "../src/db/db.js?v=20260923l";
-import { savePartij, getPartij, deletePartij, listPartijen } from "../src/db/partijen.js?v=20260923l";
-import { createStartBoard } from "../src/core/board.js?v=20260923l";
-import { getLegalMoves } from "../src/core/draughtsMoves.js?v=20260923l";
-import { maakWortel, voegZetToe } from "../src/core/zettenboom.js?v=20260923l";
+import { describe, it, assertEqual, assertTrue } from "./test-runner.js?v=20260923m";
+import { openDb, tx, promisify, resetDatabaseForTests } from "../src/db/db.js?v=20260923m";
+import { STORE_PARTIJEN } from "../src/db/schema.js?v=20260923m";
+import { savePartij, getPartij, deletePartij, listPartijen } from "../src/db/partijen.js?v=20260923m";
+import { createStartBoard } from "../src/core/board.js?v=20260923m";
+import { getLegalMoves } from "../src/core/draughtsMoves.js?v=20260923m";
+import { maakWortel, voegZetToe } from "../src/core/zettenboom.js?v=20260923m";
 
 async function freshDb() {
   await resetDatabaseForTests();
@@ -24,18 +25,18 @@ describe("database: partijen", () => {
   it("slaat een partij met een boom op en kan hem terugvinden", async () => {
     await freshDb();
     const wortel = eenEchteBoom();
-    const saved = await savePartij({ wit: "Wiersma", zwart: "Jansen", toernooi: "NK 1998", wortel });
+    const saved = await savePartij({ witAchternaam: "Wiersma", zwartAchternaam: "Jansen", toernooi: "NK 1998", wortel });
     assertTrue(!!saved.id);
     const fetched = await getPartij(saved.id);
-    assertEqual(fetched.wit, "Wiersma");
-    assertEqual(fetched.zwart, "Jansen");
+    assertEqual(fetched.witAchternaam, "Wiersma");
+    assertEqual(fetched.zwartAchternaam, "Jansen");
     assertEqual(fetched.wortel, wortel);
     assertEqual(fetched.beginFen, null, "standaard geen eigen beginstand");
   });
 
   it("behoudt createdAt bij bijwerken maar wijzigt updatedAt", async () => {
     await freshDb();
-    const saved = await savePartij({ wit: "A", zwart: "B" });
+    const saved = await savePartij({ witAchternaam: "A", zwartAchternaam: "B" });
     await new Promise((r) => setTimeout(r, 5));
     const updated = await savePartij({ ...saved, toernooi: "Nieuw" });
     assertEqual(updated.createdAt, saved.createdAt);
@@ -44,30 +45,44 @@ describe("database: partijen", () => {
 
   it("verwijdert een partij", async () => {
     await freshDb();
-    const saved = await savePartij({ wit: "A", zwart: "B" });
+    const saved = await savePartij({ witAchternaam: "A", zwartAchternaam: "B" });
     await deletePartij(saved.id);
     assertEqual(await getPartij(saved.id), undefined);
   });
 
   it("sorteert op datum, nieuwste eerst, met een lege datum onderaan", async () => {
     await freshDb();
-    await savePartij({ wit: "Oud", datum: "1998-05-20" });
-    await savePartij({ wit: "Nieuw", datum: "2025-06-20" });
-    await savePartij({ wit: "Geen datum" });
+    await savePartij({ witAchternaam: "Oud", datum: "1998-05-20" });
+    await savePartij({ witAchternaam: "Nieuw", datum: "2025-06-20" });
+    await savePartij({ witAchternaam: "Geen datum" });
     const lijst = await listPartijen();
     assertEqual(
-      lijst.map((p) => p.wit),
+      lijst.map((p) => p.witAchternaam),
       ["Nieuw", "Oud", "Geen datum"]
     );
   });
 
   it("bewaart de gekozen filmmomenten (stap 5) en laat ze standaard leeg", async () => {
     await freshDb();
-    const zonder = await savePartij({ wit: "A", zwart: "B" });
+    const zonder = await savePartij({ witAchternaam: "A", zwartAchternaam: "B" });
     assertEqual(zonder.film, null);
 
     const film = { aantalDiagrammen: 6, zetIndices: [1, 5, 12, 18, 24, 30] };
     const met = await savePartij({ ...zonder, film });
     assertEqual((await getPartij(met.id)).film, film);
+  });
+
+  it("splitst een oude, ongesplitste naam (vóór 2026-09-23) alsnog bij het lezen, zonder op te slaan", async () => {
+    await freshDb();
+    const db = await openDb();
+    const oud = { id: "oude-partij", wit: "Jan van der Star", zwart: "Piet Jansen", createdAt: "x", updatedAt: "x" };
+    await tx(db, STORE_PARTIJEN, "readwrite", (store) => promisify(store.put(oud)));
+
+    const gelezen = await getPartij("oude-partij");
+    assertEqual(gelezen.witVoornaam, "Jan");
+    assertEqual(gelezen.witAchternaam, "van der Star");
+    assertEqual(gelezen.zwartVoornaam, "Piet");
+    assertEqual(gelezen.zwartAchternaam, "Jansen");
+    await deletePartij("oude-partij"); // tests.html deelt de IndexedDB met de echte app (zelfde origin) — nooit een testrecord laten staan
   });
 });

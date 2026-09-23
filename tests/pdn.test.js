@@ -1,8 +1,8 @@
-import { describe, it, assertEqual, assertTrue } from "./test-runner.js?v=20260923l";
-import { createStartBoard, createEmptyBoard, PIECE_TYPES } from "../src/core/board.js?v=20260923l";
-import { getLegalMoves, applyMove, opposite } from "../src/core/draughtsMoves.js?v=20260923l";
-import { moveNotation } from "../src/core/solutionParser.js?v=20260923l";
-import { leesPartijTekst } from "../src/core/pdn.js?v=20260923l";
+import { describe, it, assertEqual, assertTrue } from "./test-runner.js?v=20260923m";
+import { createStartBoard, createEmptyBoard, PIECE_TYPES } from "../src/core/board.js?v=20260923m";
+import { getLegalMoves, applyMove, opposite } from "../src/core/draughtsMoves.js?v=20260923m";
+import { moveNotation } from "../src/core/solutionParser.js?v=20260923m";
+import { leesPartijTekst, leesKopregels } from "../src/core/pdn.js?v=20260923m";
 
 // Bouwt notaties op met de echte regelengine (zoals tests/zettenboom.test.js) in plaats van
 // zelf veldnummers te verzinnen — zo test dit bestand alleen het LEZEN van de tekst, niet of ik
@@ -151,6 +151,33 @@ describe("pdn: kopregel vóór de eerste zet", () => {
     const { boom } = leesPartijTekst(`{Een mooie partij uit het NK.}\n1. ${n1}`);
     assertEqual(boom.commentaar, "Een mooie partij uit het NK.");
     assertEqual(boom.kinderen.length, 1);
+  });
+});
+
+describe("pdn: kopregels lezen (2026-09-23, makkelijker importeren)", () => {
+  it("leest [White]/[Black]/[Event]/[Round]/[Date]/[Result] in de partijgegevens", () => {
+    const tekst = `[Event "Tobago Open"][White "Wouter Sipma"][Black "Jitse Slump"][Result "1-1"][Round "6"][Date "2026.09.15"]  1. 34-29 17-22`;
+    const { kopregels } = leesPartijTekst(tekst);
+    assertEqual(kopregels.wit, "Wouter Sipma");
+    assertEqual(kopregels.zwart, "Jitse Slump");
+    assertEqual(kopregels.toernooi, "Tobago Open");
+    assertEqual(kopregels.ronde, "6");
+    assertEqual(kopregels.datum, "2026-09-15");
+    assertEqual(kopregels.uitslag, "1-1");
+  });
+
+  it("laat een onbekend uitslagformaat weg i.p.v. te gokken", () => {
+    const { kopregels } = leesPartijTekst(`[Result "1-0"]\n1. 32-28`);
+    assertEqual(kopregels.uitslag, undefined);
+  });
+
+  it("geeft een leeg object als er geen kopregels zijn", () => {
+    const { kopregels } = leesPartijTekst(`1. 32-28 17-22`);
+    assertEqual(kopregels, {});
+  });
+
+  it("werkt ook los via leesKopregels", () => {
+    assertEqual(leesKopregels(`[White "Jan"][Result "2-0"]`), { wit: "Jan", uitslag: "2-0" });
   });
 });
 

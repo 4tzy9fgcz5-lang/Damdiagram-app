@@ -1,10 +1,11 @@
-import * as docxLib from "../../lib/docx.mjs?v=20260923l";
-import { createStartBoard, createEmptyBoard } from "../core/board.js?v=20260923l";
-import { parseFen } from "../core/fen.js?v=20260923l";
-import { applyMove, plyColor, plyMoveNumber, moveToNotation } from "../core/draughtsMoves.js?v=20260923l";
-import { hoofdlijnKnopen } from "../core/zettenboom.js?v=20260923l";
-import { renderDiagramSVG } from "../diagram/render.js?v=20260923l";
-import { svgToPngBytes } from "./rasterize.js?v=20260923l";
+import * as docxLib from "../../lib/docx.mjs?v=20260923m";
+import { createStartBoard, createEmptyBoard } from "../core/board.js?v=20260923m";
+import { parseFen } from "../core/fen.js?v=20260923m";
+import { applyMove, plyColor, plyMoveNumber, moveToNotation } from "../core/draughtsMoves.js?v=20260923m";
+import { hoofdlijnKnopen } from "../core/zettenboom.js?v=20260923m";
+import { renderDiagramSVG } from "../diagram/render.js?v=20260923m";
+import { svgToPngBytes } from "./rasterize.js?v=20260923m";
+import { naamPrint } from "../core/namen.js?v=20260923m";
 
 const { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, ImageRun, WidthType, BorderStyle, convertMillimetersToTwip } = docxLib;
 
@@ -39,7 +40,10 @@ async function buildImageRun(board, imagePxDisplay) {
 }
 
 function koptekst(partij) {
-  const titel = [partij.wit, partij.zwart].filter(Boolean).join(" - ") || "Partij";
+  const titel =
+    [naamPrint(partij.witVoornaam, partij.witAchternaam), naamPrint(partij.zwartVoornaam, partij.zwartAchternaam)]
+      .filter(Boolean)
+      .join(" - ") || "Partij";
   const metaRegels = [
     [partij.toernooi, partij.ronde ? `ronde ${partij.ronde}` : ""].filter(Boolean).join(", "),
     [partij.datum, partij.uitslag].filter(Boolean).join(" — "),

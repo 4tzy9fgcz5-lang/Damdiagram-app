@@ -1,7 +1,8 @@
-import { createStartBoard } from "../core/board.js?v=20260923l";
-import { leesPartijTekst } from "../core/pdn.js?v=20260923l";
-import { savePartij, getPartij } from "../db/partijen.js?v=20260923l";
-import { createZettenboomPlayer } from "./zettenboomPlayer.js?v=20260923l";
+import { createStartBoard } from "../core/board.js?v=20260923m";
+import { leesPartijTekst } from "../core/pdn.js?v=20260923m";
+import { splitNaam } from "../core/namen.js?v=20260923m";
+import { savePartij, getPartij } from "../db/partijen.js?v=20260923m";
+import { createZettenboomPlayer } from "./zettenboomPlayer.js?v=20260923m";
 
 function escapeHtml(str) {
   return str.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -19,10 +20,43 @@ function toonMeldingen(host, meldingen) {
     .join("")}</ul>`;
 }
 
-// Fase 2, stap 2 (uitbreiding): een partij invoeren. `partijId` gegeven -> bewerkt een bestaande
-// partij (het plakvak begint dan leeg; "Lees in en toon" vervangt de boom pas als je zelf iets
-// plakt — een keer opslaan zonder te plakken laat de bestaande boom dus met rust). Hergebruikt
-// dezelfde tekstlezer (`pdn.js`) en viewer (`zettenboomPlayer.js`) als het proefscherm uit fase 1.
+// Van een toernooibase-partijlink (zoals je 'm uit de adresbalk kopieert, bv.
+// "https://toernooibase.kndb.nl/opvraag/applet.php?taal=&kl=23&Id=49298&r=6&jr=27&wed=1822848
+// &layout=full") naar de link met de kale partijtekst (PDN, incl. namen/toernooi/datum/uitslag
+// als kopregels) — uitgezocht op 2026-09-23 (CLAUDE.md-feedback): die partijtekst kan de app zelf
+// niet inlezen (toernooibase staat dat niet toe vanuit een andere website, een browserbeperking,
+// geen bug), dus dit bouwt alleen de link; Jan opent 'm zelf, kopieert de tekst en plakt die
+// hieronder. Geeft `null` bij een link die geen toernooibase-partijlink is.
+function toernooibasePdnLink(ruweLink) {
+  let url;
+  try {
+    url = new URL(ruweLink.trim());
+  } catch {
+    return null;
+  }
+  if (!url.hostname.endsWith("toernooibase.kndb.nl")) return null;
+  const p = url.searchParams;
+  if (!p.get("Id") || !p.get("wed")) return null;
+  const pdnParams = new URLSearchParams({
+    taal: p.get("taal") ?? "",
+    kl: p.get("kl") ?? "",
+    Id: p.get("Id") ?? "",
+    r: p.get("r") ?? "",
+    jr: p.get("jr") ?? "",
+    wed: p.get("wed") ?? "",
+    weda: "",
+    zetten: "",
+    aav: "",
+    pdn: "",
+  });
+  return `https://toernooibase.kndb.nl/applet/oerterpapplet2.0/pdn/getPDN.php?${pdnParams.toString()}`;
+}
+
+// Fase 2, stap 2 (uitbreiding); bijgewerkt 2026-09-23 (CLAUDE.md-feedback) met makkelijker
+// importeren: een partij invoeren. `partijId` gegeven -> bewerkt een bestaande partij (het
+// plakvak begint dan leeg; "Lees in en toon" vervangt de boom pas als je zelf iets plakt — een
+// keer opslaan zonder te plakken laat de bestaande boom dus met rust). Hergebruikt dezelfde
+// tekstlezer (`pdn.js`) en viewer (`zettenboomPlayer.js`) als het proefscherm uit fase 1.
 export async function renderPartijInvoer(container, { partijId, onSaved, onCancel } = {}) {
   const bestaand = partijId ? await getPartij(partijId) : null;
   let huidigeBoom = bestaand?.wortel ?? null;
@@ -30,10 +64,26 @@ export async function renderPartijInvoer(container, { partijId, onSaved, onCance
   container.innerHTML = `
     <h2>${bestaand ? "Partij bewerken" : "Nieuwe partij"}</h2>
     <div class="card">
-      <label>Wit</label>
-      <input type="text" data-field="wit" />
-      <label>Zwart</label>
-      <input type="text" data-field="zwart" />
+      <div style="display:flex;gap:0.75rem;flex-wrap:wrap;">
+        <div style="flex:1;min-width:140px;">
+          <label>Wit — voornaam</label>
+          <input type="text" data-field="witVoornaam" />
+        </div>
+        <div style="flex:1;min-width:140px;">
+          <label>Wit — achternaam</label>
+          <input type="text" data-field="witAchternaam" />
+        </div>
+      </div>
+      <div style="display:flex;gap:0.75rem;flex-wrap:wrap;">
+        <div style="flex:1;min-width:140px;">
+          <label>Zwart — voornaam</label>
+          <input type="text" data-field="zwartVoornaam" />
+        </div>
+        <div style="flex:1;min-width:140px;">
+          <label>Zwart — achternaam</label>
+          <input type="text" data-field="zwartAchternaam" />
+        </div>
+      </div>
       <div style="display:flex;gap:0.75rem;flex-wrap:wrap;">
         <div style="flex:1;min-width:140px;">
           <label>Datum</label>
@@ -41,7 +91,12 @@ export async function renderPartijInvoer(container, { partijId, onSaved, onCance
         </div>
         <div style="flex:1;min-width:140px;">
           <label>Uitslag</label>
-          <input type="text" data-field="uitslag" placeholder="1-0 / 0-1 / ½-½" />
+          <select data-field="uitslag">
+            <option value="">(onbekend)</option>
+            <option value="2-0">2-0 (wit wint)</option>
+            <option value="1-1">1-1 (remise)</option>
+            <option value="0-2">0-2 (zwart wint)</option>
+          </select>
         </div>
       </div>
       <div style="display:flex;gap:0.75rem;flex-wrap:wrap;">
@@ -60,11 +115,26 @@ export async function renderPartijInvoer(container, { partijId, onSaved, onCance
       <textarea data-field="notities" rows="2"></textarea>
     </div>
     <div class="card">
+      <label>Link van toernooibase (optioneel)</label>
+      <p style="font-size:0.85rem;color:#666;margin-top:0;">
+        Plak hier de link uit je adresbalk als je op toernooibase een partij bekijkt. De app kan
+        die pagina niet zelf uitlezen (dat staat toernooibase niet toe vanuit een andere
+        website), maar maakt er wel een link van naar de kale partijtekst — die open je zelf,
+        de tekst daarin kopieer (Ctrl/Cmd+A, dan kopiëren) en plak je hieronder in het plakvak.
+      </p>
+      <div style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center;">
+        <input type="text" data-field="toernooibase-link" placeholder="https://toernooibase.kndb.nl/..." style="flex:1;min-width:220px;" />
+        <button type="button" class="secondary" data-action="toernooibase-link">Open partijtekst</button>
+      </div>
+      <p data-role="toernooibase-status" style="font-size:0.85rem;margin:0.4rem 0 0;"></p>
+    </div>
+    <div class="card">
       <label>Partijtekst</label>
       <p style="font-size:0.85rem;color:#666;margin-top:0;">
-        Plak hier alleen de zetten (begint met "1. ..."), met eventueel <code>{commentaar}</code>
-        en geneste <code>(varianten)</code>. Spelersnamen en datum vul je hierboven in — een
-        kopregel ervoor (zoals damkunst.nl die toont) wordt vanzelf overgeslagen.
+        Plak hier de partijtekst: zetten (begint met "1. ..."), eventueel <code>{commentaar}</code>
+        en geneste <code>(varianten)</code>. Staan er <code>[White "..."]</code>-achtige
+        kopregels bij (zoals uit toernooibase of een ander PDN-bestand), dan vult "Lees in en
+        toon" de velden hierboven — als die er nog leeg bij staan — meteen mee in.
       </p>
       <textarea data-role="tekst" rows="6" style="width:100%;font-family:ui-monospace,monospace;"></textarea>
       <div class="button-row">
@@ -81,8 +151,10 @@ export async function renderPartijInvoer(container, { partijId, onSaved, onCance
 
   const el = (sel) => container.querySelector(sel);
   if (bestaand) {
-    el('[data-field="wit"]').value = bestaand.wit;
-    el('[data-field="zwart"]').value = bestaand.zwart;
+    el('[data-field="witVoornaam"]').value = bestaand.witVoornaam;
+    el('[data-field="witAchternaam"]').value = bestaand.witAchternaam;
+    el('[data-field="zwartVoornaam"]').value = bestaand.zwartVoornaam;
+    el('[data-field="zwartAchternaam"]').value = bestaand.zwartAchternaam;
     el('[data-field="datum"]').value = bestaand.datum;
     el('[data-field="uitslag"]').value = bestaand.uitslag;
     el('[data-field="toernooi"]').value = bestaand.toernooi;
@@ -90,6 +162,19 @@ export async function renderPartijInvoer(container, { partijId, onSaved, onCance
     el('[data-field="bron"]').value = bestaand.bron;
     el('[data-field="notities"]').value = bestaand.notities;
   }
+
+  el('[data-action="toernooibase-link"]').addEventListener("click", () => {
+    const status = el('[data-role="toernooibase-status"]');
+    const link = toernooibasePdnLink(el('[data-field="toernooibase-link"]').value || "");
+    if (!link) {
+      status.textContent = "Dit lijkt geen (volledige) toernooibase-partijlink. Kopieer de link uit de adresbalk terwijl je de partij bekijkt.";
+      status.className = "kleur-fout";
+      return;
+    }
+    window.open(link, "_blank", "noopener");
+    status.textContent = "Partijtekst geopend in een nieuw tabblad — kopieer de tekst en plak die hieronder.";
+    status.className = "kleur-info";
+  });
 
   function toonSpeler(boom) {
     const spelerHost = el('[data-role="speler"]');
@@ -99,20 +184,45 @@ export async function renderPartijInvoer(container, { partijId, onSaved, onCance
   }
   if (huidigeBoom) toonSpeler(huidigeBoom);
 
+  // Vult een veld alleen als het nog leeg is — geplakte kopregels overschrijven dus nooit iets
+  // wat je zelf al had ingetypt.
+  function vulLegAan(field, waarde) {
+    if (!waarde) return;
+    const invoer = el(`[data-field="${field}"]`);
+    if (!invoer.value.trim()) invoer.value = waarde;
+  }
+
   el('[data-action="lees-in"]').addEventListener("click", () => {
-    const { boom, meldingen } = leesPartijTekst(el('[data-role="tekst"]').value);
+    const { boom, meldingen, kopregels } = leesPartijTekst(el('[data-role="tekst"]').value);
     toonMeldingen(el('[data-role="meldingen"]'), meldingen);
     huidigeBoom = boom;
     toonSpeler(boom);
+
+    if (kopregels.wit) {
+      const { voornaam, achternaam } = splitNaam(kopregels.wit);
+      vulLegAan("witVoornaam", voornaam);
+      vulLegAan("witAchternaam", achternaam);
+    }
+    if (kopregels.zwart) {
+      const { voornaam, achternaam } = splitNaam(kopregels.zwart);
+      vulLegAan("zwartVoornaam", voornaam);
+      vulLegAan("zwartAchternaam", achternaam);
+    }
+    vulLegAan("toernooi", kopregels.toernooi);
+    vulLegAan("ronde", kopregels.ronde);
+    vulLegAan("datum", kopregels.datum);
+    vulLegAan("uitslag", kopregels.uitslag);
   });
 
   el('[data-action="opslaan"]').addEventListener("click", async () => {
     const saved = await savePartij({
       id: bestaand?.id,
-      wit: el('[data-field="wit"]').value.trim(),
-      zwart: el('[data-field="zwart"]').value.trim(),
+      witVoornaam: el('[data-field="witVoornaam"]').value.trim(),
+      witAchternaam: el('[data-field="witAchternaam"]').value.trim(),
+      zwartVoornaam: el('[data-field="zwartVoornaam"]').value.trim(),
+      zwartAchternaam: el('[data-field="zwartAchternaam"]').value.trim(),
       datum: el('[data-field="datum"]').value.trim(),
-      uitslag: el('[data-field="uitslag"]').value.trim(),
+      uitslag: el('[data-field="uitslag"]').value,
       toernooi: el('[data-field="toernooi"]').value.trim(),
       ronde: el('[data-field="ronde"]').value.trim(),
       bron: el('[data-field="bron"]').value.trim(),

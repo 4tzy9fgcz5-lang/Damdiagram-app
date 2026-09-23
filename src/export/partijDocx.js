@@ -1,7 +1,8 @@
-import * as docxLib from "../../lib/docx.mjs?v=20260923l";
-import { createStartBoard } from "../core/board.js?v=20260923l";
-import { parseFen } from "../core/fen.js?v=20260923l";
-import { formatteerBoomTekst } from "../core/zettenboom.js?v=20260923l";
+import * as docxLib from "../../lib/docx.mjs?v=20260923m";
+import { createStartBoard } from "../core/board.js?v=20260923m";
+import { parseFen } from "../core/fen.js?v=20260923m";
+import { formatteerBoomTekst } from "../core/zettenboom.js?v=20260923m";
+import { naamPrint } from "../core/namen.js?v=20260923m";
 
 const { Document, Packer, Paragraph, TextRun, convertMillimetersToTwip } = docxLib;
 
@@ -19,7 +20,10 @@ const MARGIN_MM = 20;
 // diagrammen halverwege de tekst zoals damkunst.nl — dat is losstaand van de filmmodule
 // (stap 5), die zijn eigen 6 diagrammen al heeft.
 export async function buildPartijDocxBlob(partij) {
-  const titel = [partij.wit, partij.zwart].filter(Boolean).join(" - ") || "Partij";
+  const titel =
+    [naamPrint(partij.witVoornaam, partij.witAchternaam), naamPrint(partij.zwartVoornaam, partij.zwartAchternaam)]
+      .filter(Boolean)
+      .join(" - ") || "Partij";
   const metaRegels = [
     [partij.toernooi, partij.ronde ? `ronde ${partij.ronde}` : ""].filter(Boolean).join(", "),
     [partij.datum, partij.uitslag].filter(Boolean).join(" — "),
