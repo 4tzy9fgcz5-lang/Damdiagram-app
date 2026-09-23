@@ -202,22 +202,27 @@ Niet te verwarren met de fases 0-3 van het herkenning-verbeterplan verderop.
    bewerken) of het overzicht (bij een nieuwe partij) i.p.v. naar het
    proefscherm. Het proefscherm zelf (Instellingen -> "Partijen/studies
    (proef)") verwijst nu ook door naar dit echte tabblad.
-4. **Printen — klaar (2026-09-23).** Knop "Downloaden als Word" op de
-   partij-detailpagina. `src/export/partijDocx.js` (`buildPartijDocxBlob`) —
-   bewust een NIEUW, eenvoudig bestand, niet ingepast in `docx.js` (die is
-   helemaal op het herhalende opgaven/oplossingen-blad van een opgaveblad
-   gebouwd; een partij is gewoon één doorlopend document): titel
-   (wit - zwart), gegevens (toernooi/ronde, datum/uitslag, bron, notities) en
-   de hele notatie eronder. Bevestigd door Jan: **alleen de notatie is
-   genoeg** — geen diagrammen halverwege de tekst (dat was een aparte vraag
-   van mij, over damkunst.nl's "(zie diagram)"; losstaand van de filmmodule
-   hieronder, die sowieso al 6 diagrammen heeft).
-   - Nieuw in `zettenboom.js`: `formatteerBoomTekst(wortel, beurt0)` — het
-     spiegelbeeld van `pdn.js`'s `leesPartijTekst`: een hele boom (hoofdlijn +
-     alle geneste varianten + commentaar) terug naar leesbare tekst, in
-     precies het formaat dat `pdn.js` ook weer inleest. Getest met een
-     heen-en-terug-test (boom -> tekst -> `leesPartijTekst` -> dezelfde boom).
-5. **Filmmodule — klaar (2026-09-23).** Zie hieronder.
+4. **Printen — klaar (2026-09-23), opmaak bijgewerkt (2026-09-23, na Jans
+   eerste gebruik — zie "Partijmodule: verbeteringen" hieronder).** Knop
+   "Downloaden als Word" op de partij-detailpagina.
+   `src/export/partijDocx.js` (`buildPartijDocxBlob`) — bewust een NIEUW,
+   eenvoudig bestand, niet ingepast in `docx.js` (die is helemaal op het
+   herhalende opgaven/oplossingen-blad van een opgaveblad gebouwd; een partij
+   is gewoon één doorlopend document): titel (achternaam eerst), toernooi/
+   ronde/datum op één regel, bron/notities, en de notatie eronder — in het
+   rooster van 5 zetten per regel voor een kale partij, of doorlopend met
+   commentaar op eigen regels zodra er iets te annoteren valt (zie hieronder).
+   Bevestigd door Jan: **alleen de notatie is genoeg** — geen diagrammen
+   halverwege de tekst (dat was een aparte vraag van mij, over damkunst.nl's
+   "(zie diagram)"; losstaand van de filmmodule hieronder, die sowieso al
+   diagrammen heeft).
+   - `formatteerBoomTekst(wortel, beurt0)` in `zettenboom.js` (spiegelbeeld
+     van `pdn.js`'s `leesPartijTekst`, tekst in het PDN-achtige plak-formaat)
+     bestaat nog en wordt nog gebruikt door de boom-viewer op het scherm;
+     de print-opmaak hierboven is een aparte, eigen opbouw in
+     `partijDocx.js` (Word-alinea's, niet platte tekst).
+5. **Filmmodule — klaar (2026-09-23), opmaak bijgewerkt naar Jans
+   voorbeeldvellen (2026-09-23).** Zie hieronder.
 
 Voorstel voor stap-voor-stap uitwerking van fase 1: `INVENTARISATIE.md`, onderdeel 7.
 
@@ -235,18 +240,24 @@ Bereikbaar via de knop "Filmmodule" op de partij-detailpagina (route
   zet om de stand op dat moment in een voorbeeld ernaast te zien); is het
   gekozen aantal bereikt, dan worden de overige vakjes uitgeschakeld (geen apart
   "te veel gekozen"-foutmelding nodig). Aantal diagrammen: 4, 6 (standaard) of 8.
-- **Opdrachtvel:** partijgegevens bovenaan (spelers, datum, toernooi), een regel
-  voor de naam van de speler, dan de notatie, dan de gekozen aantal LEGE
-  diagrammen. Er wordt niets aangeklikt; de speler moet zelf de belangrijkste
-  momenten vinden.
+- **Opdrachtvel:** partijgegevens bovenaan (spelers — achternaam eerst — datum,
+  toernooi, ronde, uitslag op één regel; geen naamregel voor de speler zelf,
+  niet nodig aldus Jan), dan de notatie, dan de gekozen aantal LEGE, genummerde
+  diagrammen ("Diagram 1", "Diagram 2", ...) met een invulregel eronder zodat
+  de speler de zet erbij kan schrijven. Er wordt niets aangeklikt; de speler
+  moet zelf de belangrijkste momenten vinden.
 - **Antwoordvel:** dezelfde pagina, maar de diagrammen zijn ingevuld met de door
   de trainer gekozen momenten. Onder elk diagram staat het zetnummer en de zet,
   en (als aanwezig) de toelichting — dezelfde tekst als het commentaar bij die
   zet in de zettenboom.
-- **Notatie-opmaak:** 5 zetnummers per regel (1-5, 6-10, 11-15, ...). Elk
-  zetnummer heeft wit en zwart naast elkaar, dus 5 witte en 5 zwarte zetten per
-  regel. Een laatste regel met minder zetten blijft kort; eindigt de partij na een
-  witte zet, dan blijft de zwarte plek leeg.
+- **Notatie-opmaak:** Courier New, 10,5pt. 5 zetnummers per regel (1-5, 6-10,
+  11-15, ...). Elk zetnummer heeft wit en zwart naast elkaar, dus 5 witte en 5
+  zwarte zetten per regel. Een laatste regel met minder zetten blijft kort;
+  eindigt de partij na een witte zet, dan blijft de zwarte plek leeg. Voorloopnul
+  en korte slagnotatie (alleen begin/eind), net als bij het printen van een
+  partij (zie hierboven/hieronder). **Diagrammen in 3 kolommen** (naar Jans
+  meegestuurde voorbeeldvellen) i.p.v. 2 — zo passen 6 diagrammen in 2 rijen,
+  ruim binnen één A4 samen met kop en notatie.
 - **Opslag:** `savePartij` krijgt een `film`-veld (`{ aantalDiagrammen, zetIndices
   }`, `zetIndices` = 0-based ply-index in de hoofdlijn) — bewaard bij de partij
   zelf, niet alleen als Word-bestand, zodat de vellen later opnieuw te maken/aan
@@ -262,6 +273,77 @@ Bereikbaar via de knop "Filmmodule" op de partij-detailpagina (route
 - Getest: `tests/filmDocx.test.js` (geldig .docx voor opdracht/antwoord/beide,
   en een duidelijke foutmelding zonder gekozen momenten) en een uitgepakt/
   gecontroleerd echt gegenereerd document (titel/notatie/onderschriften kloppen).
+
+## Partijmodule: verbeteringen na Jans eerste gebruik (2026-09-23)
+
+Jan testte fase 2 en stuurde puntsgewijze feedback over de partijmodule, het
+printen en de filmmodule. Drie stappen gebouwd en getest (fase 2 blijft
+daarmee "klaar", dit zijn verbeteringen erbovenop):
+
+1. **Uitslag, namen, makkelijker importeren.**
+   - Uitslag is nu een keuzevak: `2-0` / `1-1` / `0-2` (wit-zwart) i.p.v. vrije
+     tekst — dat zijn de enige geldige dam-uitslagen.
+   - Een speler heeft nu een los voornaam- en achternaamveld
+     (`witVoornaam`/`witAchternaam`/`zwartVoornaam`/`zwartAchternaam` in
+     `src/db/partijen.js`, i.p.v. één `wit`/`zwart`-veld) — nodig om op het
+     scherm "Voornaam Achternaam" en op de afdruk "Achternaam Voornaam" te
+     kunnen tonen (Jans wens) zonder daarbij te moeten gokken welk deel van
+     een los ingetypte naam het tussenvoegsel is. `src/core/namen.js`
+     (`splitNaam`/`naamWeergave`/`naamPrint`) doet dat splitsen, met een
+     lijst gangbare tussenvoegsels (van, der, de, ten, ...), en wordt ook
+     gebruikt om een partij van vóór deze wijziging bij het LEZEN alsnog te
+     splitsen (net als `normalizeCategorieen` in `standen.js` — niets aan
+     bestaande data gewijzigd totdat je 'm opnieuw opslaat).
+   - `src/core/pdn.js`: `leesKopregels(tekst)` leest nu `[White]`/`[Black]`/
+     `[Event]`/`[Round]`/`[Date]`/`[Result]`-kopregels (i.p.v. ze alleen weg
+     te gooien) en vult daarmee in `partijInvoerView.js` de partijgegevens
+     alvast in zodra je op "Lees in en toon" klikt (alleen de nog LEGE velden
+     — nooit iets overschrijven wat je zelf al intypte).
+   - **Toernooibase-link:** onderzocht (2026-09-23) of de app een
+     toernooibase-partijlink zelf kan uitlezen. Kán niet automatisch: achter
+     zo'n link zit weliswaar een aparte pagina met de partij als kale
+     PDN-tekst (`.../oerterpapplet2.0/pdn/getPDN.php?...`, geverifieerd —
+     bevat alle metadata als kopregels, ook de namen, maar WEL als "Voornaam
+     Achternaam", dus dat lost het naamprobleem hierboven niet vanzelf op),
+     maar toernooibase staat niet toe dat een andere website die pagina
+     inleest (geen CORS-toestemming) — een technische beperking van
+     toernooibase zelf, geen bug hier, en niet te omzeilen zonder een extern
+     tussenstation (dat wil ik niet zonder overleg toevoegen, zie CLAUDE.md
+     "geen scraper zonder overleg"). Wél gebouwd: een blokje "Link van
+     toernooibase" op het invoerscherm dat van een geplakte partijlink de
+     link naar die kale-tekst-pagina bouwt en in een nieuw tabblad opent —
+     Jan kopieert die tekst en plakt 'm in het bestaande plakvak, dat dan
+     (via het vorige punt) alle metadata automatisch overneemt. Een
+     losstaande browserextensie/importeerfunctie die dit hele proces verder
+     automatiseert is bewust niet gebouwd — dat is een groter, eigen project.
+2. **Filteren per categorie.** `partijen`-records hebben nu ook `categorieen`
+   (`{ [categorieKey]: string[] }`) — bewust hetzelfde, gedeelde archief als
+   `standen.js` gebruikt (`src/db/categorieen.js`), dus Speelsysteem/Type/wat
+   Jan er zelf bij maakt werkt hier ook. Kiezen bij het invoeren
+   (`partijInvoerView.js`, dezelfde tag-lijst-kiezer als `editorView.js`),
+   filteren op het overzicht (`partijenListView.js`, dezelfde
+   keuzevakken-opzet als `databaseView.js`), getoond op de detailpagina.
+3. **Printopmaak** (partij en filmmodule) — zie de bijgewerkte stap 4/5
+   hierboven voor de details: voorloopnul + korte slagnotatie
+   (`notatieKortMetVoorloopnul` in `zettenboom.js`), Courier New, namen
+   achternaam-eerst, toernooi/ronde/datum op één regel, uitslag na de laatste
+   zet, het rooster van 5 zetten per regel (alleen bij een kale partij — met
+   varianten/commentaar valt de partij-print terug op een doorlopende vorm
+   met commentaar op eigen regels), en bij de filmmodule: 3 kolommen,
+   genummerde diagrammen, een invulregel op het opdrachtvel, geen naamregel
+   meer.
+
+**Nog niet gedaan (eigen, latere stappen):**
+- Dezelfde opmaakregels (lettertype, nummering, invulregel) toepassen op de
+  bestaande opgavebladen (`docx.js`, de combinatie-oefenbladen) — Jans wens
+  ("zelfde regels gelden voor antwoorden van de opgaven"), maar dat raakt een
+  gedeeld, overal gebruikt bestand en verdient een eigen, voorzichtige stap.
+- **Achteraf annoteren.** Nu kan commentaar/een zijvariant alleen tijdens het
+  invoeren van een partij worden toegevoegd (via het plakvak). Jan wil dat ook
+  achteraf kunnen, op een al opgeslagen partij, ongeveer zoals op
+  lidraughts.org (een zet aanklikken, commentaar toevoegen/wijzigen, een
+  variant intikken zoals nu al bij een stand kan met `solutionInput.js`) —
+  substantieel nieuw onderdeel, nog te plannen.
 
 ## Openstaande punten (uitbreiding)
 
