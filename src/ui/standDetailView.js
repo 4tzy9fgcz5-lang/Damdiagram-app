@@ -1,12 +1,12 @@
-import { parseFen } from "../core/fen.js?v=20260923d";
-import { getStand, saveStand, deleteStand } from "../db/standen.js?v=20260923d";
-import { getAllCategorieen } from "../db/categorieen.js?v=20260923d";
-import { createSolutionPlayer } from "./solutionPlayer.js?v=20260923d";
-import { getVerbergOplossing } from "../db/uiSettings.js?v=20260923d";
-import { renderDiagramSVG } from "../diagram/render.js?v=20260923d";
-import { svgToPngDataUrl } from "../export/rasterize.js?v=20260923d";
-import { downloadBlob } from "../export/docx.js?v=20260923d";
-import { renderStarRating } from "./starRating.js?v=20260923d";
+import { parseFen } from "../core/fen.js?v=20260923e";
+import { getStand, saveStand, deleteStand } from "../db/standen.js?v=20260923e";
+import { getAllCategorieen } from "../db/categorieen.js?v=20260923e";
+import { createSolutionPlayer } from "./solutionPlayer.js?v=20260923e";
+import { getVerbergOplossing } from "../db/uiSettings.js?v=20260923e";
+import { renderDiagramSVG } from "../diagram/render.js?v=20260923e";
+import { svgToPngDataUrl } from "../export/rasterize.js?v=20260923e";
+import { downloadBlob } from "../export/docx.js?v=20260923e";
+import { renderStarRating } from "./starRating.js?v=20260923e";
 
 function capitalize(str) {
   return str.charAt(0).toUpperCase() + str.slice(1);
