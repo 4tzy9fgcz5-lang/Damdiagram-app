@@ -472,6 +472,30 @@ a.secondary {
   font-style: normal;
 }
 
+/* Commentaar bij een zet in de boom-viewer (zettenboomPlayer.js) — tussen accolades, net als
+   in de tekst die src/core/pdn.js leest, zodat het duidelijk bijschrift en geen zet is. */
+.boom-commentaar {
+  font-style: italic;
+  color: #555;
+}
+
+/* Meldingen (fout/let-op/info) bij het inlezen van partijtekst (zettenboomProefView.js) —
+   dezelfde drie kleuren als de rest van de app gebruikt voor foutmeldingen/waarschuwingen. */
+.boom-proef-meldingen {
+  margin: 0.6rem 0 0;
+  padding-left: 1.2rem;
+  font-size: 0.85rem;
+}
+.boom-proef-meldingen .kleur-fout {
+  color: var(--kleur-fout);
+}
+.boom-proef-meldingen .kleur-waarschuwing {
+  color: var(--kleur-waarschuwing);
+}
+.boom-proef-meldingen .kleur-info {
+  color: #555;
+}
+
 .solution-variant-list {
   text-align: left;
   font-size: 0.85rem;

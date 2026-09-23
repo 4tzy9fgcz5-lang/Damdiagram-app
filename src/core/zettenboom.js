@@ -1,5 +1,5 @@
-import { getLegalMoves, applyMove, opposite } from "./draughtsMoves.js?v=20260923e";
-import { moveNotation } from "./solutionParser.js?v=20260923e";
+import { getLegalMoves, applyMove, opposite } from "./draughtsMoves.js?v=20260923f";
+import { moveNotation } from "./solutionParser.js?v=20260923f";
 
 // De zettenboom: het gedeelde model voor studies, partijen en openingen (zie CLAUDE.md,
 // "Uitbreiding: dam-toolkit" -> "Doelarchitectuur"). Een knoop is één zet, met eventueel
@@ -84,6 +84,36 @@ export function hoofdlijnKnopen(wortel) {
     pad.push(knoop);
   }
   return pad;
+}
+
+// Zoekt de knoop op het gegeven pad (een reeks knoop-id's, zoals `indexeerBoom`/`voegZetToe`
+// die teruggeven) — `[]` is de wortel zelf. Geeft `null` als het pad niet (meer) bestaat, bv.
+// omdat een knoop intussen ergens anders verwijderd is. Gebruikt door de boom-viewer om van "waar
+// sta ik" (een pad) terug naar de knoop (en dus de zet/commentaar) te gaan.
+export function knoopOpPad(wortel, pad) {
+  let knoop = wortel;
+  for (const id of pad) {
+    const volgende = knoop.kinderen.find((k) => k.id === id);
+    if (!volgende) return null;
+    knoop = volgende;
+  }
+  return knoop;
+}
+
+// Speelt een pad na vanaf de beginstand en geeft de stand DAAR terug (`{ bord, beurt }`) —
+// het spiegelbeeld van `indexeerBoom` in `positieIndex.js`, maar dan voor één pad in plaats van
+// de hele boom. Gooit een fout als het pad niet bestaat (zie `knoopOpPad`).
+export function standBijPad(wortel, bord0, beurt0, pad) {
+  let bord = bord0;
+  let beurt = beurt0;
+  let knoop = wortel;
+  for (const id of pad) {
+    knoop = knoop.kinderen.find((k) => k.id === id);
+    if (!knoop) throw new Error(`Knoop "${id}" bestaat niet (meer) in deze boom.`);
+    bord = applyMove(bord, knoop.zet);
+    beurt = opposite(beurt);
+  }
+  return { bord, beurt };
 }
 
 // Controleert of elke zet in de boom (hoofdlijn én alle varianten, op elk niveau) een

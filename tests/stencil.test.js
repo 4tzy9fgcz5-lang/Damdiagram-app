@@ -1,7 +1,7 @@
-import { describe, it, assertEqual, assertThrows } from "./test-runner.js?v=20260923e";
-import { getGridLayout, computeCellRects, paginateItems, MAX_DIAGRAMS_PER_PAGE } from "../src/stencil/layout.js?v=20260923e";
-import { buildStencilPagesHTML, missingOplossingen } from "../src/stencil/stencilPreview.js?v=20260923e";
-import { opdrachtregelMetOndertitel } from "../src/stencil/compose.js?v=20260923e";
+import { describe, it, assertEqual, assertThrows } from "./test-runner.js?v=20260923f";
+import { getGridLayout, computeCellRects, paginateItems, MAX_DIAGRAMS_PER_PAGE } from "../src/stencil/layout.js?v=20260923f";
+import { buildStencilPagesHTML, missingOplossingen } from "../src/stencil/stencilPreview.js?v=20260923f";
+import { opdrachtregelMetOndertitel } from "../src/stencil/compose.js?v=20260923f";
 
 describe("stencil: rasterindeling", () => {
   it("gebruikt altijd 3 kolommen x 4 rijen, ongeacht het aantal diagrammen", () => {

@@ -1,15 +1,17 @@
-import { describe, it, assertEqual, assertTrue, assertThrows } from "./test-runner.js?v=20260923e";
-import { parseFen } from "../src/core/fen.js?v=20260923e";
-import { getLegalMoves, applyMove, opposite } from "../src/core/draughtsMoves.js?v=20260923e";
+import { describe, it, assertEqual, assertTrue, assertThrows } from "./test-runner.js?v=20260923f";
+import { parseFen } from "../src/core/fen.js?v=20260923f";
+import { getLegalMoves, applyMove, opposite } from "../src/core/draughtsMoves.js?v=20260923f";
 import {
   maakWortel,
   vindToegestaneZet,
   voegZetToe,
   hoofdlijnKnopen,
+  knoopOpPad,
+  standBijPad,
   controleerBoom,
   boomVanPlatteOplossing,
   platteOplossingVanBoom,
-} from "../src/core/zettenboom.js?v=20260923e";
+} from "../src/core/zettenboom.js?v=20260923f";
 
 const START_FEN =
   "W:W31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50:B1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20";
@@ -191,5 +193,36 @@ describe("zettenboom: heen en terug met het bestaande platte model", () => {
     voegZetToe(variant, bNaVariant, tNaVariant, getLegalMoves(bNaVariant, tNaVariant)[1]);
 
     assertThrows(() => platteOplossingVanBoom(wortel), "een geneste variant hoort een fout te geven, geen stille dataverlies");
+  });
+});
+
+describe("zettenboom: knoopOpPad en standBijPad", () => {
+  it("vindt de knoop en de stand op een pad, ook binnen een variant", () => {
+    const { board, turn } = start();
+    const wortel = maakWortel();
+    const hoofdzet = voegZetToe(wortel, board, turn, getLegalMoves(board, turn)[0]).knoop;
+    const naHoofdzet = applyMove(board, hoofdzet.zet);
+    const variant = voegZetToe(wortel, board, turn, getLegalMoves(board, turn)[1]).knoop;
+    const naVariant = applyMove(board, variant.zet);
+    const variantVervolg = voegZetToe(variant, naVariant, opposite(turn), getLegalMoves(naVariant, opposite(turn))[0]).knoop;
+    const naVariantVervolg = applyMove(naVariant, variantVervolg.zet);
+
+    assertEqual(knoopOpPad(wortel, []), wortel);
+    assertEqual(knoopOpPad(wortel, [hoofdzet.id]), hoofdzet);
+    assertEqual(knoopOpPad(wortel, [variant.id, variantVervolg.id]), variantVervolg);
+    assertEqual(knoopOpPad(wortel, ["bestaat-niet"]), null);
+
+    assertEqual(standBijPad(wortel, board, turn, []), { bord: board, beurt: turn });
+    assertEqual(standBijPad(wortel, board, turn, [hoofdzet.id]), { bord: naHoofdzet, beurt: opposite(turn) });
+    assertEqual(standBijPad(wortel, board, turn, [variant.id, variantVervolg.id]), {
+      bord: naVariantVervolg,
+      beurt: opposite(opposite(turn)),
+    });
+  });
+
+  it("standBijPad gooit een duidelijke fout bij een pad dat niet bestaat", () => {
+    const { board, turn } = start();
+    const wortel = maakWortel();
+    assertThrows(() => standBijPad(wortel, board, turn, ["bestaat-niet"]));
   });
 });
