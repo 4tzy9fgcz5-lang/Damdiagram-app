@@ -18,8 +18,8 @@
 // juist de fouten probeert te verkleinen) — dit is een volledig aparte,
 // classifier-onafhankelijke stap.
 
-import { toGray } from "./newFeatures.js?v=20260923c";
-import { computeHomography, warpPerspective } from "./homography.js?v=20260923c";
+import { toGray } from "./newFeatures.js?v=20260923d";
+import { computeHomography, warpPerspective } from "./homography.js?v=20260923d";
 
 function gradientMagnitude(gray, w, h) {
   const mag = new Float32Array(w * h);
