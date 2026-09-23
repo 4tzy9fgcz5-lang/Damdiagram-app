@@ -87,10 +87,28 @@ een zettenboom (hoofdlijn met zijvarianten) en tekst bij stand of zet**. Ze
 verschillen in metadata en in de manier van invoer. Bouw dus één gedeeld model
 en drie weergaven daarvan, geen drie losse systemen.
 
+- **Voorbeeld ter inspiratie (2026-09-23):** [damkunst.nl/analyse/harmsma-groenendijk](https://damkunst.nl/analyse/harmsma-groenendijk/)
+  doet ongeveer wat Jan voor ogen heeft, en de technische opzet bevestigt het
+  model hieronder: de partij is één PDN-bestand met `{commentaar}` en
+  `(varianten)`, en diezelfde tekst is ook de klikbare viewer (geen aparte
+  "applet"-versie). Wat wij hieruit meenemen:
+  - **Varianten mogen genest zijn** (een variant binnen een variant, onbeperkt
+    diep) — dus geen vaste grens op één laag, zoals de huidige
+    `zijvarianten`. Dat is een aanscherping op de zettenboom hieronder.
+  - **PDN met `{commentaar}`, geneste `(haakjesvarianten)` en !/?/!!/??-tekens
+    achter een zet** is het aan te houden formaat, zowel voor partij-import
+    als voor door Jan overgetikte/geplakte boekfragmenten (dezelfde
+    zetten-omzetter, zie hieronder).
+  - **Een diagram midden in de tekst is niets aparts:** het is de gewone
+    bordweergave (`renderDiagramSVG`, hebben we al), toegepast op een punt
+    in de boom — geen nieuw onderdeel nodig.
+  - Een verwijzing naar een andere partij is gewoon een link naar die partij
+    elders in de database, geen ingevoegde data.
 - **Zettenboom:** elke zet wordt gecontroleerd door de regelengine. Een
-  onmogelijke zet wordt gemarkeerd, niet stilzwijgend opgeslagen. Komt naast het
-  bestaande `zetten`/`zijvarianten` en wordt bij het lezen daaruit afgeleid (zoals
-  `normalizeCategorieen`), zodat bestaande standen ongemoeid blijven.
+  onmogelijke zet wordt gemarkeerd, niet stilzwijgend opgeslagen. Varianten
+  mogen genest zijn (zie hierboven). Komt naast het bestaande
+  `zetten`/`zijvarianten` (één laag) en wordt bij het lezen daaruit afgeleid
+  (zoals `normalizeCategorieen`), zodat bestaande standen ongemoeid blijven.
 - **Positie-index:** van elke stand in elke lijn wordt een canonieke weergave
   opgeslagen (bezette velden + wie aan zet), zodat zoeken op stand een gewone
   opzoeking is en transposities gevonden worden. Zoeken werkt over alle
@@ -111,6 +129,18 @@ en drie weergaven daarvan, geen drie losse systemen.
 - **Lokaal en voor één gebruiker** blijft de opzet (IndexedDB in de browser); hosting
   met inlog/dossiers voor meerdere gebruikers is nog niet beslist (backend-taal
   open). Houd gegevens per onderdeel uit- en inleesbaar.
+- **Bordonderdeel voor de boom-viewer — nog te kiezen (2026-09-23):**
+  damkunst.nl gebruikt `draughtsground` (open source, npm/GitHub, onderdeel van
+  het lidraughts.org-project) als het bord voor de interactieve tekst. Wij
+  hebben zelf al een werkend bord (`renderDiagramSVG` + `boardEditor.js`),
+  zonder bouwstap of afhankelijkheden — precies wat de app tot nu toe bewust
+  wil blijven. Voorstel: eerst de boom-viewer (fase 1, stap 4) bouwen met het
+  BESTAANDE bord; alleen als klikken/slepen daar te beperkt aanvoelt,
+  `draughtsground` als handmatig meegeleverd bestand overwegen (net als
+  `lib/docx.mjs` nu) — dat blijft dan alleen de tekenlaag, onze eigen
+  regelengine blijft de damlogica bepalen. Licentie nog niet gecontroleerd.
+  Code van damkunst.nl zelf (hun PDN-weergave, hun opmaak) is niet open source
+  en wordt niet gebruikt of gekopieerd.
 
 ## Fasering ("Uitbreiding, fase 1-4")
 
