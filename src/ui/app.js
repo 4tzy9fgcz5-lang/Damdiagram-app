@@ -1,23 +1,24 @@
-import { renderEditorView } from "./editorView.js?v=20260923k";
-import { renderDatabaseView } from "./databaseView.js?v=20260923k";
-import { renderEindspelenView } from "./eindspelenView.js?v=20260923k";
-import { renderStandDetailView } from "./standDetailView.js?v=20260923k";
-import { renderStencilsListView } from "./stencilsListView.js?v=20260923k";
-import { renderStencilView, addStandenToStencil } from "./stencilView.js?v=20260923k";
-import { saveStencil } from "../db/stencils.js?v=20260923k";
-import { getLastBackupDate } from "./backupView.js?v=20260923k";
-import { renderSettingsView } from "./settingsView.js?v=20260923k";
-import { renderImportView } from "./importView.js?v=20260923k";
-import { renderPhotoImportView } from "./photoImportView.js?v=20260923k";
-import { renderBulkImportView } from "./bulkImportView.js?v=20260923k";
-import { loadDrawable } from "./imageInput.js?v=20260923k";
-import { renderBulkPrepare } from "./bulkPrepareView.js?v=20260923k";
-import { reviewReason } from "../core/bulkReview.js?v=20260923k";
-import { renderDiagramCapture, cropAroundCorners } from "./diagramCaptureView.js?v=20260923k";
-import { listStanden } from "../db/standen.js?v=20260923k";
-import { renderPartijInvoer } from "./partijInvoerView.js?v=20260923k";
-import { renderPartijenListView } from "./partijenListView.js?v=20260923k";
-import { renderPartijDetailView } from "./partijDetailView.js?v=20260923k";
+import { renderEditorView } from "./editorView.js?v=20260923l";
+import { renderDatabaseView } from "./databaseView.js?v=20260923l";
+import { renderEindspelenView } from "./eindspelenView.js?v=20260923l";
+import { renderStandDetailView } from "./standDetailView.js?v=20260923l";
+import { renderStencilsListView } from "./stencilsListView.js?v=20260923l";
+import { renderStencilView, addStandenToStencil } from "./stencilView.js?v=20260923l";
+import { saveStencil } from "../db/stencils.js?v=20260923l";
+import { getLastBackupDate } from "./backupView.js?v=20260923l";
+import { renderSettingsView } from "./settingsView.js?v=20260923l";
+import { renderImportView } from "./importView.js?v=20260923l";
+import { renderPhotoImportView } from "./photoImportView.js?v=20260923l";
+import { renderBulkImportView } from "./bulkImportView.js?v=20260923l";
+import { loadDrawable } from "./imageInput.js?v=20260923l";
+import { renderBulkPrepare } from "./bulkPrepareView.js?v=20260923l";
+import { reviewReason } from "../core/bulkReview.js?v=20260923l";
+import { renderDiagramCapture, cropAroundCorners } from "./diagramCaptureView.js?v=20260923l";
+import { listStanden } from "../db/standen.js?v=20260923l";
+import { renderPartijInvoer } from "./partijInvoerView.js?v=20260923l";
+import { renderPartijenListView } from "./partijenListView.js?v=20260923l";
+import { renderPartijDetailView } from "./partijDetailView.js?v=20260923l";
+import { renderFilmModuleView } from "./filmModuleView.js?v=20260923l";
 
 const routes = [
   "nieuw",
@@ -36,6 +37,7 @@ const routes = [
   "partij-nieuw",
   "partijen",
   "partij",
+  "partij-film",
 ];
 let pendingRecognition = null;
 // Actieve bulk-import-rij: { pages: [{ file, name }] (de foto's), diagrams: [{ page (plek in pages),
@@ -121,6 +123,7 @@ const NAV_FOR_ROUTE = {
   partijen: "partijen",
   partij: "partijen",
   "partij-nieuw": "partijen",
+  "partij-film": "partijen",
 };
 
 const BACKUP_REMINDER_DAYS = 14;
@@ -261,12 +264,22 @@ async function render() {
       onEdit: (id) => {
         location.hash = `#/partij-nieuw/${id}`;
       },
+      onFilm: (id) => {
+        location.hash = `#/partij-film/${id}`;
+      },
       onDeleted: () => {
         showToast("Verwijderd.");
         location.hash = "#/partijen";
       },
       onBack: () => {
         location.hash = "#/partijen";
+      },
+    });
+  } else if (name === "partij-film") {
+    await renderFilmModuleView(app, {
+      partijId: param,
+      onBack: () => {
+        location.hash = `#/partij/${param}`;
       },
     });
   } else if (name === "partij-nieuw") {

@@ -1,9 +1,9 @@
-import { describe, it, assertEqual, assertTrue } from "./test-runner.js?v=20260923k";
-import { resetDatabaseForTests } from "../src/db/db.js?v=20260923k";
-import { savePartij, getPartij, deletePartij, listPartijen } from "../src/db/partijen.js?v=20260923k";
-import { createStartBoard } from "../src/core/board.js?v=20260923k";
-import { getLegalMoves } from "../src/core/draughtsMoves.js?v=20260923k";
-import { maakWortel, voegZetToe } from "../src/core/zettenboom.js?v=20260923k";
+import { describe, it, assertEqual, assertTrue } from "./test-runner.js?v=20260923l";
+import { resetDatabaseForTests } from "../src/db/db.js?v=20260923l";
+import { savePartij, getPartij, deletePartij, listPartijen } from "../src/db/partijen.js?v=20260923l";
+import { createStartBoard } from "../src/core/board.js?v=20260923l";
+import { getLegalMoves } from "../src/core/draughtsMoves.js?v=20260923l";
+import { maakWortel, voegZetToe } from "../src/core/zettenboom.js?v=20260923l";
 
 async function freshDb() {
   await resetDatabaseForTests();
@@ -59,5 +59,15 @@ describe("database: partijen", () => {
       lijst.map((p) => p.wit),
       ["Nieuw", "Oud", "Geen datum"]
     );
+  });
+
+  it("bewaart de gekozen filmmomenten (stap 5) en laat ze standaard leeg", async () => {
+    await freshDb();
+    const zonder = await savePartij({ wit: "A", zwart: "B" });
+    assertEqual(zonder.film, null);
+
+    const film = { aantalDiagrammen: 6, zetIndices: [1, 5, 12, 18, 24, 30] };
+    const met = await savePartij({ ...zonder, film });
+    assertEqual((await getPartij(met.id)).film, film);
   });
 });

@@ -1,7 +1,7 @@
-import * as docxLib from "../../lib/docx.mjs?v=20260923k";
-import { createStartBoard } from "../core/board.js?v=20260923k";
-import { parseFen } from "../core/fen.js?v=20260923k";
-import { formatteerBoomTekst } from "../core/zettenboom.js?v=20260923k";
+import * as docxLib from "../../lib/docx.mjs?v=20260923l";
+import { createStartBoard } from "../core/board.js?v=20260923l";
+import { parseFen } from "../core/fen.js?v=20260923l";
+import { formatteerBoomTekst } from "../core/zettenboom.js?v=20260923l";
 
 const { Document, Packer, Paragraph, TextRun, convertMillimetersToTwip } = docxLib;
 

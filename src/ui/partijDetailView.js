@@ -1,9 +1,9 @@
-import { createStartBoard } from "../core/board.js?v=20260923k";
-import { parseFen } from "../core/fen.js?v=20260923k";
-import { getPartij, deletePartij } from "../db/partijen.js?v=20260923k";
-import { createZettenboomPlayer } from "./zettenboomPlayer.js?v=20260923k";
-import { buildPartijDocxBlob } from "../export/partijDocx.js?v=20260923k";
-import { downloadBlob } from "../export/docx.js?v=20260923k";
+import { createStartBoard } from "../core/board.js?v=20260923l";
+import { parseFen } from "../core/fen.js?v=20260923l";
+import { getPartij, deletePartij } from "../db/partijen.js?v=20260923l";
+import { createZettenboomPlayer } from "./zettenboomPlayer.js?v=20260923l";
+import { buildPartijDocxBlob } from "../export/partijDocx.js?v=20260923l";
+import { downloadBlob } from "../export/docx.js?v=20260923l";
 
 function escapeHtml(str) {
   return String(str ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -11,7 +11,7 @@ function escapeHtml(str) {
 
 // Fase 2, stap 3 (uitbreiding): een partij bekijken, alleen-lezen (net als standDetailView.js
 // voor een gewone stand) — de boom-viewer uit fase 1 met de partijgegevens eronder.
-export async function renderPartijDetailView(container, { partijId, onEdit, onDeleted, onBack } = {}) {
+export async function renderPartijDetailView(container, { partijId, onEdit, onDeleted, onBack, onFilm } = {}) {
   const partij = await getPartij(partijId);
   if (!partij) {
     container.innerHTML = `<p>Deze partij bestaat niet (meer).</p>`;
@@ -42,6 +42,7 @@ export async function renderPartijDetailView(container, { partijId, onEdit, onDe
       }
       <div class="button-row" style="justify-content:center;">
         <button type="button" class="secondary" data-action="word">Downloaden als Word</button>
+        <button type="button" class="secondary" data-action="film">Filmmodule</button>
         <button type="button" class="secondary" data-action="edit">Bewerken</button>
         <button type="button" class="secondary" data-action="delete">Verwijderen</button>
       </div>
@@ -58,6 +59,7 @@ export async function renderPartijDetailView(container, { partijId, onEdit, onDe
   });
 
   container.querySelector('[data-action="back"]').addEventListener("click", () => onBack?.());
+  container.querySelector('[data-action="film"]').addEventListener("click", () => onFilm?.(partij.id));
   container.querySelector('[data-action="edit"]').addEventListener("click", () => onEdit?.(partij.id));
   container.querySelector('[data-action="delete"]').addEventListener("click", async () => {
     if (!confirm(`Deze partij (${titel}) verwijderen? Dit kan niet ongedaan worden gemaakt.`)) return;

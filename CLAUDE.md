@@ -217,35 +217,51 @@ Niet te verwarren met de fases 0-3 van het herkenning-verbeterplan verderop.
      alle geneste varianten + commentaar) terug naar leesbare tekst, in
      precies het formaat dat `pdn.js` ook weer inleest. Getest met een
      heen-en-terug-test (boom -> tekst -> `leesPartijTekst` -> dezelfde boom).
-5. **Filmmodule**, zoals hieronder beschreven.
+5. **Filmmodule — klaar (2026-09-23).** Zie hieronder.
 
 Voorstel voor stap-voor-stap uitwerking van fase 1: `INVENTARISATIE.md`, onderdeel 7.
 
-## Filmmodule (onderdeel van fase 2)
+**Fase 2 is hiermee klaar (stap 1-5, alle vijf 2026-09-23 gebouwd en getest).**
+
+## Filmmodule (onderdeel van fase 2) — klaar (2026-09-23)
 
 Doel: een trainer maakt van een partij een **opdrachtvel** en een **antwoordvel**.
+Bereikbaar via de knop "Filmmodule" op de partij-detailpagina (route
+`#/partij-film/<id>`, `src/ui/filmModuleView.js`).
 
 - Niet bij elke partij nodig. Het proces wordt alleen doorlopen als de trainer
   een partij in de filmmodule opent.
+- **Momenten kiezen:** de hele hoofdlijn staat als een aanvinklijst (klik op een
+  zet om de stand op dat moment in een voorbeeld ernaast te zien); is het
+  gekozen aantal bereikt, dan worden de overige vakjes uitgeschakeld (geen apart
+  "te veel gekozen"-foutmelding nodig). Aantal diagrammen: 4, 6 (standaard) of 8.
 - **Opdrachtvel:** partijgegevens bovenaan (spelers, datum, toernooi), een regel
-  voor de naam van de speler, dan de notatie, dan 6 lege diagrammen. Er wordt
-  niets aangeklikt; de speler moet zelf de belangrijkste momenten vinden.
-- **Antwoordvel:** dezelfde pagina, maar de trainer heeft 6 momenten (zetten)
-  aangeklikt en de diagrammen zijn ingevuld met die standen. Onder elk diagram
-  staat het zetnummer en optioneel een korte toelichting (dezelfde tekst als het
-  commentaar bij die zet).
+  voor de naam van de speler, dan de notatie, dan de gekozen aantal LEGE
+  diagrammen. Er wordt niets aangeklikt; de speler moet zelf de belangrijkste
+  momenten vinden.
+- **Antwoordvel:** dezelfde pagina, maar de diagrammen zijn ingevuld met de door
+  de trainer gekozen momenten. Onder elk diagram staat het zetnummer en de zet,
+  en (als aanwezig) de toelichting — dezelfde tekst als het commentaar bij die
+  zet in de zettenboom.
 - **Notatie-opmaak:** 5 zetnummers per regel (1-5, 6-10, 11-15, ...). Elk
   zetnummer heeft wit en zwart naast elkaar, dus 5 witte en 5 zwarte zetten per
   regel. Een laatste regel met minder zetten blijft kort; eindigt de partij na een
   witte zet, dan blijft de zwarte plek leeg.
-- **Opslag:** bij de partij komt een verwijzing naar de gemaakte filmopdracht,
-  zodat het niet opnieuw hoeft. Bewaar daarbij ook de 6 gekozen zetnummers en het
-  aantal diagrammen (standaard 6, instelbaar bijv. 4 of 8), niet alleen de
-  PDF's, zodat de vellen opnieuw te genereren en aan te passen zijn.
-- **Techniek:** komt als nieuwe pagina-bouwer naast `src/export/docx.js` (die de
-  bestaande kop, marges, diagram-naar-plaatje en pagina-onderdelen hergebruikt); het
-  huidige stencil (`buildOpgavenTable`) is op opgaven gebouwd. Voorstel: eerst alleen
-  als Word-bestand, de HTML-voorbeeldweergave (`stencilPreview.js`) later.
+- **Opslag:** `savePartij` krijgt een `film`-veld (`{ aantalDiagrammen, zetIndices
+  }`, `zetIndices` = 0-based ply-index in de hoofdlijn) — bewaard bij de partij
+  zelf, niet alleen als Word-bestand, zodat de vellen later opnieuw te maken/aan
+  te passen zijn (schema NIET aangepast: `film` is gewoon een extra veld op het
+  al bestaande `partijen`-archief uit stap 1, geen migratie nodig).
+- **Techniek:** `src/export/filmDocx.js` (`buildFilmDocxBlob`, modes
+  "opdracht"/"antwoord"/"beide" — zelfde patroon als `docx.js`'s
+  `buildStencilDocxBlob`) — bewust een NIEUW, eigen bestand, niet ingepast in
+  `docx.js` (dat is op het opgaveblad-rooster met `opdracht`-tekst per stand
+  gebouwd, dit is een vaste kop + doorlopende notatie + een raster met precies N
+  lege/ingevulde diagrammen). Alleen als Word-bestand (bevestigd genoeg voor nu),
+  geen aparte HTML-voorbeeldweergave.
+- Getest: `tests/filmDocx.test.js` (geldig .docx voor opdracht/antwoord/beide,
+  en een duidelijke foutmelding zonder gekozen momenten) en een uitgepakt/
+  gecontroleerd echt gegenereerd document (titel/notatie/onderschriften kloppen).
 
 ## Openstaande punten (uitbreiding)
 

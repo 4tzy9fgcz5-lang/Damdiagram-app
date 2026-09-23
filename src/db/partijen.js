@@ -1,6 +1,6 @@
-import { openDb, tx, promisify, newId } from "./db.js?v=20260923k";
-import { STORE_PARTIJEN } from "./schema.js?v=20260923k";
-import { maakWortel } from "../core/zettenboom.js?v=20260923k";
+import { openDb, tx, promisify, newId } from "./db.js?v=20260923l";
+import { STORE_PARTIJEN } from "./schema.js?v=20260923l";
+import { maakWortel } from "../core/zettenboom.js?v=20260923l";
 
 // Fase 2 van de dam-toolkit-uitbreiding (CLAUDE.md, "Fasering"): hele partijen. Zelfde opzet als
 // standen.js/eindspelen.js (saveX/getX/listX/deleteX), maar met een paar echte verschillen:
@@ -32,6 +32,11 @@ export async function savePartij(input) {
     notities: input.notities ?? "",
     beginFen: input.beginFen ?? null,
     wortel: input.wortel ?? maakWortel(),
+    // Fase 2, stap 5 (filmmodule): welke momenten (ply-index in de hoofdlijn, 0-based) gekozen
+    // zijn voor het opdracht-/antwoordvel, en voor hoeveel diagrammen — bewaard bij de partij
+    // (niet alleen als Word-bestand) zodat de vellen later opnieuw te maken/aan te passen zijn.
+    // `null` = nog geen filmopdracht gemaakt.
+    film: input.film ?? null,
     createdAt: input.createdAt ?? nowIso(),
     updatedAt: nowIso(),
   };

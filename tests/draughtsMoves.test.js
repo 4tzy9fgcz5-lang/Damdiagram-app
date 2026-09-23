@@ -1,6 +1,6 @@
-import { describe, it, assertEqual, assertTrue } from "./test-runner.js?v=20260923k";
-import { coordToField, createEmptyBoard, PIECE_TYPES } from "../src/core/board.js?v=20260923k";
-import { getLegalMoves, applyMove } from "../src/core/draughtsMoves.js?v=20260923k";
+import { describe, it, assertEqual, assertTrue } from "./test-runner.js?v=20260923l";
+import { coordToField, createEmptyBoard, PIECE_TYPES } from "../src/core/board.js?v=20260923l";
+import { getLegalMoves, applyMove } from "../src/core/draughtsMoves.js?v=20260923l";
 
 // Rij0 = bovenkant (zwart start hier, velden 1-20), rij9 = onderkant (wit start hier, velden 31-50).
 // Wit speelt dus "omhoog" (rij neemt af), zwart "omlaag" (rij neemt toe).

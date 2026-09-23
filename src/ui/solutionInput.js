@@ -1,5 +1,5 @@
-import { renderDiagramSVG } from "../diagram/render.js?v=20260923k";
-import { isValidField } from "../core/board.js?v=20260923k";
+import { renderDiagramSVG } from "../diagram/render.js?v=20260923l";
+import { isValidField } from "../core/board.js?v=20260923l";
 import {
   getLegalMoves,
   applyMove,
@@ -8,7 +8,7 @@ import {
   plyColor,
   plyMoveNumber,
   formatZettenSequence,
-} from "../core/draughtsMoves.js?v=20260923k";
+} from "../core/draughtsMoves.js?v=20260923l";
 
 function escapeHtml(str) {
   return str.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
