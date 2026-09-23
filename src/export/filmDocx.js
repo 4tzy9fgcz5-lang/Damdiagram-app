@@ -1,11 +1,11 @@
-import * as docxLib from "../../lib/docx.mjs?v=20260923m";
-import { createStartBoard, createEmptyBoard } from "../core/board.js?v=20260923m";
-import { parseFen } from "../core/fen.js?v=20260923m";
-import { applyMove, plyColor, plyMoveNumber, moveToNotation } from "../core/draughtsMoves.js?v=20260923m";
-import { hoofdlijnKnopen } from "../core/zettenboom.js?v=20260923m";
-import { renderDiagramSVG } from "../diagram/render.js?v=20260923m";
-import { svgToPngBytes } from "./rasterize.js?v=20260923m";
-import { naamPrint } from "../core/namen.js?v=20260923m";
+import * as docxLib from "../../lib/docx.mjs?v=20260923n";
+import { createStartBoard, createEmptyBoard } from "../core/board.js?v=20260923n";
+import { parseFen } from "../core/fen.js?v=20260923n";
+import { applyMove, plyColor, plyMoveNumber, moveToNotation } from "../core/draughtsMoves.js?v=20260923n";
+import { hoofdlijnKnopen } from "../core/zettenboom.js?v=20260923n";
+import { renderDiagramSVG } from "../diagram/render.js?v=20260923n";
+import { svgToPngBytes } from "./rasterize.js?v=20260923n";
+import { naamPrint } from "../core/namen.js?v=20260923n";
 
 const { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, ImageRun, WidthType, BorderStyle, convertMillimetersToTwip } = docxLib;
 

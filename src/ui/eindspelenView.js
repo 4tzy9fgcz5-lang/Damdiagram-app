@@ -1,6 +1,6 @@
-import { renderDiagramSVG } from "../diagram/render.js?v=20260923m";
-import { parseFen } from "../core/fen.js?v=20260923m";
-import { listEindspelen } from "../db/eindspelen.js?v=20260923m";
+import { renderDiagramSVG } from "../diagram/render.js?v=20260923n";
+import { parseFen } from "../core/fen.js?v=20260923n";
+import { listEindspelen } from "../db/eindspelen.js?v=20260923n";
 
 function escapeHtml(str) {
   return str.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));

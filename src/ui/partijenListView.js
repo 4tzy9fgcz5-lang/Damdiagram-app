@@ -1,5 +1,6 @@
-import { listPartijen } from "../db/partijen.js?v=20260923m";
-import { naamWeergave } from "../core/namen.js?v=20260923m";
+import { listPartijen } from "../db/partijen.js?v=20260923n";
+import { getAllCategorieen } from "../db/categorieen.js?v=20260923n";
+import { naamWeergave } from "../core/namen.js?v=20260923n";
 
 function escapeHtml(str) {
   return String(str ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -15,9 +16,15 @@ function subtekst(partij) {
   return [partij.toernooi, partij.datum].filter(Boolean).join(" — ");
 }
 
-// Fase 2, stap 3 (uitbreiding): overzicht van de opgeslagen partijen, met zoeken op speler/
-// toernooi/jaar (gewoon client-side filteren — dezelfde opzet als stencilsListView.js, maar dan
-// met een zoekveld, want een lijst partijen wordt sneller lang dan een lijst opgavebladen).
+// Sentinel voor "geen enkele waarde in deze categorie" — zelfde opzet als databaseView.js.
+const GEEN_WAARDE = "__geen__";
+
+// Fase 2, stap 3 (uitbreiding); uitgebreid 2026-09-23 (CLAUDE.md-feedback) met filteren per
+// categorie: overzicht van de opgeslagen partijen, met zoeken op speler/toernooi/jaar en
+// dezelfde filtercategorieën (Speelsysteem, Type, ...) als bij Combinaties (Jans wens: "ik wil
+// dus eenzelfde filteroptie, als ik nu bij combinaties al heb") — gewoon client-side filteren,
+// net als de zoekterm hierboven (een lijst partijen wordt sneller lang dan een lijst
+// opgavebladen, maar nog niet zo lang dat een DB-query nodig is).
 export async function renderPartijenListView(container, { onOpenPartij, onNieuwePartij } = {}) {
   container.innerHTML = `
     <h2>Partijen</h2>
@@ -25,7 +32,10 @@ export async function renderPartijenListView(container, { onOpenPartij, onNieuwe
       <div class="button-row" style="margin-top:0;">
         <button type="button" class="primary" data-action="new">Nieuwe partij</button>
       </div>
-      <input type="text" data-role="zoek" placeholder="Zoeken op speler, toernooi of jaar" style="margin-top:0.75rem;" />
+      <div class="filters" style="margin-top:0.75rem;">
+        <input type="text" data-role="zoek" placeholder="Zoeken op speler, toernooi of jaar" />
+        <span data-role="categorieSelects" style="display:contents;"></span>
+      </div>
       <div data-role="list" style="margin-top:1rem;"></div>
       <div data-role="empty" style="display:none;color:#666;padding:1rem;text-align:center;"></div>
     </div>
@@ -37,14 +47,43 @@ export async function renderPartijenListView(container, { onOpenPartij, onNieuwe
   const partijen = await listPartijen();
   const list = el('[data-role="list"]');
   const emptyMsg = el('[data-role="empty"]');
+  const categorieSelectsHost = el('[data-role="categorieSelects"]');
+
+  const categorieen = await getAllCategorieen();
+  categorieSelectsHost.innerHTML = categorieen
+    .map(
+      (cat) => `
+      <select data-cat-filter="${cat.key}">
+        <option value="">Alle ${escapeHtml(cat.label)}</option>
+        ${cat.waarden.map((w) => `<option value="${escapeHtml(w)}">${escapeHtml(w)}</option>`).join("")}
+        <option value="${GEEN_WAARDE}">Geen ${escapeHtml(cat.label)}</option>
+      </select>`
+    )
+    .join("");
+
+  function matchesCategorieFilters(partij) {
+    for (const select of categorieSelectsHost.querySelectorAll("select[data-cat-filter]")) {
+      const gekozen = select.value;
+      if (!gekozen) continue;
+      const waarden = partij.categorieen?.[select.dataset.catFilter] ?? [];
+      if (gekozen === GEEN_WAARDE) {
+        if (waarden.length > 0) return false;
+      } else if (!waarden.includes(gekozen)) {
+        return false;
+      }
+    }
+    return true;
+  }
 
   function toon(zoekterm) {
     const q = zoekterm.trim().toLowerCase();
-    const gefilterd = q
-      ? partijen.filter((p) =>
-          `${p.witVoornaam} ${p.witAchternaam} ${p.zwartVoornaam} ${p.zwartAchternaam} ${p.toernooi} ${p.datum}`.toLowerCase().includes(q)
-        )
-      : partijen;
+    const gefilterd = partijen.filter((p) => {
+      if (!matchesCategorieFilters(p)) return false;
+      if (!q) return true;
+      return `${p.witVoornaam} ${p.witAchternaam} ${p.zwartVoornaam} ${p.zwartAchternaam} ${p.toernooi} ${p.datum}`
+        .toLowerCase()
+        .includes(q);
+    });
 
     list.innerHTML = "";
     emptyMsg.style.display = gefilterd.length ? "none" : "block";
@@ -65,4 +104,7 @@ export async function renderPartijenListView(container, { onOpenPartij, onNieuwe
 
   toon("");
   el('[data-role="zoek"]').addEventListener("input", (e) => toon(e.target.value));
+  for (const select of categorieSelectsHost.querySelectorAll("select[data-cat-filter]")) {
+    select.addEventListener("change", () => toon(el('[data-role="zoek"]').value));
+  }
 }

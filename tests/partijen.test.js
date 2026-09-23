@@ -1,10 +1,10 @@
-import { describe, it, assertEqual, assertTrue } from "./test-runner.js?v=20260923m";
-import { openDb, tx, promisify, resetDatabaseForTests } from "../src/db/db.js?v=20260923m";
-import { STORE_PARTIJEN } from "../src/db/schema.js?v=20260923m";
-import { savePartij, getPartij, deletePartij, listPartijen } from "../src/db/partijen.js?v=20260923m";
-import { createStartBoard } from "../src/core/board.js?v=20260923m";
-import { getLegalMoves } from "../src/core/draughtsMoves.js?v=20260923m";
-import { maakWortel, voegZetToe } from "../src/core/zettenboom.js?v=20260923m";
+import { describe, it, assertEqual, assertTrue } from "./test-runner.js?v=20260923n";
+import { openDb, tx, promisify, resetDatabaseForTests } from "../src/db/db.js?v=20260923n";
+import { STORE_PARTIJEN } from "../src/db/schema.js?v=20260923n";
+import { savePartij, getPartij, deletePartij, listPartijen } from "../src/db/partijen.js?v=20260923n";
+import { createStartBoard } from "../src/core/board.js?v=20260923n";
+import { getLegalMoves } from "../src/core/draughtsMoves.js?v=20260923n";
+import { maakWortel, voegZetToe } from "../src/core/zettenboom.js?v=20260923n";
 
 async function freshDb() {
   await resetDatabaseForTests();
@@ -70,6 +70,24 @@ describe("database: partijen", () => {
     const film = { aantalDiagrammen: 6, zetIndices: [1, 5, 12, 18, 24, 30] };
     const met = await savePartij({ ...zonder, film });
     assertEqual((await getPartij(met.id)).film, film);
+  });
+
+  it("bewaart categorieën (stap 2, 2026-09-23) en laat ze standaard leeg", async () => {
+    await freshDb();
+    const zonder = await savePartij({ witAchternaam: "A", zwartAchternaam: "B" });
+    assertEqual(zonder.categorieen, {});
+
+    const met = await savePartij({ ...zonder, categorieen: { speelsysteem: ["Keller"] } });
+    assertEqual((await getPartij(met.id)).categorieen, { speelsysteem: ["Keller"] });
+  });
+
+  it("geeft een oude partij (vóór categorieën) alsnog een leeg categorieen-object bij het lezen", async () => {
+    await freshDb();
+    const db = await openDb();
+    const oud = { id: "oude-partij-2", witAchternaam: "A", zwartAchternaam: "B", createdAt: "x", updatedAt: "x" };
+    await tx(db, STORE_PARTIJEN, "readwrite", (store) => promisify(store.put(oud)));
+    assertEqual((await getPartij("oude-partij-2")).categorieen, {});
+    await deletePartij("oude-partij-2");
   });
 
   it("splitst een oude, ongesplitste naam (vóór 2026-09-23) alsnog bij het lezen, zonder op te slaan", async () => {

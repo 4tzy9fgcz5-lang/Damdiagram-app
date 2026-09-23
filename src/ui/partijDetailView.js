@@ -1,10 +1,11 @@
-import { createStartBoard } from "../core/board.js?v=20260923m";
-import { parseFen } from "../core/fen.js?v=20260923m";
-import { naamWeergave } from "../core/namen.js?v=20260923m";
-import { getPartij, deletePartij } from "../db/partijen.js?v=20260923m";
-import { createZettenboomPlayer } from "./zettenboomPlayer.js?v=20260923m";
-import { buildPartijDocxBlob } from "../export/partijDocx.js?v=20260923m";
-import { downloadBlob } from "../export/docx.js?v=20260923m";
+import { createStartBoard } from "../core/board.js?v=20260923n";
+import { parseFen } from "../core/fen.js?v=20260923n";
+import { naamWeergave } from "../core/namen.js?v=20260923n";
+import { getPartij, deletePartij } from "../db/partijen.js?v=20260923n";
+import { getAllCategorieen } from "../db/categorieen.js?v=20260923n";
+import { createZettenboomPlayer } from "./zettenboomPlayer.js?v=20260923n";
+import { buildPartijDocxBlob } from "../export/partijDocx.js?v=20260923n";
+import { downloadBlob } from "../export/docx.js?v=20260923n";
 
 function escapeHtml(str) {
   return String(str ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -22,11 +23,17 @@ export async function renderPartijDetailView(container, { partijId, onEdit, onDe
   const wit = naamWeergave(partij.witVoornaam, partij.witAchternaam);
   const zwart = naamWeergave(partij.zwartVoornaam, partij.zwartAchternaam);
   const titel = [wit, zwart].filter(Boolean).join(" - ") || "(nog geen namen)";
+  const categorieRows = [];
+  for (const cat of await getAllCategorieen()) {
+    const waarden = partij.categorieen?.[cat.key] ?? [];
+    if (waarden.length) categorieRows.push([cat.label, waarden.join(", ")]);
+  }
   const rows = [
     ["Toernooi", partij.toernooi],
     ["Ronde", partij.ronde],
     ["Datum", partij.datum],
     ["Uitslag", partij.uitslag],
+    ...categorieRows,
     ["Bron", partij.bron],
     ["Notities", partij.notities],
   ].filter(([, waarde]) => waarde);

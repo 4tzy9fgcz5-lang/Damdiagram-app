@@ -1,7 +1,7 @@
-import { openDb, tx, promisify, newId } from "./db.js?v=20260923m";
-import { STORE_PARTIJEN } from "./schema.js?v=20260923m";
-import { maakWortel } from "../core/zettenboom.js?v=20260923m";
-import { splitNaam } from "../core/namen.js?v=20260923m";
+import { openDb, tx, promisify, newId } from "./db.js?v=20260923n";
+import { STORE_PARTIJEN } from "./schema.js?v=20260923n";
+import { maakWortel } from "../core/zettenboom.js?v=20260923n";
+import { splitNaam } from "../core/namen.js?v=20260923n";
 
 // Fase 2 van de dam-toolkit-uitbreiding (CLAUDE.md, "Fasering"): hele partijen. Zelfde opzet als
 // standen.js/eindspelen.js (saveX/getX/listX/deleteX), maar met een paar echte verschillen:
@@ -10,8 +10,10 @@ import { splitNaam } from "../core/namen.js?v=20260923m";
 // - `beginFen`: de meeste partijen beginnen gewoon aan de standaardopstelling (`null`); alleen
 //   een partij/studie die ergens anders begint krijgt een eigen beginstand.
 // - Metadata is die van een partij (spelers, toernooi), niet van een compositie (auteur/
-//   moeilijkheid/categorieën) — dat past niet op elkaar, vandaar een eigen archief i.p.v. de
-//   generieke categorieën van standen.js erbij te wurmen.
+//   moeilijkheid) — dat past niet op elkaar, vandaar een eigen archief i.p.v. de standen bij
+//   standen.js te voegen. `categorieen` (Speelsysteem/Type/eigen categorieën) is wél hetzelfde,
+//   gedeelde systeem als bij standen (zie categorieen.js) — Jans wens (2026-09-23): "eenzelfde
+//   filteroptie als ik nu bij combinaties al heb".
 
 function nowIso() {
   return new Date().toISOString();
@@ -49,6 +51,12 @@ export async function savePartij(input) {
     uitslag: input.uitslag ?? "",
     bron: input.bron ?? "",
     notities: input.notities ?? "",
+    // Zelfde filtercategorieën als bij Combinaties (Speelsysteem, Type, en wat Jan er zelf via
+    // Instellingen -> Database bij maakt) — Jans wens (CLAUDE.md-feedback 2026-09-23): "ik wil
+    // dus eenzelfde filteroptie, als ik nu bij combinaties al heb". Bewust hetzelfde, gedeelde
+    // `categorieen.js`-archief (niet een eigen setje per soort item), net als de vorm hier
+    // ({ [categorieKey]: string[] }) gelijk aan die van standen.js.
+    categorieen: input.categorieen ?? {},
     beginFen: input.beginFen ?? null,
     wortel: input.wortel ?? maakWortel(),
     // Fase 2, stap 5 (filmmodule): welke momenten (ply-index in de hoofdlijn, 0-based) gekozen
@@ -73,7 +81,7 @@ export async function getPartij(id) {
   const db = await openDb();
   const record = await tx(db, STORE_PARTIJEN, "readonly", (store) => promisify(store.get(id)));
   if (!record) return record;
-  return { ...record, ...normalizeSpelers(record) };
+  return { ...record, ...normalizeSpelers(record), categorieen: record.categorieen ?? {} };
 }
 
 export async function deletePartij(id) {
@@ -87,5 +95,7 @@ export async function deletePartij(id) {
 export async function listPartijen() {
   const db = await openDb();
   const all = await tx(db, STORE_PARTIJEN, "readonly", (store) => promisify(store.getAll()));
-  return all.map((record) => ({ ...record, ...normalizeSpelers(record) })).sort((a, b) => (b.datum || "").localeCompare(a.datum || ""));
+  return all
+    .map((record) => ({ ...record, ...normalizeSpelers(record), categorieen: record.categorieen ?? {} }))
+    .sort((a, b) => (b.datum || "").localeCompare(a.datum || ""));
 }

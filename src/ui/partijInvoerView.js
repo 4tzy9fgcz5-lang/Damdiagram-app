@@ -1,11 +1,19 @@
-import { createStartBoard } from "../core/board.js?v=20260923m";
-import { leesPartijTekst } from "../core/pdn.js?v=20260923m";
-import { splitNaam } from "../core/namen.js?v=20260923m";
-import { savePartij, getPartij } from "../db/partijen.js?v=20260923m";
-import { createZettenboomPlayer } from "./zettenboomPlayer.js?v=20260923m";
+import { createStartBoard } from "../core/board.js?v=20260923n";
+import { leesPartijTekst } from "../core/pdn.js?v=20260923n";
+import { splitNaam } from "../core/namen.js?v=20260923n";
+import { savePartij, getPartij } from "../db/partijen.js?v=20260923n";
+import { getAllCategorieen } from "../db/categorieen.js?v=20260923n";
+import { getList, addListValue } from "../db/lijsten.js?v=20260923n";
+import { createZettenboomPlayer } from "./zettenboomPlayer.js?v=20260923n";
 
 function escapeHtml(str) {
   return str.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+function toggleInArray(arr, value) {
+  const idx = arr.indexOf(value);
+  if (idx === -1) arr.push(value);
+  else arr.splice(idx, 1);
 }
 
 const MELDING_KLASSE = { fout: "kleur-fout", "let-op": "kleur-waarschuwing", info: "kleur-info" };
@@ -109,6 +117,7 @@ export async function renderPartijInvoer(container, { partijId, onSaved, onCance
           <input type="text" data-field="ronde" />
         </div>
       </div>
+      <div data-role="categorieen"></div>
       <label>Bron</label>
       <input type="text" data-field="bron" placeholder="boek, tijdschrift of website" />
       <label>Notities</label>
@@ -162,6 +171,54 @@ export async function renderPartijInvoer(container, { partijId, onSaved, onCance
     el('[data-field="bron"]').value = bestaand.bron;
     el('[data-field="notities"]').value = bestaand.notities;
   }
+
+  // Zelfde filtercategorieën als bij Combinaties (Jans wens, CLAUDE.md-feedback 2026-09-23) —
+  // hetzelfde patroon als editorView.js's renderCategorieenTagLists, hier lokaal omdat dit de
+  // enige plek in dit bestand is die het nodig heeft.
+  const selectedCategorieen = {};
+  for (const [key, waarden] of Object.entries(bestaand?.categorieen ?? {})) selectedCategorieen[key] = [...waarden];
+
+  async function renderTagList(host, listName, selectedRef, onToggle) {
+    const values = await getList(listName);
+    host.innerHTML = "";
+    for (const value of values) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "tag";
+      btn.textContent = value;
+      if (selectedRef.includes(value)) btn.classList.add("selected");
+      btn.addEventListener("click", () => onToggle(value, btn));
+      host.appendChild(btn);
+    }
+    const addBtn = document.createElement("button");
+    addBtn.type = "button";
+    addBtn.className = "tag";
+    addBtn.textContent = "+ nieuw";
+    addBtn.addEventListener("click", async () => {
+      const naam = prompt("Nieuwe waarde:");
+      if (!naam) return;
+      await addListValue(listName, naam);
+      await renderTagList(host, listName, selectedRef, onToggle);
+    });
+    host.appendChild(addBtn);
+  }
+
+  const categorieenHost = el('[data-role="categorieen"]');
+  async function renderCategorieenTagLists() {
+    const categorieen = await getAllCategorieen();
+    categorieenHost.innerHTML = categorieen
+      .map((cat) => `<label>${escapeHtml(cat.label)}</label><div class="tag-list" data-cat="${cat.key}"></div>`)
+      .join("");
+    for (const cat of categorieen) {
+      if (!selectedCategorieen[cat.key]) selectedCategorieen[cat.key] = [];
+      const host = categorieenHost.querySelector(`[data-cat="${cat.key}"]`);
+      await renderTagList(host, cat.key, selectedCategorieen[cat.key], (value, btn) => {
+        toggleInArray(selectedCategorieen[cat.key], value);
+        btn.classList.toggle("selected");
+      });
+    }
+  }
+  await renderCategorieenTagLists();
 
   el('[data-action="toernooibase-link"]').addEventListener("click", () => {
     const status = el('[data-role="toernooibase-status"]');
@@ -227,6 +284,7 @@ export async function renderPartijInvoer(container, { partijId, onSaved, onCance
       ronde: el('[data-field="ronde"]').value.trim(),
       bron: el('[data-field="bron"]').value.trim(),
       notities: el('[data-field="notities"]').value.trim(),
+      categorieen: Object.fromEntries(Object.entries(selectedCategorieen).map(([k, v]) => [k, [...v]])),
       wortel: huidigeBoom ?? undefined,
     });
     onSaved?.(saved);

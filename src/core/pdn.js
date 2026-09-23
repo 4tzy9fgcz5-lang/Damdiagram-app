@@ -1,6 +1,6 @@
-import { createStartBoard } from "./board.js?v=20260923m";
-import { applyMove, opposite } from "./draughtsMoves.js?v=20260923m";
-import { maakWortel, voegZetToe } from "./zettenboom.js?v=20260923m";
+import { createStartBoard } from "./board.js?v=20260923n";
+import { applyMove, opposite } from "./draughtsMoves.js?v=20260923n";
+import { maakWortel, voegZetToe } from "./zettenboom.js?v=20260923n";
 
 // Leest partij-/studietekst in het formaat uit CLAUDE.md ("Doelarchitectuur"): zetnummers,
 // `{commentaar}` en geneste `(varianten)`, met !/?/!!/??-tekens direct achter een zet — zoals
