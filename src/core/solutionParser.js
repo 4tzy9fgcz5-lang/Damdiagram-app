@@ -1,4 +1,4 @@
-import { getLegalMoves, applyMove, opposite, plyColor, plyMoveNumber } from "./draughtsMoves.js?v=20260923g";
+import { getLegalMoves, applyMove, opposite, plyColor, plyMoveNumber } from "./draughtsMoves.js?v=20260923h";
 
 // Een oplossing zoals die in een boek staat (bv. "1. 31 - 27 8 - 12 2. 38 - 33 (2. 39 - 33)
 // 29 x 49 ... 9. 45 x 5 x.") omzetten in `zetten` + `zijvarianten`, zoals de klikbare

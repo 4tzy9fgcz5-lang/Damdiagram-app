@@ -146,16 +146,48 @@ en drie weergaven daarvan, geen drie losse systemen.
 
 Niet te verwarren met de fases 0-3 van het herkenning-verbeterplan verderop.
 
-1. **Kern:** zettenboom, validatie, positie-index, viewer om door een boom te
-   stappen.
-2. **Partijen:** PDN inladen, doorspelen, commentaar per zet, printen, en de
-   filmmodule (zie hieronder).
+1. **Kern — klaar (2026-09-23).** Zettenboom (genest, regelengine-gecontroleerd,
+   `src/core/zettenboom.js`), een lezer voor partij-/studietekst
+   (`{commentaar}`/geneste `(varianten)`/!?-tekens, `src/core/pdn.js`), een
+   canonieke positie-index over een hele boom (`src/core/positieIndex.js`, nog
+   niet aan de database gekoppeld — zie stap 3 hieronder) en een klikbare
+   viewer (`src/ui/zettenboomPlayer.js`), te proberen via Instellingen ->
+   "Partijen/studies (proef)" (`src/ui/zettenboomProefView.js`). Alles hiervan
+   is losstaand van de bestaande standen/eindspelen — niets bestaands is
+   gewijzigd. Uitgevoerd volgens `INVENTARISATIE.md`, onderdeel 7 (stap 1-4;
+   stap 5 "oude speler vervangen" bewust nog niet gedaan, zie daar).
+2. **Partijen — in uitvoering (gestart 2026-09-23), zie hieronder.**
 3. **Studies:** bestaande foto-invoer plus oplossing met zijvarianten en tekst;
    printen.
 4. **Openingen:** lijnen en namen; zoeken op naam en op stand.
 
-Voorstel voor stap-voor-stap uitwerking van fase 1: `INVENTARISATIE.md`, onderdeel 7
-(nog niet uitgevoerd; wacht op akkoord van Jan).
+### Fase 2 — partijen, stap voor stap (akkoord van Jan 2026-09-23)
+
+1. **Opslagplaats — klaar (2026-09-23).** Nieuw, leeg archief `partijen`
+   (schema 4, alleen toegevoegd — niets aan bestaande standen/eindspelen
+   gewijzigd), `src/db/partijen.js`: `wit`/`zwart`/`datum`/`toernooi`/`ronde`/
+   `uitslag`/`bron`/`notities` plus `wortel` (de zettenboom zelf, gewoon een
+   plat JSON-object — geen aparte serialisatie nodig) en optioneel `beginFen`
+   (`null` = de normale beginopstelling; alleen invullen als een partij/studie
+   ergens anders begint). Bevestigd door Jan: deze velden zijn voldoende.
+   Tests: `tests/partijen.test.js`.
+2. **Een partij invoeren.** Formulier (de velden hierboven) + een plakvak met
+   dezelfde lezer als het proefscherm, viewer eronder als controle vóór het
+   opslaan. Hier ook de kopregel-beperking van `pdn.js` oplossen (spelersnamen
+   + datum tussen haakjes vóór de eerste zet negeren in plaats van als foute
+   zet te lezen). Eén partij per keer (bevestigd door Jan — geen bestand met
+   meerdere partijen tegelijk; dat kan een latere, aparte stap worden).
+3. **Partijen bekijken.** Nieuw tabblad "Partijen" (naast Combinaties/
+   Eindspelen/Opgavebladen): overzicht (zoeken op speler/toernooi/jaar) en een
+   detailpagina met de viewer, alleen-lezen.
+4. **Printen.** Partij als Word-document: gegevens bovenaan, de hele notatie
+   (met varianten) eronder. Bevestigd door Jan: **alleen de notatie is genoeg**
+   voor het printen van een losse partij — geen diagrammen halverwege de tekst
+   (dat was een aparte vraag van mij, over damkunst.nl's "(zie diagram)";
+   losstaand van de filmmodule hieronder, die sowieso al 6 diagrammen heeft).
+5. **Filmmodule**, zoals hieronder beschreven.
+
+Voorstel voor stap-voor-stap uitwerking van fase 1: `INVENTARISATIE.md`, onderdeel 7.
 
 ## Filmmodule (onderdeel van fase 2)
 
