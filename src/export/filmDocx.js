@@ -1,13 +1,27 @@
-import * as docxLib from "../../lib/docx.mjs?v=20260923p";
-import { createStartBoard, createEmptyBoard } from "../core/board.js?v=20260923p";
-import { parseFen } from "../core/fen.js?v=20260923p";
-import { applyMove, plyColor, plyMoveNumber } from "../core/draughtsMoves.js?v=20260923p";
-import { hoofdlijnKnopen, notatieKortMetVoorloopnul } from "../core/zettenboom.js?v=20260923p";
-import { renderDiagramSVG } from "../diagram/render.js?v=20260923p";
-import { svgToPngBytes } from "./rasterize.js?v=20260923p";
-import { naamPrint } from "../core/namen.js?v=20260923p";
+import * as docxLib from "../../lib/docx.mjs?v=20260923q";
+import { createStartBoard, createEmptyBoard } from "../core/board.js?v=20260923q";
+import { parseFen } from "../core/fen.js?v=20260923q";
+import { applyMove, plyMoveNumber } from "../core/draughtsMoves.js?v=20260923q";
+import { hoofdlijnKnopen, notatieKortMetVoorloopnul } from "../core/zettenboom.js?v=20260923q";
+import { renderDiagramSVG } from "../diagram/render.js?v=20260923q";
+import { svgToPngBytes } from "./rasterize.js?v=20260923q";
+import { naamPrint } from "../core/namen.js?v=20260923q";
+import { bouwZettenRooster, zetParen } from "./zetRooster.js?v=20260923q";
 
-const { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, ImageRun, WidthType, BorderStyle, convertMillimetersToTwip } = docxLib;
+const {
+  Document,
+  Packer,
+  Paragraph,
+  TextRun,
+  Table,
+  TableRow,
+  TableCell,
+  ImageRun,
+  WidthType,
+  BorderStyle,
+  TableLayoutType,
+  convertMillimetersToTwip,
+} = docxLib;
 
 function mmToTwip(mm) {
   return convertMillimetersToTwip(mm);
@@ -17,7 +31,9 @@ function mmToPx(mm, dpi) {
 }
 
 const PAGE_MM = { width: 210, height: 297 };
-const MARGIN_MM = 16;
+// Bijgesteld 2026-09-24 (Jans melding: "diagrammen passen niet op de pagina") van 16 naar 12mm —
+// meer speelruimte, samen met de andere fix hieronder (`layout: FIXED` op de diagramtabel).
+const MARGIN_MM = 12;
 const PRINT_DPI = 300;
 const DISPLAY_DPI = 96;
 // 3 kolommen (zoals Jans meegestuurde voorbeeldvellen, 2026-09-23): zo passen 6 diagrammen in
@@ -58,38 +74,6 @@ function koptekst(partij) {
   return regels;
 }
 
-// "5 zetnummers per regel (1-5, 6-10, 11-15, ...)": elke regel bevat 5 zetnummer-paren
-// ("N. wit zwart"), dus 5 witte en 5 zwarte zetten. Een ontbrekende zwarte zet (partij eindigt
-// na een witte zet) blijft leeg i.p.v. weggelaten, zodat de rasterindeling niet verspringt.
-// Voorloopnul en korte slagnotatie (alleen begin/eind), net als partijDocx.js.
-function notatieParagrafen(hoofdlijn, beurt0) {
-  const paren = [];
-  let i = 0;
-  if (plyColor(beurt0, 0) === "black") {
-    paren.push({ nummer: plyMoveNumber(beurt0, 0), wit: "", zwart: notatieKortMetVoorloopnul(hoofdlijn[0].zet) });
-    i = 1;
-  }
-  for (; i < hoofdlijn.length; i += 2) {
-    paren.push({
-      nummer: plyMoveNumber(beurt0, i),
-      wit: notatieKortMetVoorloopnul(hoofdlijn[i].zet),
-      zwart: hoofdlijn[i + 1] ? notatieKortMetVoorloopnul(hoofdlijn[i + 1].zet) : "",
-    });
-  }
-
-  const paragrafen = [];
-  for (let j = 0; j < paren.length; j += 5) {
-    const regel = paren
-      .slice(j, j + 5)
-      .map((p) => `${p.nummer}. ${p.wit}${p.zwart ? " " + p.zwart : ""}`)
-      .join("     ");
-    paragrafen.push(new Paragraph({ children: [new TextRun({ text: regel, font: FONT, size: NOTATIE_SIZE })], spacing: { after: 40 } }));
-  }
-  return paragrafen.length
-    ? paragrafen
-    : [new Paragraph({ children: [new TextRun({ text: "(nog geen zetten)", font: FONT, size: NOTATIE_SIZE })] })];
-}
-
 // Standen bij elke knoop van de hoofdlijn, index 0 = de beginstand (vóór zet 1).
 function standenOpHoofdlijn(beginBord, hoofdlijn) {
   const standen = [beginBord];
@@ -123,7 +107,17 @@ async function diagramTabel(cellen) {
     while (rijCellen.length < COLS) rijCellen.push(new TableCell({ children: [new Paragraph({ children: [] })] }));
     rows.push(new TableRow({ children: rijCellen }));
   }
-  return new Table({ width: { size: mmToTwip(usableWidthMm), type: WidthType.DXA }, borders: TABLE_BORDERS, rows });
+  // `layout: FIXED` + expliciete `columnWidths` op de tabel zelf (niet alleen op elke cel) —
+  // zonder dat negeert Word de opgegeven kolombreedtes en berekent hij ze zelf uit de inhoud
+  // (AUTOFIT, de standaard), wat precies de oorzaak was van Jans melding (2026-09-24):
+  // "diagrammen passen niet op de pagina". Zie ook zetRooster.js voor dezelfde valkuil.
+  return new Table({
+    width: { size: mmToTwip(usableWidthMm), type: WidthType.DXA },
+    columnWidths: new Array(COLS).fill(mmToTwip(cellWMm)),
+    layout: TableLayoutType.FIXED,
+    borders: TABLE_BORDERS,
+    rows,
+  });
 }
 
 function beginstand(partij) {
@@ -140,10 +134,12 @@ export async function buildFilmDocxBlob(partij, mode = "beide") {
   const standen = standenOpHoofdlijn(beginBord, hoofdlijn);
   const zetIndices = [...partij.film.zetIndices].sort((a, b) => a - b);
 
+  const usableWidthMm = PAGE_MM.width - 2 * MARGIN_MM;
+  const rooster = () => bouwZettenRooster(zetParen(hoofdlijn, turn), { usableWidthMm, font: FONT, size: NOTATIE_SIZE });
   const children = [];
 
   if (mode === "opdracht" || mode === "beide") {
-    children.push(...koptekst(partij), ...notatieParagrafen(hoofdlijn, turn));
+    children.push(...koptekst(partij), ...rooster());
     const legeCellen = zetIndices.map((_, i) => ({
       board: createEmptyBoard(),
       nummer: i + 1,
@@ -155,7 +151,7 @@ export async function buildFilmDocxBlob(partij, mode = "beide") {
   if (mode === "beide") children.push(new Paragraph({ children: [], pageBreakBefore: true }));
 
   if (mode === "antwoord" || mode === "beide") {
-    children.push(...koptekst(partij), ...notatieParagrafen(hoofdlijn, turn));
+    children.push(...koptekst(partij), ...rooster());
     const ingevuldeCellen = zetIndices.map((ply, i) => {
       const knoop = hoofdlijn[ply];
       const onderschriftParagrafen = [
