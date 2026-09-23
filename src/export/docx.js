@@ -1,10 +1,10 @@
-import * as docxLib from "../../lib/docx.mjs?v=20260923o";
-import { renderDiagramSVG } from "../diagram/render.js?v=20260923o";
-import { parseFen } from "../core/fen.js?v=20260923o";
-import { getGridLayout, paginateItems } from "../stencil/layout.js?v=20260923o";
-import { opdrachtregelMetOndertitel } from "../stencil/compose.js?v=20260923o";
-import { svgToPngBytes } from "./rasterize.js?v=20260923o";
-import { resolveOplossingTekst } from "../db/standen.js?v=20260923o";
+import * as docxLib from "../../lib/docx.mjs?v=20260923p";
+import { renderDiagramSVG } from "../diagram/render.js?v=20260923p";
+import { parseFen } from "../core/fen.js?v=20260923p";
+import { getGridLayout, paginateItems } from "../stencil/layout.js?v=20260923p";
+import { opdrachtregelMetOndertitel } from "../stencil/compose.js?v=20260923p";
+import { svgToPngBytes } from "./rasterize.js?v=20260923p";
+import { resolveOplossingTekst } from "../db/standen.js?v=20260923p";
 
 const {
   Document,
@@ -250,12 +250,25 @@ async function buildOpgavenTable(stencil, items, offset = 0) {
   });
 }
 
+// Courier New op de oplossingenpagina (de "antwoorden van de opgaven", Jans wens bij de
+// filmmodule-feedback: "zelfde regels gelden voor antwoorden van de opgaven"). Bewust ALLEEN
+// hier, niet ook op de opgavenpagina zelf: die heeft een met de hand op pixels afgestemde
+// celhoogte-berekening (zie `buildOpgavenTable` hierboven) om 12 opgaven op 1 A4 te laten
+// passen — een ander lettertype kan de regelhoogte net genoeg laten verspringen om dat te
+// verstoren, en de opgavenpagina zelf viel niet onder "antwoorden".
+const OPLOSSING_FONT = "Courier New";
+
 function oplossingenParagraphs(items) {
   const paragraphs = [];
   items.forEach((item, i) => {
     if (!item.stand) {
       paragraphs.push(
-        new Paragraph({ children: [new TextRun({ text: `${i + 1}. `, bold: true }), new TextRun({ text: "stand ontbreekt", color: "AA0000" })] })
+        new Paragraph({
+          children: [
+            new TextRun({ text: `${i + 1}. `, bold: true, font: OPLOSSING_FONT }),
+            new TextRun({ text: "stand ontbreekt", color: "AA0000", font: OPLOSSING_FONT }),
+          ],
+        })
       );
       return;
     }
@@ -265,15 +278,15 @@ function oplossingenParagraphs(items) {
       new Paragraph({
         spacing: { after: 40 },
         children: [
-          new TextRun({ text: `${i + 1}. `, bold: true }),
-          new TextRun({ text: oplossing, color: oplossingTekst ? "000000" : "AA0000" }),
+          new TextRun({ text: `${i + 1}. `, bold: true, font: OPLOSSING_FONT }),
+          new TextRun({ text: oplossing, color: oplossingTekst ? "000000" : "AA0000", font: OPLOSSING_FONT }),
         ],
       })
     );
     const bron = [item.stand.auteur, item.stand.jaartal, item.stand.publicatie].filter(Boolean).join(", ");
     if (bron) {
       paragraphs.push(
-        new Paragraph({ spacing: { after: 160 }, children: [new TextRun({ text: bron, size: 18, color: "555555" })] })
+        new Paragraph({ spacing: { after: 160 }, children: [new TextRun({ text: bron, size: 18, color: "555555", font: OPLOSSING_FONT })] })
       );
     }
   });
