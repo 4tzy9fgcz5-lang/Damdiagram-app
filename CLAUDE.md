@@ -365,6 +365,51 @@ daarmee "klaar", dit zijn verbeteringen erbovenop):
    (`voegZetToe`/`knoopOpPad`/`standBijPad`) waren al gedekt door
    `zettenboom.test.js`.
 
+## Partijmodule: reparaties na Jans eerste echte gebruik (2026-09-24)
+
+Jan probeerde de echte, gegenereerde bestanden (een filmopdracht en een
+partij-print van een NK-partij) en meldde vier dingen. Alle vier gebouwd en
+getest:
+
+1. **Printopmaak paste niet op de pagina — gerepareerd.** Uitgezocht door de
+   echte .docx-bestanden uit te pakken en na te meten: (a) het rooster van 5
+   zetten per regel plakte de zetparen aan elkaar met losse spaties in ÉÉN
+   doorlopende tekstregel — in Courier New (breder dan een gewoon lettertype)
+   werd zo'n regel ruim 220mm breed, dus Word wikkelde 'm af (vandaar ook "veel
+   loze ruimte tussen de zetten en regels": de losse spaties vielen ook groter
+   uit dan bedoeld); (b) de diagramtabel van de filmmodule had geen
+   `layout: FIXED` en geen kolombreedtes op de tabel zelf — zonder dat
+   berekent Word de kolombreedtes zelf uit de inhoud (AUTOFIT, de standaard),
+   wat in de praktijk anders uitpakt dan de brondata suggereert. Opgelost met
+   nieuw, gedeeld `src/export/zetRooster.js` (`bouwZettenRooster`/`zetParen`,
+   gebruikt door zowel `partijDocx.js` als `filmDocx.js`): het rooster is nu
+   een ECHTE tabel (5 kolommen, vaste breedte, `layout: FIXED`), en de
+   diagramtabel in `filmDocx.js` kreeg dezelfde `layout: FIXED` +
+   kolombreedtes. Marges iets ruimer gemaakt (partijDocx 20->16mm, filmDocx
+   16->12mm) voor extra speelruimte; rooster-lettergrootte in de partij-print
+   naar 9,5pt (niet door Jan gespecificeerd, gekozen om betrouwbaar te
+   passen — de filmmodule blijft op de door Jan gevraagde 10,5pt).
+2. **Meerdere partijen tegelijk afdrukken — nieuw.**
+   `buildMeerderePartijenDocxBlob` in `partijDocx.js` (dezelfde inhoud per
+   partij als `buildPartijDocxBlob`, nu met een pagina-einde ertussen) plus
+   een selectievakje per partij en een "Geselecteerde partijen downloaden als
+   Word"-knop op `partijenListView.js`.
+3. **Filmmomenten kiezen — herzien.** Was een aanvinklijst met elke zet op
+   zijn eigen rij (lastig te overzien in een lange partij); nu bord +
+   navigatieknoppen zoals de gewone partij-viewer, met de notatie ernaast als
+   doorlopende, klikbare tekst. Een zet aanklikken springt ernaartoe (het bord
+   volgt) én schakelt 'm aan/uit als filmmoment (een stip ervoor); de
+   navigatieknoppen zelf laten de selectie met rust.
+4. **Annotatiescherm — het toelichting-paneel stond uit beeld.** Stond ná de
+   notatielijst, in dezelfde, onafhankelijk scrollende kolom — bij een lange
+   partij duwde de notatie het paneel dan uit beeld. Verplaatst naar de
+   (`position: sticky`) bordkolom, dus nu altijd zichtbaar zonder te scrollen.
+
+Getest: alle 260 tests slagen; de gegenereerde .docx-bestanden zijn
+uitgepakt en de ruwe `document.xml` nagemeten (kolombreedtes in twips
+kloppen exact met de berekening); de nieuwe filmmodule-navigatie en het
+annotatiescherm zijn handmatig doorlopen op smal en breed scherm.
+
 ## Openstaande punten (uitbreiding)
 
 - Hosting voor meerdere gebruikers (inlog, dossiers): eerder besproken, nog niet
