@@ -277,7 +277,7 @@ Bereikbaar via de knop "Filmmodule" op de partij-detailpagina (route
 ## Partijmodule: verbeteringen na Jans eerste gebruik (2026-09-23)
 
 Jan testte fase 2 en stuurde puntsgewijze feedback over de partijmodule, het
-printen en de filmmodule. Drie stappen gebouwd en getest (fase 2 blijft
+printen en de filmmodule. Alle vijf stappen gebouwd en getest (fase 2 blijft
 daarmee "klaar", dit zijn verbeteringen erbovenop):
 
 1. **Uitslag, namen, makkelijker importeren.**
@@ -332,18 +332,38 @@ daarmee "klaar", dit zijn verbeteringen erbovenop):
    met commentaar op eigen regels), en bij de filmmodule: 3 kolommen,
    genummerde diagrammen, een invulregel op het opdrachtvel, geen naamregel
    meer.
-
-**Nog niet gedaan (eigen, latere stappen):**
-- Dezelfde opmaakregels (lettertype, nummering, invulregel) toepassen op de
-  bestaande opgavebladen (`docx.js`, de combinatie-oefenbladen) — Jans wens
-  ("zelfde regels gelden voor antwoorden van de opgaven"), maar dat raakt een
-  gedeeld, overal gebruikt bestand en verdient een eigen, voorzichtige stap.
-- **Achteraf annoteren.** Nu kan commentaar/een zijvariant alleen tijdens het
-  invoeren van een partij worden toegevoegd (via het plakvak). Jan wil dat ook
-  achteraf kunnen, op een al opgeslagen partij, ongeveer zoals op
-  lidraughts.org (een zet aanklikken, commentaar toevoegen/wijzigen, een
-  variant intikken zoals nu al bij een stand kan met `solutionInput.js`) —
-  substantieel nieuw onderdeel, nog te plannen.
+4. **Opgavebladen — klaar (2026-09-23).** Jans wens ("zelfde regels gelden
+   voor antwoorden van de opgaven"): de oplossingenpagina van een opgaveblad
+   (`docx.js`, `resolveOplossingTekst`) staat nu ook in Courier New. Bewust
+   ALLEEN die pagina, niet de opgavenpagina zelf — die heeft een met de hand
+   op pixels afgestemde celhoogte-berekening om 12 opgaven op 1 A4 te laten
+   passen, en is ook niet de "antwoorden"-pagina waar Jans opmerking over
+   ging. Diagrammen nummeren/op 1 A4 passen gold daar al; een invulregel is
+   niet van toepassing (de oplossingenpagina toont geen diagrammen).
+5. **Achteraf annoteren — klaar (2026-09-23).** Nu kon commentaar/een
+   zijvariant alleen tijdens het invoeren van een partij worden toegevoegd
+   (via het plakvak). Nieuw: `src/ui/zettenboomAnnotator.js`
+   (`createZettenboomAnnotator`) — bord + klikbare notatie zoals de
+   alleen-lezende `zettenboomPlayer.js`, maar bewerkbaar: klikken op het bord
+   voegt vanaf de geselecteerde knoop een zet toe (via `voegZetToe`, die zelf
+   al bepaalt of het de hoofdvoortzetting of een nieuwe variant wordt — dus
+   overal in de boom, niet alleen aan het eind), klikken in de notatie springt
+   naar een andere zet en toont daar een paneeltje voor toelichting, een
+   waarderingsteken (!/?/!?/?!/!!/??) en een knop om die zet (en de hele tak
+   erna) te verwijderen. Bewust een NIEUW bestand i.p.v.
+   `zettenboomPlayer.js` uit te breiden (die blijft overal alleen-lezend
+   gebruikt) — qua opzet het spiegelbeeld van hoe `solutionInput.js` een
+   eigen, bewerkbaar bestand is naast het alleen-lezende
+   `solutionPlayer.js`. `src/ui/partijAnnoterenView.js` (route
+   `#/partij-annoteren/<id>`, knop "Annoteren" op de partij-detailpagina)
+   werkt op een gekloonde kopie van de boom — pas bij "Opslaan" gaat die
+   terug de database in, zodat "Terug"/"Annuleren" (met bevestiging als er
+   echt iets gewijzigd is) onderweg gemaakte wijzigingen kan weggooien.
+   Getest: handmatig in de browser (geen los testbestand, net als bij
+   `zettenboomPlayer.js`/`solutionInput.js` — puur DOM-gedreven UI, in deze
+   codebase altijd handmatig getest); de onderliggende functies
+   (`voegZetToe`/`knoopOpPad`/`standBijPad`) waren al gedekt door
+   `zettenboom.test.js`.
 
 ## Openstaande punten (uitbreiding)
 
