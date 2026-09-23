@@ -1,5 +1,5 @@
-import { describe, it, assertEqual, assertTrue } from "./test-runner.js?v=20260922a";
-import { parseDiagramNumber, fillMissingNumbers, stripRect } from "../src/recognition/numberOcr.js?v=20260922a";
+import { describe, it, assertEqual, assertTrue } from "./test-runner.js?v=20260923a";
+import { parseDiagramNumber, fillMissingNumbers, stripRect, stripQuad } from "../src/recognition/numberOcr.js?v=20260923a";
 
 describe("numberOcr: nummer uit gelezen tekst halen", () => {
   it("vindt het nummer achter een woord of met een sterretje erachter", () => {
@@ -69,6 +69,113 @@ describe("numberOcr: ontbrekende nummers aanvullen", () => {
     const r = fillMissingNumbers(grid([5, 9, 1, 2, 3, 4, 8, 7, 6, 10, 11, 12]));
     assertEqual(r.map((x) => x.nummer), [5, 9, 1, 2, 3, 4, 8, 7, 6, 10, 11, 12]);
     assertTrue(r.every((x) => !x.afgeleid));
+  });
+});
+
+// Eén rij, elk diagram op zijn eigen plek (ver genoeg uit elkaar dat kolomvolgorde = leesvolgorde):
+// voor tests die puur de leesvolgorde-logica raken, zonder dat de kolomherkenning meedoet.
+function row(nrs) {
+  return nrs.map((nummer, i) => ({ nummer, cx: 200 + i * 500, cy: 200, breedte: 300 }));
+}
+
+describe("numberOcr: nummers die niet bij de rest van de import passen (2026-09-23)", () => {
+  it("verwerpt kleine, op zichzelf 'kloppende' foutlezingen tussen veel grotere, correcte nummers", () => {
+    // Nagebootst op wat Jan meldde: op de ene pagina las de tekstlezer 151 goed maar 152-154 als
+    // 45/8/297; op de andere pagina 155-158 als 0/(niet gelezen)/1/(niet gelezen), met 159 en 160
+    // wél goed. Op zo'n pagina alléén is dit soms niet op te lossen (te weinig bekende nummers om
+    // "45" als vreemd te herkennen) — maar in een gewone bulk-import van een heel boek staan er
+    // tientallen andere, wél goed gelezen nummers naast (hier 131-150), en dat is genoeg om ze als
+    // groep te herkennen als "hoort hier niet bij" en via de reeks (151, dan 159/160) te herstellen.
+    const goedDaarvoor = Array.from({ length: 20 }, (_, i) => 131 + i); // 131..150, allemaal goed
+    const raw = [...goedDaarvoor, 151, 45, 8, 297, 0, null, 1, null, 159, 160];
+    const r = fillMissingNumbers(row(raw));
+    assertEqual(r.slice(0, 20).map((x) => x.nummer), goedDaarvoor, "de al goede nummers blijven staan");
+    assertTrue(r.slice(0, 20).every((x) => !x.afgeleid));
+    assertEqual(
+      r.slice(20).map((x) => x.nummer),
+      [151, 152, 153, 154, 155, 156, 157, 158, 159, 160],
+      "152-158 worden hersteld met 151 en 159/160 als betrouwbare buren"
+    );
+    assertTrue(r[20].afgeleid === false && r[28].afgeleid === false && r[29].afgeleid === false, "151, 159 en 160 zelf zijn gewoon gelezen, niet afgeleid");
+    assertTrue([21, 22, 23, 24, 25, 26, 27].every((i) => r[i].afgeleid), "152-158 zijn afgeleid");
+  });
+
+  it("doet niets als er te weinig gelezen nummers zijn om iets als 'vreemd' te herkennen", () => {
+    // Dezelfde foute lezingen, maar zonder de 20 betrouwbare buren: te weinig gegevens, dus liever
+    // niets aanpassen dan een gok wagen (zie ook "vult niets aan als het niet zeker is" hierboven).
+    const r = fillMissingNumbers(row([151, 45, 8, 297]));
+    assertEqual(r[0], { nummer: 151, afgeleid: false });
+  });
+});
+
+// Kruisproduct (maat voor hoe ver twee vectoren van evenwijdig af zitten) getoetst relatief aan
+// de lengte van de vectoren, zodat de test niet flakey wordt door afrondingsverschillen bij grote
+// coördinaten (zoals na een paar keer sinus/cosinus).
+function assertParallel(a, b, message) {
+  const scale = Math.hypot(a.x, a.y) * Math.hypot(b.x, b.y);
+  assertTrue(Math.abs(a.x * b.y - a.y * b.x) < 1e-6 * Math.max(scale, 1), message);
+}
+
+describe("numberOcr: strookje boven het bord volgt de scheefstand van het diagram (2026-09-23)", () => {
+  it("ligt boven een recht (niet-scheef) bord, iets breder dan het bord", () => {
+    const corners = [
+      { x: 1000, y: 1000 },
+      { x: 2000, y: 1000 },
+      { x: 2000, y: 2000 },
+      { x: 1000, y: 2000 },
+    ];
+    // stripQuad geeft [boven-links, boven-rechts, bord-rechtsboven, bord-linksboven] terug; de
+    // laatste twee liggen iets buiten de aangewezen hoeken (het strookje steekt iets breder uit).
+    const [aboveTL, aboveTR, boardTR, boardTL] = stripQuad(corners);
+    assertTrue(boardTL.x < corners[0].x && boardTR.x > corners[1].x, "onderkant van het strookje is iets breder dan het bord");
+    assertEqual(boardTL.y, corners[0].y);
+    assertEqual(boardTR.y, corners[1].y);
+    assertTrue(aboveTL.y < corners[0].y && aboveTR.y < corners[1].y, "strookje ligt boven het bord");
+    assertTrue(Math.abs(aboveTL.y - aboveTR.y) < 1e-6, "niet-scheef bord geeft een niet-scheef strookje");
+    assertTrue(aboveTL.x < corners[0].x && aboveTR.x > corners[1].x, "iets breder dan het bord");
+  });
+
+  it("volgt de scheefstand van een gedraaid bord (het strookje draait mee)", () => {
+    // Een vierkant van 1000x1000, 20° gedraaid om het midden — zoals een diagram dat scheef op de
+    // foto staat.
+    const angle = (20 * Math.PI) / 180;
+    const center = { x: 1500, y: 1500 };
+    const square = [
+      { x: 1000, y: 1000 },
+      { x: 2000, y: 1000 },
+      { x: 2000, y: 2000 },
+      { x: 1000, y: 2000 },
+    ];
+    const corners = square.map(({ x, y }) => ({
+      x: center.x + (x - center.x) * Math.cos(angle) - (y - center.y) * Math.sin(angle),
+      y: center.y + (x - center.x) * Math.sin(angle) + (y - center.y) * Math.cos(angle),
+    }));
+    const [TL, TR, , BL] = corners;
+    const boardTop = { x: TR.x - TL.x, y: TR.y - TL.y };
+    const boardLeft = { x: TL.x - BL.x, y: TL.y - BL.y };
+
+    const [aboveTL, aboveTR, boardTRwide, boardTLwide] = stripQuad(corners);
+    const stripTop = { x: aboveTR.x - aboveTL.x, y: aboveTR.y - aboveTL.y };
+    const stripLeftSide = { x: aboveTL.x - boardTLwide.x, y: aboveTL.y - boardTLwide.y };
+    const stripBottom = { x: boardTRwide.x - boardTLwide.x, y: boardTRwide.y - boardTLwide.y };
+    // De bovenkant, onderkant én zijkant van het strookje lopen evenwijdig aan de bijbehorende
+    // zijde van het bord (niet "recht omhoog" op de foto) — het strookje draait mee met het bord,
+    // in plaats van een assen-gelijk kader om de 4 hoekpunten te zijn.
+    assertParallel(boardTop, stripTop, "strookje-top evenwijdig aan bord-top");
+    assertParallel(boardTop, stripBottom, "onderkant van het strookje evenwijdig aan bord-top");
+    assertParallel(boardLeft, stripLeftSide, "strookje volgt de linkerzijde van het bord");
+    // En het strookje zit aan de kant van "omhoog langs het bord", niet omlaag.
+    assertTrue(stripLeftSide.x * boardLeft.x + stripLeftSide.y * boardLeft.y > 0, "wijst dezelfde kant op als de bordzijde");
+  });
+
+  it("geeft null bij een ontaarde vierhoek (twee hoekpunten die samenvallen)", () => {
+    const corners = [
+      { x: 0, y: 0 },
+      { x: 100, y: 0 },
+      { x: 100, y: 100 },
+      { x: 0, y: 0 }, // zelfde punt als de eerste hoek: linkerzijde heeft lengte 0
+    ];
+    assertEqual(stripQuad(corners), null);
   });
 });
 

@@ -6,6 +6,16 @@
 //
 // Tesseract.js wordt pas geladen (van een CDN, ~5 MB) zodra dit voor het eerst nodig is; zonder
 // internet blijft alleen het automatisch lezen weg, handmatig invullen werkt gewoon.
+//
+// Sinds 2026-09-23: op scheef in beeld staande diagrammen (fotohoek, pagina niet recht) las de
+// tekstlezer er vaak substantieel naast — zie CLAUDE.md ("nummerherkenning verbeterd"). Het
+// strookje wordt nu, net als het bord zelf, rechtgetrokken vóór het lezen (`warpNumberStrip`,
+// volgt de eigen scheefstand van dat diagram i.p.v. een assen-gelijk kader om de 4 hoekpunten);
+// een lezing met een lage zekerheid van Tesseract zelf wordt genegeerd (`NUMBER_MIN_CONFIDENCE`);
+// en `fillMissingNumbers` verwerpt nu ook een lezing die qua grootte duidelijk niet bij de rest
+// van de import past, zelfs als hij zelf geen "gat" is (zie `findImplausible`).
+
+import { computeHomography, warpPerspective } from "./homography.js?v=20260923a";
 
 const TESSERACT_URL = "https://cdn.jsdelivr.net/npm/tesseract.js@7/dist/tesseract.min.js";
 
@@ -29,9 +39,70 @@ export function loadTesseract() {
   return tesseractPromise;
 }
 
-// Het strookje boven een bord, in de coördinaten van de foto: de breedte van het bord (plus 5%
-// per kant) en van 0,30 x die breedte boven de bovenrand tot vlak eronder. null als er geen
-// ruimte boven het bord is (bord tegen de bovenrand van de foto).
+// ---------- het strookje boven het bord vinden ----------
+
+// Hoeveel van de bordbreedte/-hoogte het strookje boven het bord beslaat, en hoeveel breder dan
+// het bord het aan weerszijden uitsteekt (een nummer/onderschrift staat vaak net iets breder dan
+// het bord zelf, en dit vangt ook een klein beetje scheefstand tussen bord en tekst op).
+const STRIP_HEIGHT_FRACTION = 0.3;
+const STRIP_SIDE_MARGIN = 0.05;
+// Uitvoerbreedte van het rechtgetrokken strookje: ruim, zodat een klein brongebied (een dicht
+// opeengepakte pagina met veel diagrammen) tóch genoeg pixels voor Tesseract oplevert.
+const STRIP_OUTPUT_WIDTH = 640;
+
+// Het strookje boven een bord als vierhoek in de coördinaten van de foto, MET de scheefstand van
+// dat diagram zelf (dus geen assen-gelijk kader om de 4 hoekpunten — dat kader is bij een scheve
+// foto altijd ruimer dan het diagram, en snijdt daardoor niet noodzakelijk het echte nummer uit).
+// `corners` = [TL, TR, BR, BL] (zelfde volgorde als overal elders in dit onderdeel, zie
+// homography.js). Geeft [boven-TL, boven-TR, TR, TL] terug, of null bij een ontaarde vierhoek.
+export function stripQuad(corners, heightFraction = STRIP_HEIGHT_FRACTION, sideMargin = STRIP_SIDE_MARGIN) {
+  const [TL, TR, BR, BL] = corners;
+  const left = { x: TL.x - BL.x, y: TL.y - BL.y }; // wijst "omhoog" langs de linkerzijde
+  const right = { x: TR.x - BR.x, y: TR.y - BR.y }; // wijst "omhoog" langs de rechterzijde
+  const top = { x: TR.x - TL.x, y: TR.y - TL.y };
+  const leftLen = Math.hypot(left.x, left.y);
+  const rightLen = Math.hypot(right.x, right.y);
+  const topLen = Math.hypot(top.x, top.y);
+  if (leftLen < 1e-6 || rightLen < 1e-6 || topLen < 1e-6) return null;
+  const along = (p, dir, len, amount) => ({ x: p.x + (dir.x / len) * amount, y: p.y + (dir.y / len) * amount });
+  const margin = topLen * sideMargin;
+  const topLeft = along(TL, { x: -top.x, y: -top.y }, topLen, margin);
+  const topRight = along(TR, top, topLen, margin);
+  const aboveLeft = along(topLeft, left, leftLen, leftLen * heightFraction);
+  const aboveRight = along(topRight, right, rightLen, rightLen * heightFraction);
+  return [aboveLeft, aboveRight, topRight, topLeft];
+}
+
+// Rechttrekken van `quad` (in de coördinaten van `drawable`) naar een canvas van
+// `outWidth` x `outHeight`, met dezelfde homografie-aanpak als het bord zelf (homography.js).
+// `clampEdges`: buiten de foto de rand herhalen in plaats van wit invullen (het strookje kan net
+// buiten de foto vallen als het bord tegen de rand aan staat).
+function warpQuadToCanvas(drawable, quad, outWidth, outHeight) {
+  const srcCanvas = document.createElement("canvas");
+  srcCanvas.width = drawable.width ?? drawable.naturalWidth;
+  srcCanvas.height = drawable.height ?? drawable.naturalHeight;
+  const srcCtx = srcCanvas.getContext("2d");
+  srcCtx.drawImage(drawable, 0, 0);
+  const sourceImageData = srcCtx.getImageData(0, 0, srcCanvas.width, srcCanvas.height);
+
+  const rectCorners = [
+    { x: 0, y: 0 },
+    { x: outWidth, y: 0 },
+    { x: outWidth, y: outHeight },
+    { x: 0, y: outHeight },
+  ];
+  const H = computeHomography(rectCorners, quad);
+  const warped = warpPerspective(sourceImageData, H, outWidth, outHeight, true);
+  const outCanvas = document.createElement("canvas");
+  outCanvas.width = outWidth;
+  outCanvas.height = outHeight;
+  outCanvas.getContext("2d").putImageData(warped, 0, 0);
+  return outCanvas;
+}
+
+// Terugval: hetzelfde strookje, maar dan als een assen-gelijk kader om de 4 hoekpunten (de
+// aanpak van vóór 2026-09-23) — gebruikt alleen als de scheefstand-versie hierboven om wat voor
+// reden dan ook niet lukt (bv. een ontaarde vierhoek). Ook los bruikbaar/getest.
 export function stripRect(corners, imageWidth, imageHeight) {
   const xs = corners.map((p) => p.x);
   const ys = corners.map((p) => p.y);
@@ -77,12 +148,23 @@ function toGrayAutoContrast(canvas) {
 export function cropStrip(drawable, corners) {
   const width = drawable.width ?? drawable.naturalWidth;
   const height = drawable.height ?? drawable.naturalHeight;
-  const rect = stripRect(corners, width, height);
-  if (!rect) return null;
-  const canvas = document.createElement("canvas");
-  canvas.width = rect.width;
-  canvas.height = rect.height;
-  canvas.getContext("2d").drawImage(drawable, rect.x, rect.y, rect.width, rect.height, 0, 0, rect.width, rect.height);
+  const quad = stripQuad(corners);
+  let canvas = null;
+  if (quad) {
+    try {
+      canvas = warpQuadToCanvas(drawable, quad, STRIP_OUTPUT_WIDTH, Math.round(STRIP_OUTPUT_WIDTH * STRIP_HEIGHT_FRACTION));
+    } catch {
+      canvas = null;
+    }
+  }
+  if (!canvas) {
+    const rect = stripRect(corners, width, height);
+    if (!rect) return null;
+    canvas = document.createElement("canvas");
+    canvas.width = rect.width;
+    canvas.height = rect.height;
+    canvas.getContext("2d").drawImage(drawable, rect.x, rect.y, rect.width, rect.height, 0, 0, rect.width, rect.height);
+  }
   return toGrayAutoContrast(canvas);
 }
 
@@ -98,6 +180,12 @@ export function parseDiagramNumber(text) {
   }
   return best === null ? null : Number(best);
 }
+
+// Onder deze zekerheid (Tesseract's eigen inschatting, 0-100) wordt een lezing genegeerd — beter
+// "niet gelezen" (en dus zelf in te vullen of uit de reeks af te leiden) dan een overtuigend
+// ogend maar fout getal. Nog niet scherpgesteld op echte foto's; bijstellen zodra dat kan (zie
+// CLAUDE.md).
+export const NUMBER_MIN_CONFIDENCE = 35;
 
 // Een tekstlezer die je voor meerdere pagina's achter elkaar kunt gebruiken (het opstarten kost
 // enkele seconden, dus niet per foto opnieuw). `read(drawable, cornersList, { onProgress })`
@@ -117,7 +205,7 @@ export async function createNumberReader() {
           const strip = cropStrip(drawable, cornersList[i]);
           if (strip) {
             const { data } = await worker.recognize(strip);
-            number = parseDiagramNumber(data.text);
+            if (data.confidence >= NUMBER_MIN_CONFIDENCE) number = parseDiagramNumber(data.text);
           }
         } catch {
           number = null;
@@ -194,6 +282,60 @@ function findOutliers(order, values) {
   return out;
 }
 
+// Hoever een gelezen nummer minimaal van de rest van de import mag afliggen voordat het als
+// "hoort hier niet bij" (dus vermoedelijk een leesfout) wordt behandeld. Ruim genomen: bij één
+// pagina met bv. 4-12 diagrammen lopen de echte nummers meestal niet meer dan een paar tientallen
+// uiteen; bij meerdere pagina's tegelijk (de gewone bulk-import) geeft dat des te meer houvast.
+const MAX_DEVIATION_FROM_MEDIAN = 30;
+
+// Nummers die, ongeacht hun plek in de reeks, sterk afwijken van de rest van de gelezen nummers in
+// deze import (mediaan van alles wat wél gelezen is) — dit vangt een lezing die zelf geen "gat"
+// slaat (bv. een op zichzelf keurig oplopend maar véél te laag reeksje "0, 1, 2" tussen verder
+// correcte nummers van 150+) en die `findOutliers` hierboven daarom niet ziet. Bewust voorzichtig:
+// bij te weinig gegevens (< 4 bekende nummers), of als het zoveel zou wegstrepen dat er niks van
+// een referentie overblijft, gebeurt er niets — beter een gemiste fout dan een goed nummer kwijt.
+function findImplausible(raw) {
+  const known = raw.filter((v) => v != null);
+  if (known.length < 4) return [];
+  const sorted = [...known].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  const median = sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+  const out = [];
+  raw.forEach((v, i) => {
+    if (v != null && Math.abs(v - median) > MAX_DEVIATION_FROM_MEDIAN) out.push(i);
+  });
+  return out.length < known.length ? out : [];
+}
+
+/**
+ * Vult nummers aan die niet gelezen zijn, als de reeks ervoor en erna doorloopt.
+ * @param {{ nummer: number|null, cx: number, cy: number, breedte: number }[]} items in leesvolgorde
+ *   (rij voor rij); cx/cy = midden van het bord, breedte = breedte van het bord.
+ * @returns {{ nummer: number|null, afgeleid: boolean }[]}
+ *   Alleen ingevuld waar de leesvolgorde en de kolomvolgorde elkaar niet tegenspreken.
+ */
+export function fillMissingNumbers(items) {
+  const raw = items.map((it) => it.nummer ?? null);
+  const readingOrder = items.map((_, i) => i);
+  const colOrder = columnOrder(items);
+  // Een gelezen nummer dat midden in een doorlopende reeks niet past (bv. "3" tussen 592 en het
+  // einde van de reeks), of dat sterk afwijkt van de rest van de import (bv. "45" tussen verder
+  // allemaal 150-achtige nummers), is bijna zeker een leesfout: dat wordt als "niet gelezen"
+  // behandeld en zo mogelijk uit de reeks afgeleid.
+  const suspect = new Set([...findOutliers(readingOrder, raw), ...findOutliers(colOrder, raw), ...findImplausible(raw)]);
+  const values = raw.map((v, i) => (suspect.has(i) ? null : v));
+  const a = fillAlong(readingOrder, values);
+  const b = fillAlong(colOrder, values);
+  return items.map((it, i) => {
+    if (values[i] != null) return { nummer: values[i], afgeleid: false };
+    const va = a.get(i);
+    const vb = b.get(i);
+    if (va != null && vb != null && va !== vb) return { nummer: null, afgeleid: false };
+    const v = va ?? vb ?? null;
+    return { nummer: v, afgeleid: v !== null };
+  });
+}
+
 // Diagrammen in kolom-volgorde: van boven naar beneden, kolom voor kolom (sommige boeken tellen zo).
 function columnOrder(items) {
   const widths = items.map((it) => it.breedte).sort((a, b) => a - b);
@@ -209,32 +351,4 @@ function columnOrder(items) {
   }
   columns.sort((a, b) => a.cx - b.cx);
   return columns.flatMap((c) => c.items.sort((a, b) => a.cy - b.cy).map((it) => it.i));
-}
-
-/**
- * Vult nummers aan die niet gelezen zijn, als de reeks ervoor en erna doorloopt.
- * @param {{ nummer: number|null, cx: number, cy: number, breedte: number }[]} items in leesvolgorde
- *   (rij voor rij); cx/cy = midden van het bord, breedte = breedte van het bord.
- * @returns {{ nummer: number|null, afgeleid: boolean }[]}
- *   Alleen ingevuld waar de leesvolgorde en de kolomvolgorde elkaar niet tegenspreken.
- */
-export function fillMissingNumbers(items) {
-  const raw = items.map((it) => it.nummer ?? null);
-  const readingOrder = items.map((_, i) => i);
-  const colOrder = columnOrder(items);
-  // Een gelezen nummer dat midden in een doorlopende reeks niet past (bv. "3" tussen 592 en het
-  // einde van de reeks) is bijna zeker een leesfout: dat wordt als "niet gelezen" behandeld en
-  // uit de reeks afgeleid.
-  const suspect = new Set([...findOutliers(readingOrder, raw), ...findOutliers(colOrder, raw)]);
-  const values = raw.map((v, i) => (suspect.has(i) ? null : v));
-  const a = fillAlong(readingOrder, values);
-  const b = fillAlong(colOrder, values);
-  return items.map((it, i) => {
-    if (values[i] != null) return { nummer: values[i], afgeleid: false };
-    const va = a.get(i);
-    const vb = b.get(i);
-    if (va != null && vb != null && va !== vb) return { nummer: null, afgeleid: false };
-    const v = va ?? vb ?? null;
-    return { nummer: v, afgeleid: v !== null };
-  });
 }

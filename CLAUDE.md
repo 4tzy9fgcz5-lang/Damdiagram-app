@@ -500,6 +500,59 @@ eigen, aparte re-render-functie en lopen niet via deze `render()`, dus die blijv
 echte herlaad) — de module blijft dan de al geladen (oudere) versie draaien, ook als het
 cachenummer intussen is opgehoogd. Bij het testen van een JS-wijziging op een bestaand tabblad dus
 altijd een NIEUW tabblad gebruiken (of `location.reload()`), niet hetzelfde tabblad hernavigeren.
+**Nog een cache-valkuil (2026-09-23):** zelfs een NIEUW tabblad kan de HTML-pagina zelf
+(`tests.html`/`index.html`) uit de browsercache serveren (niet alleen de losse JS-modules) —
+python's `http.server` stuurt geen "niet cachen"-header mee. Zichtbaar aan een `<script>`-tag in
+de geladen pagina met een ouder `?v=` dan er op schijf staat. Oplossing: een cache-ongevoelige
+eigen query op de PAGINA-URL zelf toevoegen, bv. `http://localhost:8000/tests/tests.html?bust=123`
+(elke keer een ander getal) — dat forceert een echte nieuwe download van de HTML zelf.
+
+### Nummerherkenning bij scheve diagrammen verbeterd (2026-09-23)
+
+Jan meldde dat het diagramnummer boven een diagram in de bulk-import bij sommige boeken vaak fout
+gelezen wordt (foto's meegestuurd: bv. "153" gelezen als "45", "152" als "8", "154" als "297" op
+één pagina; "155" als "0", "156" als "1", "158" niet gelezen, op een andere). Diagnose: bij deze
+foto's staat een deel van de diagrammen scheef op de foto (fotohoek/gebogen pagina). Het strookje
+boven het bord werd tot nu toe uitgesneden als een **assen-gelijk kader om de 4 hoekpunten**
+(`stripRect` in `numberOcr.js`) — bij een scheef diagram is dat kader altijd ruimer dan het
+diagram zelf en staat het er niet loodrecht op, waardoor Tesseract vaak een deel van het label mist
+of scheve tekst krijgt (vandaar cijfers die dooreen staan, zoals "45" i.p.v. "153"). Bevestigd met
+een eigen proef (synthetisch, 12° scheef "273"-label): oude uitsnede -> Tesseract leest "713"
+(52% zekerheid), nieuwe uitsnede -> leest "273" (96% zekerheid).
+
+Drie onafhankelijke verbeteringen, samen in `src/recognition/numberOcr.js`:
+1. **Het strookje volgt nu de scheefstand van het diagram** (`stripQuad()` + `warpQuadToCanvas()`,
+   dezelfde homografie-aanpak als het bord zelf rechttrekken, zie `homography.js`) in plaats van
+   een los kader om de hoekpunten. Terugval op de oude, assen-gelijke uitsnede (`stripRect`, blijft
+   bestaan en getest) als de vierhoek ontaardt. Dit is de belangrijkste fix (raakt de oorzaak).
+2. **Een lezing met een lage zekerheid van Tesseract zelf wordt genegeerd** in plaats van
+   overgenomen (`NUMBER_MIN_CONFIDENCE = 35`, `createNumberReader`) — beter "niet gelezen" (zelf
+   invullen of uit de reeks afleiden) dan een overtuigend ogend maar fout getal. **Nog niet scherp
+   te stellen zonder echte foto's:** in een eigen proef op een synthetische pagina zat een duidelijk
+   fout gelezen "4" op 52% zekerheid, vlak naast een correct gelezen "153" (ondanks ruis in de
+   tekst) op 51% — bij dít soort foto's ligt "goed" en "fout" dus niet netjes uit elkaar op
+   zekerheid alleen, en is verbeterpunt 3 hieronder de belangrijkste vangnet tegen zo'n geval.
+3. **`fillMissingNumbers` verwerpt nu ook een lezing die qua GROOTTE niet bij de rest van de import
+   past** (`findImplausible`, mediaan van alle gelezen nummers ± 30), zelfs als hij op zichzelf een
+   kloppend reeksje vormt en dus niet als "gat" wordt gezien (dat was het echte probleem bij "0, 1,
+   2" i.p.v. "155, 156, 157" — lokaal een prima reeks, maar mijlenver van de rest van het boek).
+   Bewust pas actief vanaf 4 bekende nummers, en doet niets als het te veel zou wegstrepen — beter
+   een gemiste fout dan een goed nummer kwijt. **Werkt het best bij een importronde met veel
+   diagrammen tegelijk** (de gewone bulk-import van een heel boek): met tientallen andere, goed
+   gelezen nummers als anker is een afwijkende pagina makkelijk te herkennen en te herstellen; bij
+   een klein, op zichzelf geïmporteerd paginaatje (zoals Jans testfoto's, 4-6 diagrammen) is er
+   soms te weinig houvast (geverifieerd met een test die dat expliciet vaststelt).
+
+Getest: alle bestaande tests blijven groen; nieuwe tests in `tests/numberOcr.test.js` voor de
+scheefstand-meegaande vierhoek (rekenkundig, geen foto nodig) en voor het herstellen van een
+"foute pagina" tussen 20 verder goede nummers. Ook een keer met de ECHTE Tesseract-tekstlezer in
+de browser gedraaid (niet alleen unit-tests): op een zelfgemaakte scheve testfoto met 3 diagrammen
+werd het eerste (95% zekerheid) en tweede (51%, ondanks ruis) goed gelezen, het derde fout ("4",
+52% zekerheid) — dus een merkbare verbetering, maar géén garantie dat het bij Jans eigen boeken nu
+foutloos is. **Nog te doen: meten op Jans eigen foto's** (de twee boeken uit zijn melding) om de
+twee constantes (`NUMBER_MIN_CONFIDENCE`, `MAX_DEVIATION_FROM_MEDIAN`) op echte cijfers te zetten
+in plaats van beredeneerde startwaarden — zelfde aanpak als bij de foto-herkenning zelf
+(`tools/meetHoekdetectie.mjs` e.d.).
 
 ### Neuraal netwerkje (2026-09-21) — nu de standaardherkenner
 
