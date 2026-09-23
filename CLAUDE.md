@@ -202,11 +202,21 @@ Niet te verwarren met de fases 0-3 van het herkenning-verbeterplan verderop.
    bewerken) of het overzicht (bij een nieuwe partij) i.p.v. naar het
    proefscherm. Het proefscherm zelf (Instellingen -> "Partijen/studies
    (proef)") verwijst nu ook door naar dit echte tabblad.
-4. **Printen.** Partij als Word-document: gegevens bovenaan, de hele notatie
-   (met varianten) eronder. Bevestigd door Jan: **alleen de notatie is genoeg**
-   voor het printen van een losse partij — geen diagrammen halverwege de tekst
-   (dat was een aparte vraag van mij, over damkunst.nl's "(zie diagram)";
-   losstaand van de filmmodule hieronder, die sowieso al 6 diagrammen heeft).
+4. **Printen — klaar (2026-09-23).** Knop "Downloaden als Word" op de
+   partij-detailpagina. `src/export/partijDocx.js` (`buildPartijDocxBlob`) —
+   bewust een NIEUW, eenvoudig bestand, niet ingepast in `docx.js` (die is
+   helemaal op het herhalende opgaven/oplossingen-blad van een opgaveblad
+   gebouwd; een partij is gewoon één doorlopend document): titel
+   (wit - zwart), gegevens (toernooi/ronde, datum/uitslag, bron, notities) en
+   de hele notatie eronder. Bevestigd door Jan: **alleen de notatie is
+   genoeg** — geen diagrammen halverwege de tekst (dat was een aparte vraag
+   van mij, over damkunst.nl's "(zie diagram)"; losstaand van de filmmodule
+   hieronder, die sowieso al 6 diagrammen heeft).
+   - Nieuw in `zettenboom.js`: `formatteerBoomTekst(wortel, beurt0)` — het
+     spiegelbeeld van `pdn.js`'s `leesPartijTekst`: een hele boom (hoofdlijn +
+     alle geneste varianten + commentaar) terug naar leesbare tekst, in
+     precies het formaat dat `pdn.js` ook weer inleest. Getest met een
+     heen-en-terug-test (boom -> tekst -> `leesPartijTekst` -> dezelfde boom).
 5. **Filmmodule**, zoals hieronder beschreven.
 
 Voorstel voor stap-voor-stap uitwerking van fase 1: `INVENTARISATIE.md`, onderdeel 7.

@@ -1,7 +1,7 @@
-import { createStartBoard } from "../core/board.js?v=20260923j";
-import { leesPartijTekst } from "../core/pdn.js?v=20260923j";
-import { savePartij, getPartij } from "../db/partijen.js?v=20260923j";
-import { createZettenboomPlayer } from "./zettenboomPlayer.js?v=20260923j";
+import { createStartBoard } from "../core/board.js?v=20260923k";
+import { leesPartijTekst } from "../core/pdn.js?v=20260923k";
+import { savePartij, getPartij } from "../db/partijen.js?v=20260923k";
+import { createZettenboomPlayer } from "./zettenboomPlayer.js?v=20260923k";
 
 function escapeHtml(str) {
   return str.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));

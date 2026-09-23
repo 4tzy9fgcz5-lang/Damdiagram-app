@@ -1,5 +1,5 @@
-import { getLegalMoves, applyMove, opposite } from "./draughtsMoves.js?v=20260923j";
-import { moveNotation } from "./solutionParser.js?v=20260923j";
+import { getLegalMoves, applyMove, opposite, plyColor, plyMoveNumber, moveToNotation } from "./draughtsMoves.js?v=20260923k";
+import { moveNotation } from "./solutionParser.js?v=20260923k";
 
 // De zettenboom: het gedeelde model voor studies, partijen en openingen (zie CLAUDE.md,
 // "Uitbreiding: dam-toolkit" -> "Doelarchitectuur"). Een knoop is één zet, met eventueel
@@ -223,4 +223,42 @@ export function platteOplossingVanBoom(wortel) {
   });
 
   return { zetten, zijvarianten };
+}
+
+// ---------- leesbare tekst (voor printen/export) ----------
+
+// Zet een hele boom om naar leesbare tekst: hoofdlijn met genest `(varianten)` en
+// `{commentaar}` — precies het formaat dat `pdn.js` ook weer inleest (`leesPartijTekst`), dus
+// dit is het spiegelbeeld daarvan. Gebruikt voor het printen van een partij (fase 2, stap 4).
+// `beurt0` is wie de EERSTE zet van de boom speelt (voor de zetnummering, zie
+// `plyColor`/`plyMoveNumber` in `draughtsMoves.js`).
+export function formatteerBoomTekst(wortel, beurt0) {
+  const stukken = [];
+
+  function schrijfZet(knoop, ply, forceerZetnummer) {
+    const kleur = plyColor(beurt0, ply);
+    if (kleur === "white") stukken.push(`${plyMoveNumber(beurt0, ply)}.`);
+    else if (forceerZetnummer) stukken.push(`${plyMoveNumber(beurt0, ply)}. ...`);
+    stukken.push(moveToNotation(knoop.zet) + (knoop.teken ?? ""));
+    if (knoop.commentaar) stukken.push(`{${knoop.commentaar}}`);
+  }
+
+  function schrijfReeks(ouderKnoop, ply) {
+    if (ouderKnoop.kinderen.length === 0) return;
+    const [hoofdKind, ...varianten] = ouderKnoop.kinderen;
+    schrijfZet(hoofdKind, ply, false);
+    for (const variant of varianten) {
+      stukken.push("(");
+      schrijfZet(variant, ply, true);
+      schrijfReeks(variant, ply + 1);
+      stukken.push(")");
+    }
+    schrijfReeks(hoofdKind, ply + 1);
+  }
+
+  schrijfReeks(wortel, 0);
+  // "( 1. 31-26" -> "(1. 31-26", "18-22 )" -> "18-22)" — de haakjes zelf staan als eigen
+  // stukken tekst in `stukken` (zie hierboven), dus zonder deze opschoning zou join(" ")
+  // overal een losse spatie eromheen zetten.
+  return stukken.join(" ").replace(/\(\s+/g, "(").replace(/\s+\)/g, ")");
 }

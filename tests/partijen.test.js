@@ -1,9 +1,9 @@
-import { describe, it, assertEqual, assertTrue } from "./test-runner.js?v=20260923j";
-import { resetDatabaseForTests } from "../src/db/db.js?v=20260923j";
-import { savePartij, getPartij, deletePartij, listPartijen } from "../src/db/partijen.js?v=20260923j";
-import { createStartBoard } from "../src/core/board.js?v=20260923j";
-import { getLegalMoves } from "../src/core/draughtsMoves.js?v=20260923j";
-import { maakWortel, voegZetToe } from "../src/core/zettenboom.js?v=20260923j";
+import { describe, it, assertEqual, assertTrue } from "./test-runner.js?v=20260923k";
+import { resetDatabaseForTests } from "../src/db/db.js?v=20260923k";
+import { savePartij, getPartij, deletePartij, listPartijen } from "../src/db/partijen.js?v=20260923k";
+import { createStartBoard } from "../src/core/board.js?v=20260923k";
+import { getLegalMoves } from "../src/core/draughtsMoves.js?v=20260923k";
+import { maakWortel, voegZetToe } from "../src/core/zettenboom.js?v=20260923k";
 
 async function freshDb() {
   await resetDatabaseForTests();

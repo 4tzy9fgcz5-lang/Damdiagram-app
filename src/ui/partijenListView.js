@@ -1,4 +1,4 @@
-import { listPartijen } from "../db/partijen.js?v=20260923j";
+import { listPartijen } from "../db/partijen.js?v=20260923k";
 
 function escapeHtml(str) {
   return String(str ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));

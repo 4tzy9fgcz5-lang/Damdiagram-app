@@ -1,4 +1,4 @@
-import { FIELD_COUNT, PIECE_TYPES, fieldToCoord, coordToField, isKing, cloneBoard } from "./board.js?v=20260923j";
+import { FIELD_COUNT, PIECE_TYPES, fieldToCoord, coordToField, isKing, cloneBoard } from "./board.js?v=20260923k";
 
 const ALL_DIRS = [
   { dr: -1, dc: -1 },
