@@ -1,9 +1,9 @@
-import { createStartBoard } from "../core/board.js?v=20260923h";
-import { parseFen } from "../core/fen.js?v=20260923h";
-import { leesPartijTekst } from "../core/pdn.js?v=20260923h";
-import { boomVanPlatteOplossing } from "../core/zettenboom.js?v=20260923h";
-import { listStanden } from "../db/standen.js?v=20260923h";
-import { createZettenboomPlayer } from "./zettenboomPlayer.js?v=20260923h";
+import { createStartBoard } from "../core/board.js?v=20260923i";
+import { parseFen } from "../core/fen.js?v=20260923i";
+import { leesPartijTekst } from "../core/pdn.js?v=20260923i";
+import { boomVanPlatteOplossing } from "../core/zettenboom.js?v=20260923i";
+import { listStanden } from "../db/standen.js?v=20260923i";
+import { createZettenboomPlayer } from "./zettenboomPlayer.js?v=20260923i";
 
 function escapeHtml(str) {
   return str.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -29,12 +29,21 @@ function toonMeldingen(host, meldingen) {
 export async function renderZettenboomProef(container) {
   container.innerHTML = `
     <div class="card">
-      <h3 style="margin-top:0;">Partij-/studietekst plakken</h3>
+      <h3 style="margin-top:0;">Een partij invoeren en opslaan</h3>
+      <p style="font-size:0.85rem;color:#666;">
+        Dit hieronder is puur een proefscherm (leest niets, slaat niets op). Wil je een partij
+        echt bewaren, met spelersnamen/toernooi erbij? <a href="#/partij-nieuw">Nieuwe partij</a>.
+      </p>
+    </div>
+    <div class="card">
+      <h3 style="margin-top:0;">Partij-/studietekst plakken (proef, niet opgeslagen)</h3>
       <p style="font-size:0.85rem;color:#666;">
         Plak tekst met zetnummers, <code>{commentaar}</code> en (geneste) <code>(varianten)</code> —
         zoals bij damkunst.nl, of zoals een boekfragment dat je zo hebt overgetikt of laten
         herschrijven. Begint de tekst niet vanaf de gewone beginopstelling, dan wordt de eerste zet
-        vrijwel zeker afgekeurd; dat is nu nog een bekende beperking (zie CLAUDE.md).
+        vrijwel zeker afgekeurd — geef dan zelf een andere beginstand mee (nog niet in dit
+        proefscherm, wel al mogelijk in de code). Een kopregel met spelersnamen/datum vóór de
+        eerste zet (zoals damkunst.nl die toont) wordt automatisch overgeslagen.
       </p>
       <textarea data-role="tekst" rows="6" style="width:100%;font-family:ui-monospace,monospace;"></textarea>
       <div class="button-row">

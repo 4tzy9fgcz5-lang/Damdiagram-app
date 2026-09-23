@@ -1,8 +1,8 @@
-import { describe, it, assertTrue, assertEqual } from "./test-runner.js?v=20260923h";
+import { describe, it, assertTrue, assertEqual } from "./test-runner.js?v=20260923i";
 import {
   forward, boardToBases, baseToInput, classifyBoardCnn, weightsFromJson, SHAPES, INPUT, BASE, CLASSES,
-} from "../src/recognition/cnnModel.js?v=20260923h";
-import { createCnnClassifier } from "../src/recognition/cnnClassify.js?v=20260923h";
+} from "../src/recognition/cnnModel.js?v=20260923i";
+import { createCnnClassifier } from "../src/recognition/cnnClassify.js?v=20260923i";
 
 function zeroWeights() {
   return Object.fromEntries(Object.entries(SHAPES).map(([k, n]) => [k, new Float32Array(n)]));

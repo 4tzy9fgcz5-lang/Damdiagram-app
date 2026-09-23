@@ -1,6 +1,6 @@
-import { createStartBoard } from "./board.js?v=20260923h";
-import { applyMove, opposite } from "./draughtsMoves.js?v=20260923h";
-import { maakWortel, voegZetToe } from "./zettenboom.js?v=20260923h";
+import { createStartBoard } from "./board.js?v=20260923i";
+import { applyMove, opposite } from "./draughtsMoves.js?v=20260923i";
+import { maakWortel, voegZetToe } from "./zettenboom.js?v=20260923i";
 
 // Leest partij-/studietekst in het formaat uit CLAUDE.md ("Doelarchitectuur"): zetnummers,
 // `{commentaar}` en geneste `(varianten)`, met !/?/!!/??-tekens direct achter een zet — zoals
@@ -17,10 +17,9 @@ import { maakWortel, voegZetToe } from "./zettenboom.js?v=20260923h";
 // vaste betekenis) maar staat wel genest, in tegenstelling tot solutionParser.js. Beide delen
 // dezelfde regelengine-gestuurde zetherkenning (uiteindelijk via `zettenboom.js`).
 //
-// Bekende beperking (nog niet opgelost): dit leest de KALE zettentekst. Een kopregel zoals
-// damkunst.nl die op het scherm toont ("Simon Harmsma - Jan Groenendijk (20-06-2025)") moet er
-// vóór de eerste zet af gehaald worden, anders leest "20-06" als een (foute) zet — `[Tag "..."]`-
-// regels zoals een echt PDN-bestand die gebruikt worden wel automatisch overgeslagen.
+// Een kopregel zoals damkunst.nl die op het scherm toont ("Simon Harmsma - Jan Groenendijk
+// (20-06-2025)") wordt automatisch overgeslagen (zie `stripKopregel` hieronder), net als
+// `[Tag "..."]`-regels van een echt PDN-bestand (`stripTags`).
 
 function normalizeText(raw) {
   return String(raw ?? "")
@@ -35,6 +34,31 @@ function stripTags(text) {
 const MOVE_NUMBER = /^\d{1,3}\.{1,3}/;
 const MOVE = /^\d{1,2}[-x]\d{1,2}(?:x\d{1,2})*/;
 const TEKEN = /^(!!|\?\?|!\?|\?!|!|\?)/;
+const HEEFT_ACCOLADE = /\{/;
+
+// Haalt regels vóór de eerste echte zet weg die zelf geen zet zijn en geen `{commentaar}`
+// bevatten — een kopregel met spelersnamen/datum (bv. "Simon Harmsma - Jan Groenendijk
+// (20-06-2025)", zoals damkunst.nl toont), of een lege regel die overbleef nadat `stripTags`
+// een `[Tag "..."]`-regel weghaalde. Zonder dit werd zo'n kopregel gelezen als (foute) zetten —
+// "20-06" ziet er syntactisch uit als een zet. Bewuste keerzijde: een INLEIDENDE opmerking
+// ("Een mooie partij uit het NK.") die niet tussen `{}` staat, wordt zo ook weggehaald in plaats
+// van als commentaar bewaard — precies zoals een kopregel dat zou zijn. Wil je zo'n inleiding
+// wél bewaard hebben, zet 'm tussen `{}` (dat wordt sowieso al aanbevolen, zie ook
+// `zettenboomProefView.js`).
+function stripKopregel(text) {
+  const regels = text.split("\n");
+  let i = 0;
+  while (i < regels.length) {
+    const kaal = regels[i].trim();
+    if (kaal === "") {
+      i++;
+      continue;
+    }
+    if (HEEFT_ACCOLADE.test(kaal) || MOVE.test(kaal) || MOVE_NUMBER.test(kaal)) break;
+    i++;
+  }
+  return regels.slice(i).join("\n");
+}
 
 function isTokenStart(text) {
   return /^[({)]/.test(text) || MOVE_NUMBER.test(text) || MOVE.test(text);
@@ -151,7 +175,7 @@ function ontleedReeks(state, ouderKnoop, bord0, beurt0, meldingen, vrijeTekstMel
 export function leesPartijTekst(tekst, { bord = createStartBoard(), beurt = "white" } = {}) {
   const meldingen = [];
   const wortel = maakWortel();
-  const state = { tekst: normalizeText(stripTags(String(tekst ?? ""))), i: 0 };
+  const state = { tekst: normalizeText(stripKopregel(stripTags(String(tekst ?? "")))), i: 0 };
   ontleedReeks(state, wortel, bord, beurt, meldingen, { gemeld: false });
   return { boom: wortel, meldingen };
 }

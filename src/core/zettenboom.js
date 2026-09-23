@@ -1,5 +1,5 @@
-import { getLegalMoves, applyMove, opposite } from "./draughtsMoves.js?v=20260923h";
-import { moveNotation } from "./solutionParser.js?v=20260923h";
+import { getLegalMoves, applyMove, opposite } from "./draughtsMoves.js?v=20260923i";
+import { moveNotation } from "./solutionParser.js?v=20260923i";
 
 // De zettenboom: het gedeelde model voor studies, partijen en openingen (zie CLAUDE.md,
 // "Uitbreiding: dam-toolkit" -> "Doelarchitectuur"). Een knoop is één zet, met eventueel

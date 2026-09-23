@@ -1,22 +1,38 @@
-import { renderEditorView } from "./editorView.js?v=20260923h";
-import { renderDatabaseView } from "./databaseView.js?v=20260923h";
-import { renderEindspelenView } from "./eindspelenView.js?v=20260923h";
-import { renderStandDetailView } from "./standDetailView.js?v=20260923h";
-import { renderStencilsListView } from "./stencilsListView.js?v=20260923h";
-import { renderStencilView, addStandenToStencil } from "./stencilView.js?v=20260923h";
-import { saveStencil } from "../db/stencils.js?v=20260923h";
-import { getLastBackupDate } from "./backupView.js?v=20260923h";
-import { renderSettingsView } from "./settingsView.js?v=20260923h";
-import { renderImportView } from "./importView.js?v=20260923h";
-import { renderPhotoImportView } from "./photoImportView.js?v=20260923h";
-import { renderBulkImportView } from "./bulkImportView.js?v=20260923h";
-import { loadDrawable } from "./imageInput.js?v=20260923h";
-import { renderBulkPrepare } from "./bulkPrepareView.js?v=20260923h";
-import { reviewReason } from "../core/bulkReview.js?v=20260923h";
-import { renderDiagramCapture, cropAroundCorners } from "./diagramCaptureView.js?v=20260923h";
-import { listStanden } from "../db/standen.js?v=20260923h";
+import { renderEditorView } from "./editorView.js?v=20260923i";
+import { renderDatabaseView } from "./databaseView.js?v=20260923i";
+import { renderEindspelenView } from "./eindspelenView.js?v=20260923i";
+import { renderStandDetailView } from "./standDetailView.js?v=20260923i";
+import { renderStencilsListView } from "./stencilsListView.js?v=20260923i";
+import { renderStencilView, addStandenToStencil } from "./stencilView.js?v=20260923i";
+import { saveStencil } from "../db/stencils.js?v=20260923i";
+import { getLastBackupDate } from "./backupView.js?v=20260923i";
+import { renderSettingsView } from "./settingsView.js?v=20260923i";
+import { renderImportView } from "./importView.js?v=20260923i";
+import { renderPhotoImportView } from "./photoImportView.js?v=20260923i";
+import { renderBulkImportView } from "./bulkImportView.js?v=20260923i";
+import { loadDrawable } from "./imageInput.js?v=20260923i";
+import { renderBulkPrepare } from "./bulkPrepareView.js?v=20260923i";
+import { reviewReason } from "../core/bulkReview.js?v=20260923i";
+import { renderDiagramCapture, cropAroundCorners } from "./diagramCaptureView.js?v=20260923i";
+import { listStanden } from "../db/standen.js?v=20260923i";
+import { renderPartijInvoer } from "./partijInvoerView.js?v=20260923i";
 
-const routes = ["nieuw", "zelf", "foto", "bulk", "bulk-voorbereiden", "bulk-diagram", "database", "eindspelen", "stand", "stencils", "stencil", "instellingen", "import"];
+const routes = [
+  "nieuw",
+  "zelf",
+  "foto",
+  "bulk",
+  "bulk-voorbereiden",
+  "bulk-diagram",
+  "database",
+  "eindspelen",
+  "stand",
+  "stencils",
+  "stencil",
+  "instellingen",
+  "import",
+  "partij-nieuw",
+];
 let pendingRecognition = null;
 // Actieve bulk-import-rij: { pages: [{ file, name }] (de foto's), diagrams: [{ page (plek in pages),
 // corners, manual, nummer, oplossingTekst }], auteur, publicatie, categorieen, index }.
@@ -98,6 +114,7 @@ const NAV_FOR_ROUTE = {
   stencil: "stencils",
   instellingen: "instellingen",
   import: "instellingen",
+  "partij-nieuw": "instellingen", // tot fase 2, stap 3 een eigen "Partijen"-tabblad toevoegt
 };
 
 const BACKUP_REMINDER_DAYS = 14;
@@ -222,6 +239,20 @@ async function render() {
     await renderImportView(app, {
       encoded: param,
       onDone: () => checkBackupReminder(),
+    });
+  } else if (name === "partij-nieuw") {
+    // Nog geen eigen "Partijen"-overzicht (dat is fase 2, stap 3) — bereikbaar via
+    // Instellingen -> "Partijen/studies (proef)", en na opslaan blijf je op deze pagina
+    // (de route wordt dan #/partij-nieuw/<id>, dus een volgende keer opslaan werkt bij).
+    await renderPartijInvoer(app, {
+      partijId: param,
+      onSaved: (saved) => {
+        showToast("Partij opgeslagen.");
+        location.hash = `#/partij-nieuw/${saved.id}`;
+      },
+      onCancel: () => {
+        location.hash = "#/instellingen/boom-proef";
+      },
     });
   } else if (name === "foto") {
     // De keuze combinaties/eindspelen komt van het allereerste scherm

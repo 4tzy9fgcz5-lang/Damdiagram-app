@@ -1,8 +1,8 @@
-import { describe, it, assertEqual, assertTrue } from "./test-runner.js?v=20260923h";
-import { createStartBoard, createEmptyBoard, PIECE_TYPES } from "../src/core/board.js?v=20260923h";
-import { getLegalMoves, applyMove, opposite } from "../src/core/draughtsMoves.js?v=20260923h";
-import { moveNotation } from "../src/core/solutionParser.js?v=20260923h";
-import { leesPartijTekst } from "../src/core/pdn.js?v=20260923h";
+import { describe, it, assertEqual, assertTrue } from "./test-runner.js?v=20260923i";
+import { createStartBoard, createEmptyBoard, PIECE_TYPES } from "../src/core/board.js?v=20260923i";
+import { getLegalMoves, applyMove, opposite } from "../src/core/draughtsMoves.js?v=20260923i";
+import { moveNotation } from "../src/core/solutionParser.js?v=20260923i";
+import { leesPartijTekst } from "../src/core/pdn.js?v=20260923i";
 
 // Bouwt notaties op met de echte regelengine (zoals tests/zettenboom.test.js) in plaats van
 // zelf veldnummers te verzinnen — zo test dit bestand alleen het LEZEN van de tekst, niet of ik
@@ -125,6 +125,32 @@ describe("pdn: [Tag \"waarde\"]-regels (zoals een echt PDN-bestand)", () => {
     assertEqual(meldingen.filter((m) => m.type === "fout"), []);
     assertEqual(boom.kinderen.length, 1);
     assertEqual(moveNotation(boom.kinderen[0].zet), n1);
+  });
+});
+
+describe("pdn: kopregel vóór de eerste zet", () => {
+  it("slaat een kopregel met spelersnamen en een datum over, zonder de datum als foute zet te lezen (damkunst.nl-stijl)", () => {
+    const start = createStartBoard();
+    const n1 = eersteZet(start, "white");
+    const na1 = applyMove(start, getLegalMoves(start, "white")[0]);
+    const n2 = eersteZet(na1, "black");
+
+    const { boom, meldingen } = leesPartijTekst(`Simon Harmsma - Jan Groenendijk (20-06-2025)\n1. ${n1} ${n2}`);
+    assertEqual(meldingen.filter((m) => m.type === "fout"), [], "geen 'foute zet'-melding over de datum");
+    assertEqual(boom.commentaar, "", "de kopregel is weggehaald, niet als commentaar op de beginstand gezet");
+    assertEqual(boom.kinderen.length, 1);
+    assertEqual(moveNotation(boom.kinderen[0].zet), n1);
+    assertEqual(boom.kinderen[0].kinderen.length, 1);
+    assertEqual(moveNotation(boom.kinderen[0].kinderen[0].zet), n2);
+  });
+
+  it("bewaart een inleidende opmerking WEL als die tussen {} staat", () => {
+    const start = createStartBoard();
+    const n1 = eersteZet(start, "white");
+
+    const { boom } = leesPartijTekst(`{Een mooie partij uit het NK.}\n1. ${n1}`);
+    assertEqual(boom.commentaar, "Een mooie partij uit het NK.");
+    assertEqual(boom.kinderen.length, 1);
   });
 });
 

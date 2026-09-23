@@ -171,12 +171,26 @@ Niet te verwarren met de fases 0-3 van het herkenning-verbeterplan verderop.
    (`null` = de normale beginopstelling; alleen invullen als een partij/studie
    ergens anders begint). Bevestigd door Jan: deze velden zijn voldoende.
    Tests: `tests/partijen.test.js`.
-2. **Een partij invoeren.** Formulier (de velden hierboven) + een plakvak met
-   dezelfde lezer als het proefscherm, viewer eronder als controle vóór het
-   opslaan. Hier ook de kopregel-beperking van `pdn.js` oplossen (spelersnamen
-   + datum tussen haakjes vóór de eerste zet negeren in plaats van als foute
-   zet te lezen). Eén partij per keer (bevestigd door Jan — geen bestand met
-   meerdere partijen tegelijk; dat kan een latere, aparte stap worden).
+2. **Een partij invoeren — klaar (2026-09-23).** Nieuw scherm
+   `src/ui/partijInvoerView.js` (route `#/partij-nieuw`, of `#/partij-nieuw/<id>`
+   om een bestaande partij te bewerken): het formulier (de velden hierboven) +
+   een plakvak met dezelfde lezer (`pdn.js`) als het proefscherm, met de
+   boom-viewer eronder als controle zodra je op "Lees in en toon" klikt — vóór
+   je opslaat. Na opslaan verandert de route naar `#/partij-nieuw/<id>`, zodat
+   een volgende keer opslaan dezelfde partij bijwerkt in plaats van een dubbele
+   aan te maken. Bereikbaar via Instellingen -> "Partijen/studies (proef)" (nog
+   geen eigen "Partijen"-tabblad, dat is stap 3). Eén partij per keer
+   (bevestigd door Jan — geen bestand met meerdere partijen tegelijk; dat kan
+   een latere, aparte stap worden).
+   - **Kopregel-beperking opgelost:** `pdn.js` (`stripKopregel`) haalt nu
+     regels vóór de eerste echte zet weg die zelf geen zet zijn en geen
+     `{commentaar}` bevatten — een kopregel met spelersnamen/datum (zoals
+     damkunst.nl die toont: "Simon Harmsma - Jan Groenendijk (20-06-2025)")
+     werd anders gelezen als een foute zet ("20-06" ziet er syntactisch uit
+     als een zet). Bewuste keerzijde: een inleidende opmerking die niet tussen
+     `{}` staat, wordt op dezelfde manier weggehaald in plaats van als
+     commentaar bewaard — precies zoals een kopregel dat zou zijn. Getest:
+     `tests/pdn.test.js` ("kopregel vóór de eerste zet").
 3. **Partijen bekijken.** Nieuw tabblad "Partijen" (naast Combinaties/
    Eindspelen/Opgavebladen): overzicht (zoeken op speler/toernooi/jaar) en een
    detailpagina met de viewer, alleen-lezen.
