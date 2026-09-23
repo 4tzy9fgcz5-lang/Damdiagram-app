@@ -1,8 +1,8 @@
-import { createStartBoard } from "../core/board.js?v=20260923p";
-import { parseFen } from "../core/fen.js?v=20260923p";
-import { naamWeergave } from "../core/namen.js?v=20260923p";
-import { getPartij, savePartij } from "../db/partijen.js?v=20260923p";
-import { createZettenboomAnnotator } from "./zettenboomAnnotator.js?v=20260923p";
+import { createStartBoard } from "../core/board.js?v=20260923q";
+import { parseFen } from "../core/fen.js?v=20260923q";
+import { naamWeergave } from "../core/namen.js?v=20260923q";
+import { getPartij, savePartij } from "../db/partijen.js?v=20260923q";
+import { createZettenboomAnnotator } from "./zettenboomAnnotator.js?v=20260923q";
 
 function escapeHtml(str) {
   return String(str ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));

@@ -1,9 +1,9 @@
-import { createStartBoard } from "../core/board.js?v=20260923p";
-import { parseFen } from "../core/fen.js?v=20260923p";
-import { leesPartijTekst } from "../core/pdn.js?v=20260923p";
-import { boomVanPlatteOplossing } from "../core/zettenboom.js?v=20260923p";
-import { listStanden } from "../db/standen.js?v=20260923p";
-import { createZettenboomPlayer } from "./zettenboomPlayer.js?v=20260923p";
+import { createStartBoard } from "../core/board.js?v=20260923q";
+import { parseFen } from "../core/fen.js?v=20260923q";
+import { leesPartijTekst } from "../core/pdn.js?v=20260923q";
+import { boomVanPlatteOplossing } from "../core/zettenboom.js?v=20260923q";
+import { listStanden } from "../db/standen.js?v=20260923q";
+import { createZettenboomPlayer } from "./zettenboomPlayer.js?v=20260923q";
 
 function escapeHtml(str) {
   return str.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));

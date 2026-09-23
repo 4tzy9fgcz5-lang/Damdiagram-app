@@ -1,7 +1,7 @@
-import { renderDiagramSVG } from "../diagram/render.js?v=20260923p";
-import { isValidField } from "../core/board.js?v=20260923p";
-import { getLegalMoves, plyColor, plyMoveNumber } from "../core/draughtsMoves.js?v=20260923p";
-import { knoopOpPad, standBijPad, notatieMetVoorloopnul, voegZetToe } from "../core/zettenboom.js?v=20260923p";
+import { renderDiagramSVG } from "../diagram/render.js?v=20260923q";
+import { isValidField } from "../core/board.js?v=20260923q";
+import { getLegalMoves, plyColor, plyMoveNumber } from "../core/draughtsMoves.js?v=20260923q";
+import { knoopOpPad, standBijPad, notatieMetVoorloopnul, voegZetToe } from "../core/zettenboom.js?v=20260923q";
 
 function escapeHtml(str) {
   return str.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -67,6 +67,11 @@ export function createZettenboomAnnotator(container, { wortel, bord, beurt, onCh
   let partialFrom = null;
   let partialPath = [];
 
+  // Het annotatiepaneel (toelichting/teken/verwijderen) staat in de bordkolom, niet in de
+  // notatiekolom — die laatste scrolt onafhankelijk bij een lange partij (.boom-notation-col,
+  // zie styles.css) en zou het paneel dan uit beeld duwen. De bordkolom is altijd zichtbaar
+  // (position: sticky), dus zo hoef je nooit te scrollen om erbij te kunnen (Jans melding,
+  // 2026-09-24: "ik moet nu scrollen om het tekstvak zichtbaar te krijgen").
   container.innerHTML = `
     <div class="boom-layout">
       <div class="boom-board-col">
@@ -78,18 +83,20 @@ export function createZettenboomAnnotator(container, { wortel, bord, beurt, onCh
           <button type="button" class="solution-nav-btn" data-action="last" aria-label="Laatste zet">&#9197;</button>
         </div>
         <p data-role="status" class="solution-status"></p>
-      </div>
-      <div class="boom-notation-col">
-        <div data-role="notation" class="solution-notation-text"></div>
-        <div class="card" style="margin-top:0.75rem;">
+        <div class="card" style="margin-top:0.5rem;text-align:left;">
           <label>Toelichting bij de geselecteerde zet</label>
           <textarea data-role="commentaar" rows="3" style="width:100%;"></textarea>
           <div style="display:flex;gap:0.75rem;align-items:center;margin-top:0.5rem;flex-wrap:wrap;">
             <label style="margin:0;">Waarderingsteken</label>
             <select data-role="teken"></select>
+          </div>
+          <div class="button-row" style="margin-top:0.5rem;">
             <button type="button" class="secondary" data-action="verwijder">Verwijder deze zet (en wat erna komt)</button>
           </div>
         </div>
+      </div>
+      <div class="boom-notation-col">
+        <div data-role="notation" class="solution-notation-text"></div>
       </div>
     </div>
   `;
