@@ -1,8 +1,8 @@
-import { describe, it, assertEqual, assertTrue } from "./test-runner.js?v=20260923f";
-import { createStartBoard } from "../src/core/board.js?v=20260923f";
-import { getLegalMoves, applyMove, opposite } from "../src/core/draughtsMoves.js?v=20260923f";
-import { moveNotation } from "../src/core/solutionParser.js?v=20260923f";
-import { leesPartijTekst } from "../src/core/pdn.js?v=20260923f";
+import { describe, it, assertEqual, assertTrue } from "./test-runner.js?v=20260923g";
+import { createStartBoard, createEmptyBoard, PIECE_TYPES } from "../src/core/board.js?v=20260923g";
+import { getLegalMoves, applyMove, opposite } from "../src/core/draughtsMoves.js?v=20260923g";
+import { moveNotation } from "../src/core/solutionParser.js?v=20260923g";
+import { leesPartijTekst } from "../src/core/pdn.js?v=20260923g";
 
 // Bouwt notaties op met de echte regelengine (zoals tests/zettenboom.test.js) in plaats van
 // zelf veldnummers te verzinnen — zo test dit bestand alleen het LEZEN van de tekst, niet of ik
@@ -125,5 +125,17 @@ describe("pdn: [Tag \"waarde\"]-regels (zoals een echt PDN-bestand)", () => {
     assertEqual(meldingen.filter((m) => m.type === "fout"), []);
     assertEqual(boom.kinderen.length, 1);
     assertEqual(moveNotation(boom.kinderen[0].zet), n1);
+  });
+});
+
+describe("pdn: voorloopnul", () => {
+  it("leest een veld 1-9 ook als '06-11' i.p.v. '6-11' — zoals in Jans overgetikte partij", () => {
+    const board = createEmptyBoard();
+    board[6] = PIECE_TYPES.BLACK_PIECE;
+    const { boom, meldingen } = leesPartijTekst("06-11", { bord: board, beurt: "black" });
+    assertEqual(meldingen.filter((m) => m.type === "fout"), []);
+    assertEqual(boom.kinderen.length, 1);
+    assertEqual(boom.kinderen[0].zet.van, 6);
+    assertEqual(boom.kinderen[0].zet.pad, [11]);
   });
 });

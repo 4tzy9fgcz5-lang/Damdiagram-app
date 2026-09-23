@@ -1,6 +1,7 @@
-import { describe, it, assertEqual, assertTrue, assertThrows } from "./test-runner.js?v=20260923f";
-import { parseFen } from "../src/core/fen.js?v=20260923f";
-import { getLegalMoves, applyMove, opposite } from "../src/core/draughtsMoves.js?v=20260923f";
+import { describe, it, assertEqual, assertTrue, assertThrows } from "./test-runner.js?v=20260923g";
+import { parseFen } from "../src/core/fen.js?v=20260923g";
+import { createEmptyBoard, PIECE_TYPES } from "../src/core/board.js?v=20260923g";
+import { getLegalMoves, applyMove, opposite } from "../src/core/draughtsMoves.js?v=20260923g";
 import {
   maakWortel,
   vindToegestaneZet,
@@ -11,7 +12,8 @@ import {
   controleerBoom,
   boomVanPlatteOplossing,
   platteOplossingVanBoom,
-} from "../src/core/zettenboom.js?v=20260923f";
+  notatieMetVoorloopnul,
+} from "../src/core/zettenboom.js?v=20260923g";
 
 const START_FEN =
   "W:W31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50:B1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20";
@@ -54,6 +56,15 @@ describe("zettenboom: vindToegestaneZet", () => {
     assertTrue(!gevonden.ok, "1-6 mag niet: wit is aan zet en veld 1 is geen witte schijf");
     assertTrue(gevonden.reden.includes("1-6"), "de melding noemt de geweigerde zet");
     assertTrue(gevonden.reden.includes("Toegestaan"), "de melding somt op wat wél mag");
+  });
+
+  it("accepteert een voorloopnul zoals '06-11' — sommige overgetikte partijen schrijven een veld 1-9 zo (Jan, na het testen)", () => {
+    const board = createEmptyBoard();
+    board[6] = PIECE_TYPES.BLACK_PIECE;
+    const gevonden = vindToegestaneZet(board, "black", "06-11");
+    assertTrue(gevonden.ok, "06-11 moet hetzelfde zijn als 6-11");
+    assertEqual(gevonden.zet.van, 6);
+    assertEqual(gevonden.zet.pad, [11]);
   });
 
   it("bij een ringslag die op twee manieren tot dezelfde stand leidt, kiest hij er één in plaats van te struikelen", () => {
@@ -224,5 +235,13 @@ describe("zettenboom: knoopOpPad en standBijPad", () => {
     const { board, turn } = start();
     const wortel = maakWortel();
     assertThrows(() => standBijPad(wortel, board, turn, ["bestaat-niet"]));
+  });
+});
+
+describe("zettenboom: notatieMetVoorloopnul", () => {
+  it("zet een veld 1-9 om naar twee cijfers, en laat 10-50 met rust", () => {
+    assertEqual(notatieMetVoorloopnul({ van: 6, pad: [11], geslagen: [] }), "06-11");
+    assertEqual(notatieMetVoorloopnul({ van: 32, pad: [28], geslagen: [] }), "32-28");
+    assertEqual(notatieMetVoorloopnul({ van: 17, pad: [8, 3], geslagen: [12, 5] }), "17x08x03");
   });
 });

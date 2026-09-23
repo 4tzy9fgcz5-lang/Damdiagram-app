@@ -1,6 +1,6 @@
-import { renderDiagramSVG } from "../diagram/render.js?v=20260923f";
-import { plyColor, plyMoveNumber, moveToNotation } from "../core/draughtsMoves.js?v=20260923f";
-import { knoopOpPad, standBijPad } from "../core/zettenboom.js?v=20260923f";
+import { renderDiagramSVG } from "../diagram/render.js?v=20260923g";
+import { plyColor, plyMoveNumber } from "../core/draughtsMoves.js?v=20260923g";
+import { knoopOpPad, standBijPad, notatieMetVoorloopnul } from "../core/zettenboom.js?v=20260923g";
 
 function escapeHtml(str) {
   return str.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -24,10 +24,14 @@ function bouwNotatieHtml(wortel, startBeurt, huidigPad) {
     const kleur = plyColor(startBeurt, ply);
     if (kleur === "white") stukken.push(`${plyMoveNumber(startBeurt, ply)}.`);
     else if (forceerZetnummer) stukken.push(`${plyMoveNumber(startBeurt, ply)}. ...`);
-    const tekst = moveToNotation(knoop.zet) + (knoop.teken ?? "");
+    const tekst = notatieMetVoorloopnul(knoop.zet) + (knoop.teken ?? "");
     const huidig = samePad(eigenPad, huidigPad);
     stukken.push(`<span class="solution-ply${huidig ? " current" : ""}" data-pad="${eigenPad.join(",")}">${escapeHtml(tekst)}</span>`);
-    if (knoop.commentaar) stukken.push(`<span class="boom-commentaar">{${escapeHtml(knoop.commentaar)}}</span>`);
+    // Een <div> (blok-element) i.p.v. een <span>: begint vanzelf op een eigen regel, ook al
+    // staat hij tussen de andere, inline zet-<span>s in dezelfde lopende tekst — precies wat Jan
+    // vroeg (zoals bij damkunst.nl: commentaar op een eigen regel, niet tussen haakjes/accolades
+    // midden in de zetten).
+    if (knoop.commentaar) stukken.push(`<div class="boom-commentaar">${escapeHtml(knoop.commentaar)}</div>`);
   }
 
   function schrijfReeks(ouderKnoop, pad) {
@@ -93,8 +97,8 @@ export function createZettenboomPlayer(container, { wortel, bord, beurt, startPa
   }
 
   container.innerHTML = `
-    <div class="solution-layout">
-      <div class="solution-board-col">
+    <div class="boom-layout">
+      <div class="boom-board-col">
         <div data-role="board"></div>
         <div class="solution-nav">
           <button type="button" class="solution-nav-btn" data-action="first" aria-label="Eerste zet">&#9198;</button>
@@ -103,7 +107,7 @@ export function createZettenboomPlayer(container, { wortel, bord, beurt, startPa
           <button type="button" class="solution-nav-btn" data-action="last" aria-label="Laatste zet">&#9197;</button>
         </div>
       </div>
-      <div class="solution-notation-col">
+      <div class="boom-notation-col">
         <div data-role="notation" class="solution-notation-text"></div>
       </div>
     </div>

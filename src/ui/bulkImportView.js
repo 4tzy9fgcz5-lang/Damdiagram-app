@@ -8,15 +8,15 @@
 // blijft een klein voorbeeldplaatje (voor de kaders) en het bestand zelf over. De volle foto wordt
 // pas weer geladen als een diagram van die foto aan de beurt is (zie app.js).
 
-import { loadDrawable, drawableSize } from "./imageInput.js?v=20260923f";
-import { detectBulkBoards } from "../recognition/bulkDetect.js?v=20260923f";
-import { getList, addListValue } from "../db/lijsten.js?v=20260923f";
-import { getAllCategorieen } from "../db/categorieen.js?v=20260923f";
-import { createNumberReader, fillMissingNumbers } from "../recognition/numberOcr.js?v=20260923f";
-import { splitOplossingenTekst } from "../core/solutionParser.js?v=20260923f";
-import { OPLOSSING_OPDRACHT, kopieerNaarKlembord } from "./oplossingOpdracht.js?v=20260923f";
-import { getOplossingenTekst, setOplossingenTekst } from "../db/uiSettings.js?v=20260923f";
-import { setDefaultDoel } from "./editorView.js?v=20260923f";
+import { loadDrawable, drawableSize } from "./imageInput.js?v=20260923g";
+import { detectBulkBoards } from "../recognition/bulkDetect.js?v=20260923g";
+import { getList, addListValue } from "../db/lijsten.js?v=20260923g";
+import { getAllCategorieen } from "../db/categorieen.js?v=20260923g";
+import { createNumberReader, fillMissingNumbers } from "../recognition/numberOcr.js?v=20260923g";
+import { splitOplossingenTekst } from "../core/solutionParser.js?v=20260923g";
+import { OPLOSSING_OPDRACHT, kopieerNaarKlembord } from "./oplossingOpdracht.js?v=20260923g";
+import { getOplossingenTekst, setOplossingenTekst } from "../db/uiSettings.js?v=20260923g";
+import { setDefaultDoel } from "./editorView.js?v=20260923g";
 
 const COLORS = ["#d1495b", "#1a5c38", "#3a6ea5", "#e0a800", "#8854d0", "#009688"];
 const THUMB_MAX_SIDE = 700;

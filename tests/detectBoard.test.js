@@ -1,5 +1,5 @@
-import { describe, it, assertTrue } from "./test-runner.js?v=20260923f";
-import { detectBoardCorners } from "../src/recognition/detectBoard.js?v=20260923f";
+import { describe, it, assertTrue } from "./test-runner.js?v=20260923g";
+import { detectBoardCorners } from "../src/recognition/detectBoard.js?v=20260923g";
 
 function approxEqual(a, b, eps) {
   return Math.abs(a - b) < eps;

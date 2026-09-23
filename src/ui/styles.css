@@ -472,11 +472,55 @@ a.secondary {
   font-style: normal;
 }
 
-/* Commentaar bij een zet in de boom-viewer (zettenboomPlayer.js) — tussen accolades, net als
-   in de tekst die src/core/pdn.js leest, zodat het duidelijk bijschrift en geen zet is. */
+/* Boom-viewer (zettenboomPlayer.js, voor partijen/studies — mogelijk veel langere notatie dan
+   de korte solutionPlayer-oplossingen). Eigen lay-out i.p.v. .solution-layout hergebruiken: het
+   bord blijft in beeld (position: sticky) terwijl de notatie in zijn eigen kolom scrolt, zodat
+   je bij een lange partij niet het bord kwijtraakt (Jan, na het testen van stap 4). */
+.boom-layout {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  align-items: flex-start;
+  text-align: left;
+}
+.boom-board-col {
+  flex: 0 0 auto;
+  margin: 0 auto;
+  position: sticky;
+  top: 0.5rem;
+}
+.boom-notation-col {
+  flex: 1 1 260px;
+  min-width: 200px;
+  max-height: 75vh;
+  overflow-y: auto;
+}
+@media (max-width: 600px) {
+  .boom-layout {
+    flex-direction: column;
+    align-items: center;
+  }
+  .boom-board-col {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: #fafafa;
+    padding-bottom: 0.4rem;
+  }
+  .boom-notation-col {
+    width: 100%;
+    max-height: 55vh;
+    text-align: left;
+  }
+}
+
+/* Commentaar bij een zet in de boom-viewer: een eigen regel (blok-element), geen haakjes of
+   accolades eromheen — zoals bij damkunst.nl (Jan, na het testen van stap 4). */
 .boom-commentaar {
+  display: block;
   font-style: italic;
   color: #555;
+  margin: 0.3rem 0;
 }
 
 /* Meldingen (fout/let-op/info) bij het inlezen van partijtekst (zettenboomProefView.js) —

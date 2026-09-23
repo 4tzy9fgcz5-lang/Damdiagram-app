@@ -1,5 +1,5 @@
-import { getLegalMoves, applyMove, opposite } from "./draughtsMoves.js?v=20260923f";
-import { moveNotation } from "./solutionParser.js?v=20260923f";
+import { getLegalMoves, applyMove, opposite } from "./draughtsMoves.js?v=20260923g";
+import { moveNotation } from "./solutionParser.js?v=20260923g";
 
 // De zettenboom: het gedeelde model voor studies, partijen en openingen (zie CLAUDE.md,
 // "Uitbreiding: dam-toolkit" -> "Doelarchitectuur"). Een knoop is één zet, met eventueel
@@ -28,6 +28,16 @@ function maakKnoop(zet, { commentaar = "", teken = "" } = {}) {
   return { id: newNodeId(), zet, commentaar, teken, kinderen: [] };
 }
 
+// Sommige boeken/partijbestanden schrijven een veld 1-9 met een voorloopnul ("06-11" i.p.v.
+// "6-11", zoals Jan liet zien met een echte, overgetikte partij) — puur schrijfwijze, geen
+// andere zet. Haalt zo'n voorloopnul weg vóór het vergelijken, zodat "06-11" en "6-11" dezelfde
+// zet zijn. `moveNotation`/`moveToNotation` schrijven zelf nooit een voorloopnul; zie
+// `notatieMetVoorloopnul` hieronder voor de OMGEKEERDE weg (weergave mét voorloopnul, op Jans
+// verzoek voorlopig alleen voor de boom-viewer, niet overal in de app — zie het verslag).
+function zonderVoorloopnul(notatie) {
+  return notatie.replace(/(^|[-x])0+(\d)/g, "$1$2");
+}
+
 // Zoekt onder de toegestane zetten vanaf `bord`/`beurt` de zet die notatie `van-eind` of
 // `vanxeind` oplevert. Geeft `{ ok: true, zet }` of `{ ok: false, reden }` terug — nooit een
 // exception, zodat een onmogelijke of dubbelzinnige zet altijd gemeld wordt in plaats van
@@ -35,7 +45,7 @@ function maakKnoop(zet, { commentaar = "", teken = "" } = {}) {
 // Bij een ringslag die op twee manieren hetzelfde opzet (zie CLAUDE.md, "Notatie"): de eerst
 // gevonden toegestane zet wint, net als bij `tools/meetOplossingen.mjs`.
 export function vindToegestaneZet(bord, beurt, notatie) {
-  const schoon = String(notatie ?? "").replace(/\s+/g, "");
+  const schoon = zonderVoorloopnul(String(notatie ?? "").replace(/\s+/g, ""));
   const legaal = getLegalMoves(bord, beurt);
   const treffers = legaal.filter((mv) => moveNotation(mv) === schoon);
   if (treffers.length === 0) {
@@ -45,6 +55,16 @@ export function vindToegestaneZet(bord, beurt, notatie) {
     };
   }
   return { ok: true, zet: treffers[0] };
+}
+
+// Weergave MET voorloopnul ("01-06" i.p.v. "1-06"... "1-6"), zoals Jan 'm gewend is uit
+// damboeken. Bewust een aparte functie i.p.v. een wijziging aan `moveToNotation`
+// (`draughtsMoves.js`, de regelengine — die blijft ongewijzigd): die wordt door de hele app
+// gebruikt (stencils, Word-export, CSV, elke bestaande stand) en dat op dezelfde manier
+// aanpassen is een grotere, zichtbare wijziging die eerst apart besproken moet worden.
+export function notatieMetVoorloopnul(zet) {
+  const pad2 = (n) => String(n).padStart(2, "0");
+  return zet.geslagen.length === 0 ? `${pad2(zet.van)}-${pad2(zet.pad[0])}` : `${pad2(zet.van)}x${zet.pad.map(pad2).join("x")}`;
 }
 
 // Voegt een zet toe aan `ouder` (als hoofdvoortzetting, of als variant als er al een
