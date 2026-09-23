@@ -1,7 +1,7 @@
-import { describe, it, assertEqual, assertTrue, assertThrows } from "./test-runner.js?v=20260923i";
-import { parseFen } from "../src/core/fen.js?v=20260923i";
-import { createEmptyBoard, PIECE_TYPES } from "../src/core/board.js?v=20260923i";
-import { getLegalMoves, applyMove, opposite } from "../src/core/draughtsMoves.js?v=20260923i";
+import { describe, it, assertEqual, assertTrue, assertThrows } from "./test-runner.js?v=20260923j";
+import { parseFen } from "../src/core/fen.js?v=20260923j";
+import { createEmptyBoard, PIECE_TYPES } from "../src/core/board.js?v=20260923j";
+import { getLegalMoves, applyMove, opposite } from "../src/core/draughtsMoves.js?v=20260923j";
 import {
   maakWortel,
   vindToegestaneZet,
@@ -13,7 +13,7 @@ import {
   boomVanPlatteOplossing,
   platteOplossingVanBoom,
   notatieMetVoorloopnul,
-} from "../src/core/zettenboom.js?v=20260923i";
+} from "../src/core/zettenboom.js?v=20260923j";
 
 const START_FEN =
   "W:W31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50:B1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20";

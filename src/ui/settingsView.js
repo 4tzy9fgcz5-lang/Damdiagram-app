@@ -1,9 +1,9 @@
-import { renderBackupSection, renderTrainingSection } from "./backupView.js?v=20260923i";
-import { getVerbergOplossing, setVerbergOplossing } from "../db/uiSettings.js?v=20260923i";
-import { getAllCategorieen, addCategorie, renameCategorie, removeCategorie } from "../db/categorieen.js?v=20260923i";
-import { addListValue, renameListValue, removeListValue } from "../db/lijsten.js?v=20260923i";
-import { listStanden, renameCategorieWaardeOpStanden } from "../db/standen.js?v=20260923i";
-import { renderZettenboomProef } from "./zettenboomProefView.js?v=20260923i";
+import { renderBackupSection, renderTrainingSection } from "./backupView.js?v=20260923j";
+import { getVerbergOplossing, setVerbergOplossing } from "../db/uiSettings.js?v=20260923j";
+import { getAllCategorieen, addCategorie, renameCategorie, removeCategorie } from "../db/categorieen.js?v=20260923j";
+import { addListValue, renameListValue, removeListValue } from "../db/lijsten.js?v=20260923j";
+import { listStanden, renameCategorieWaardeOpStanden } from "../db/standen.js?v=20260923j";
+import { renderZettenboomProef } from "./zettenboomProefView.js?v=20260923j";
 
 function escapeHtml(str) {
   return str.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));

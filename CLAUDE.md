@@ -191,9 +191,17 @@ Niet te verwarren met de fases 0-3 van het herkenning-verbeterplan verderop.
      `{}` staat, wordt op dezelfde manier weggehaald in plaats van als
      commentaar bewaard — precies zoals een kopregel dat zou zijn. Getest:
      `tests/pdn.test.js` ("kopregel vóór de eerste zet").
-3. **Partijen bekijken.** Nieuw tabblad "Partijen" (naast Combinaties/
-   Eindspelen/Opgavebladen): overzicht (zoeken op speler/toernooi/jaar) en een
-   detailpagina met de viewer, alleen-lezen.
+3. **Partijen bekijken — klaar (2026-09-23).** Nieuw tabblad "Partijen" in de
+   hoofdnavigatie (naast Combinaties/Eindspelen/Opgavebladen):
+   `src/ui/partijenListView.js` (route `#/partijen` — overzicht, zoeken op
+   speler/toernooi/jaar, gewoon client-side gefilterd) en
+   `src/ui/partijDetailView.js` (route `#/partij/<id>` — de boom-viewer,
+   alleen-lezen, met de partijgegevens eronder, en Bewerken/Verwijderen).
+   "Nieuwe partij" en "Bewerken" gaan naar `#/partij-nieuw`/`#/partij-nieuw/<id>`
+   uit stap 2; die route gaat na "Annuleren" nu terug naar de detailpagina (bij
+   bewerken) of het overzicht (bij een nieuwe partij) i.p.v. naar het
+   proefscherm. Het proefscherm zelf (Instellingen -> "Partijen/studies
+   (proef)") verwijst nu ook door naar dit echte tabblad.
 4. **Printen.** Partij als Word-document: gegevens bovenaan, de hele notatie
    (met varianten) eronder. Bevestigd door Jan: **alleen de notatie is genoeg**
    voor het printen van een losse partij — geen diagrammen halverwege de tekst

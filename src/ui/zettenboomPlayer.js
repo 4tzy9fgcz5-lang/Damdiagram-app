@@ -1,6 +1,6 @@
-import { renderDiagramSVG } from "../diagram/render.js?v=20260923i";
-import { plyColor, plyMoveNumber } from "../core/draughtsMoves.js?v=20260923i";
-import { knoopOpPad, standBijPad, notatieMetVoorloopnul } from "../core/zettenboom.js?v=20260923i";
+import { renderDiagramSVG } from "../diagram/render.js?v=20260923j";
+import { plyColor, plyMoveNumber } from "../core/draughtsMoves.js?v=20260923j";
+import { knoopOpPad, standBijPad, notatieMetVoorloopnul } from "../core/zettenboom.js?v=20260923j";
 
 function escapeHtml(str) {
   return str.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));

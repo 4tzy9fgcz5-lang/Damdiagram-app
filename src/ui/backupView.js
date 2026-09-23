@@ -1,8 +1,8 @@
-import { exportAll, importAll } from "../db/backup.js?v=20260923i";
-import { listStanden } from "../db/standen.js?v=20260923i";
-import { buildCsv, buildPdnText } from "../export/portable.js?v=20260923i";
-import { downloadBlob } from "../export/docx.js?v=20260923i";
-import { buildTrainingZip, countTrainingRecords } from "../export/trainingExport.js?v=20260923i";
+import { exportAll, importAll } from "../db/backup.js?v=20260923j";
+import { listStanden } from "../db/standen.js?v=20260923j";
+import { buildCsv, buildPdnText } from "../export/portable.js?v=20260923j";
+import { downloadBlob } from "../export/docx.js?v=20260923j";
+import { buildTrainingZip, countTrainingRecords } from "../export/trainingExport.js?v=20260923j";
 
 const LAST_BACKUP_KEY = "damstencil_lastBackup";
 

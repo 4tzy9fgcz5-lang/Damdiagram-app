@@ -1,9 +1,9 @@
-import { createStartBoard } from "../core/board.js?v=20260923i";
-import { parseFen } from "../core/fen.js?v=20260923i";
-import { leesPartijTekst } from "../core/pdn.js?v=20260923i";
-import { boomVanPlatteOplossing } from "../core/zettenboom.js?v=20260923i";
-import { listStanden } from "../db/standen.js?v=20260923i";
-import { createZettenboomPlayer } from "./zettenboomPlayer.js?v=20260923i";
+import { createStartBoard } from "../core/board.js?v=20260923j";
+import { parseFen } from "../core/fen.js?v=20260923j";
+import { leesPartijTekst } from "../core/pdn.js?v=20260923j";
+import { boomVanPlatteOplossing } from "../core/zettenboom.js?v=20260923j";
+import { listStanden } from "../db/standen.js?v=20260923j";
+import { createZettenboomPlayer } from "./zettenboomPlayer.js?v=20260923j";
 
 function escapeHtml(str) {
   return str.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -32,7 +32,8 @@ export async function renderZettenboomProef(container) {
       <h3 style="margin-top:0;">Een partij invoeren en opslaan</h3>
       <p style="font-size:0.85rem;color:#666;">
         Dit hieronder is puur een proefscherm (leest niets, slaat niets op). Wil je een partij
-        echt bewaren, met spelersnamen/toernooi erbij? <a href="#/partij-nieuw">Nieuwe partij</a>.
+        echt bewaren, met spelersnamen/toernooi erbij? Ga naar het tabblad "Partijen" bovenaan, of
+        meteen naar <a href="#/partij-nieuw">Nieuwe partij</a>.
       </p>
     </div>
     <div class="card">
