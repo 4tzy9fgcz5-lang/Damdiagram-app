@@ -21,6 +21,10 @@ Of automatisch bij elke keer inloggen (aanbevolen):
 
     ./launchd-install.sh
 
+Dit maakt een eigen kopie van de helper in `~/Library/Application Support/nl.damdatabase.ocr-helper`
+(macOS laat achtergrondprogramma's niet in de map Documenten lezen). Is `server.py` later aangepast,
+voer dan `./launchd-install.sh` nog eens uit.
+
 Uitzetten: `./launchd-uninstall.sh`. Meldingen staan in `~/Library/Logs/ocr-helper.log`.
 
 ## Controleren of het draait
