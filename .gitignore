@@ -28,3 +28,7 @@
 /crops/
 /check/
 /labels.txt
+
+# OCR-helper: eigen Python-omgeving
+/ocr-helper/.venv/
+__pycache__/
