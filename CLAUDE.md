@@ -622,6 +622,19 @@ commentaar, varianten tussen haakjes en met `A)`, en weggelaten gedwongen antwoo
 - Nog niet gemeten: de echte API-aanroep (vraagt een eigen Anthropic-API-sleutel van Jan,
   alleen lokaal bewaard, nooit in de code/GitHub; foto's gaan dan naar Anthropic).
 
+**Lokale OCR-helper voor oplossingen (2026-09-24):** `ocr-helper/` (Python, Apple Vision via pyobjc,
+`localhost:8765`, `/health` + `/ocr`, README + launchd-plist + installatiescripts). In het kader
+"Oplossingen erbij" (bulk-import) staat de knop "Foto's van oplossingen lezen (lokale OCR)": controleert
+`/health` (`src/recognition/ocrHelper.js`), leest de gekozen foto's (op naam gesorteerd) en zet de tekst
+BIJ de al aanwezige tekst in het plakvak, waarna alles door dezelfde omzetter/controle gaat als bij het
+plakken uit Claude (die route blijft als terugval). `schoonOcrTekst` laat regels zonder cijfer en smalle
+brokjes tegen de fotorand (buurpagina) weg. Meting op IMG_0769/0770 (Russisch boek): alle 26 oplossingen
+(573-598) gevonden en op nummer gesplitst; Vision geeft altijd zekerheid ~1,0 (taalcorrectie uit), dus de
+damregel-controle blijft het vangnet; spaties tussen zet en zetnummer ontbreken soms ("12.16 x 72").
+`solutionParser.js` aangepast: afgebroken regel herkend ook bij aan elkaar geplakte nummers, en
+"585. Auteur." gevolgd door "1. ..." is één oplossing (2 nieuwe tests, 262 slagen). Nog niet gemeten:
+of de zetten na de omzetter net zo vaak volledig nagespeeld worden als bij de lezing door Claude (19/24).
+
 **Twee andere boeklay-outs getest (Jan, 2026-09-22; foto's `testdata/gemengd/`, gitignored):**
 diagram en oplossing op DEZELFDE pagina.
 - *Nederlands boek (IMG_0759, diagrammen 286-289, oplossingen met nummer in het midden van de

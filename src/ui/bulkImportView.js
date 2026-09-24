@@ -8,15 +8,16 @@
 // blijft een klein voorbeeldplaatje (voor de kaders) en het bestand zelf over. De volle foto wordt
 // pas weer geladen als een diagram van die foto aan de beurt is (zie app.js).
 
-import { loadDrawable, drawableSize } from "./imageInput.js?v=20260923q";
-import { detectBulkBoards } from "../recognition/bulkDetect.js?v=20260923q";
-import { getList, addListValue } from "../db/lijsten.js?v=20260923q";
-import { getAllCategorieen } from "../db/categorieen.js?v=20260923q";
-import { createNumberReader, fillMissingNumbers } from "../recognition/numberOcr.js?v=20260923q";
-import { splitOplossingenTekst } from "../core/solutionParser.js?v=20260923q";
-import { OPLOSSING_OPDRACHT, kopieerNaarKlembord } from "./oplossingOpdracht.js?v=20260923q";
-import { getOplossingenTekst, setOplossingenTekst } from "../db/uiSettings.js?v=20260923q";
-import { setDefaultDoel } from "./editorView.js?v=20260923q";
+import { loadDrawable, drawableSize } from "./imageInput.js?v=20260924f";
+import { detectBulkBoards } from "../recognition/bulkDetect.js?v=20260924f";
+import { getList, addListValue } from "../db/lijsten.js?v=20260924f";
+import { getAllCategorieen } from "../db/categorieen.js?v=20260924f";
+import { createNumberReader, fillMissingNumbers } from "../recognition/numberOcr.js?v=20260924f";
+import { splitOplossingenTekst } from "../core/solutionParser.js?v=20260924f";
+import { helperBeschikbaar, leesFotoMetHelper, schoonOcrTekst } from "../recognition/ocrHelper.js?v=20260924f";
+import { OPLOSSING_OPDRACHT, kopieerNaarKlembord } from "./oplossingOpdracht.js?v=20260924f";
+import { getOplossingenTekst, setOplossingenTekst } from "../db/uiSettings.js?v=20260924f";
+import { setDefaultDoel } from "./editorView.js?v=20260924f";
 
 const COLORS = ["#d1495b", "#1a5c38", "#3a6ea5", "#e0a800", "#8854d0", "#009688"];
 const THUMB_MAX_SIDE = 700;
@@ -100,6 +101,13 @@ export async function renderBulkImportView(container, { onConfirmed } = {}) {
           antwoord hieronder. De app koppelt elke oplossing aan het diagram met hetzelfde nummer en vult
           hem in zodra je de stand controleert.
         </p>
+        <div class="button-row" style="margin-top:0;align-items:center;">
+          <button type="button" class="primary" data-action="ocr-photos">Foto's van oplossingen lezen (lokale OCR)</button>
+          <span data-role="ocr-status" style="font-size:0.85rem;"></span>
+        </div>
+        <input type="file" accept="image/*" multiple hidden data-role="ocr-input" />
+        <p style="font-size:0.8rem;color:#666;margin:0.3rem 0 0.6rem;">Leest de foto's op deze Mac met de OCR-helper (de foto's gaan nergens heen).
+          De gelezen tekst komt in het vak hieronder, zodat je hem kunt nakijken. Werkt de helper niet, gebruik dan de Claude-route hieronder.</p>
         <div class="button-row" style="margin-top:0;align-items:center;">
           <button type="button" class="secondary" data-action="copy-prompt">Kopieer opdracht voor Claude</button>
           <span data-role="copy-status" style="font-size:0.85rem;color:#1a5c38;"></span>
@@ -273,6 +281,54 @@ export async function renderBulkImportView(container, { onConfirmed } = {}) {
     setOplossingenTekst("");
     updateSolutionStatus();
   });
+  // Lokale OCR: leest foto's van oplossingenpagina's en zet de tekst in het plakvak.
+  const ocrInput = el('[data-role="ocr-input"]');
+  const ocrStatus = el('[data-role="ocr-status"]');
+  const ocrBtn = el('[data-action="ocr-photos"]');
+  const zetOcrStatus = (tekst, kleur) => {
+    ocrStatus.style.color = kleur;
+    ocrStatus.textContent = tekst;
+  };
+  ocrBtn.addEventListener("click", async () => {
+    if (!(await helperBeschikbaar())) {
+      zetOcrStatus(
+        "De OCR-helper draait niet. Start hem in Terminal met ./start.sh in de map ocr-helper (uitleg: ocr-helper/README.md), of gebruik de Claude-route hieronder.",
+        "#b00020"
+      );
+      return;
+    }
+    ocrInput.click();
+  });
+  ocrInput.addEventListener("change", async () => {
+    const files = [...ocrInput.files].sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+    ocrInput.value = "";
+    if (!files.length) return;
+    ocrBtn.disabled = true;
+    const delen = [];
+    try {
+      for (let i = 0; i < files.length; i++) {
+        zetOcrStatus(`Foto ${i + 1} van ${files.length} wordt gelezen...`, "#555");
+        const { lines } = await leesFotoMetHelper(files[i]);
+        const schoon = schoonOcrTekst(lines).trim();
+        if (schoon) delen.push(schoon);
+      }
+    } catch (err) {
+      zetOcrStatus(err.message, "#b00020");
+      ocrBtn.disabled = false;
+      return;
+    }
+    ocrBtn.disabled = false;
+    if (!delen.length) {
+      zetOcrStatus("Er is geen tekst met cijfers gevonden op deze foto's.", "#b00020");
+      return;
+    }
+    const bestaand = oplossingenField.value.trimEnd();
+    oplossingenField.value = (bestaand ? bestaand + "\n" : "") + delen.join("\n");
+    setOplossingenTekst(oplossingenField.value);
+    updateSolutionStatus();
+    zetOcrStatus(`${files.length} foto(’s) gelezen. Kijk de tekst hieronder na: cijfers kunnen soms verkeerd gelezen zijn.`, "#1a5c38");
+  });
+
   el('[data-action="copy-prompt"]').addEventListener("click", async () => {
     const ok = await kopieerNaarKlembord(OPLOSSING_OPDRACHT);
     const copyStatus = el('[data-role="copy-status"]');

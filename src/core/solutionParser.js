@@ -1,4 +1,4 @@
-import { getLegalMoves, applyMove, opposite, plyColor, plyMoveNumber } from "./draughtsMoves.js?v=20260923q";
+import { getLegalMoves, applyMove, opposite, plyColor, plyMoveNumber } from "./draughtsMoves.js?v=20260924f";
 
 // Een oplossing zoals die in een boek staat (bv. "1. 31 - 27 8 - 12 2. 38 - 33 (2. 39 - 33)
 // 29 x 49 ... 9. 45 x 5 x.") omzetten in `zetten` + `zijvarianten`, zoals de klikbare
@@ -454,7 +454,7 @@ export function splitOplossingenTekst(tekst, { verwacht } = {}) {
   const HAS_MOVE = /\d{1,2}\s*[-—–x:×]\s*\d{1,2}/;
   const lastMoveNumber = (text) => {
     let last = 0;
-    for (const mm of text.matchAll(/(?:^|\s)(\d{1,2})\.(?!\d)/g)) last = Number(mm[1]);
+    for (const mm of text.matchAll(/(?:^|\s)(\d{1,2})\.(?=\s|\d|$)/g)) last = Number(mm[1]);
     return last;
   };
   const perNummer = {};
@@ -467,10 +467,13 @@ export function splitOplossingenTekst(tekst, { verwacht } = {}) {
     let isStart = false;
     if (m) {
       const last = current ? lastMoveNumber(perNummer[current]) : 0;
+      // Alleen een auteursregel ("585. М. Галкин.") en dan "1. 33-29 ...": dat is de oplossing zelf.
+      const nogGeenZet = current && !HAS_MOVE.test(perNummer[current]);
       if (FIRST_MOVE.test(rest)) isStart = true;
       else if (last > 0 && Number(m[1]) === last + 1) isStart = false;
       else if (HAS_MOVE.test(rest)) isStart = true;
       else if (expected && expected.has(m[1]) && !/\d/.test(rest) && rest.trim().length > 0) isStart = true;
+      if (nogGeenZet && m[1] === "1") isStart = false;
     }
     if (isStart) {
       current = m[1];

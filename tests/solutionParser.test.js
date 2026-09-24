@@ -1,7 +1,7 @@
-import { describe, it, assertEqual, assertTrue } from "./test-runner.js?v=20260923q";
-import { parseFen } from "../src/core/fen.js?v=20260923q";
-import { getLegalMoves, applyMove, opposite, formatZettenMetVarianten } from "../src/core/draughtsMoves.js?v=20260923q";
-import { parseOplossing, splitOplossingenPerNummer, splitOplossingenTekst, extractAuthor, moveNotation } from "../src/core/solutionParser.js?v=20260923q";
+import { describe, it, assertEqual, assertTrue } from "./test-runner.js?v=20260924f";
+import { parseFen } from "../src/core/fen.js?v=20260924f";
+import { getLegalMoves, applyMove, opposite, formatZettenMetVarianten } from "../src/core/draughtsMoves.js?v=20260924f";
+import { parseOplossing, splitOplossingenPerNummer, splitOplossingenTekst, extractAuthor, moveNotation } from "../src/core/solutionParser.js?v=20260924f";
 
 const START_FEN = `W:W${Array.from({ length: 20 }, (_, i) => 31 + i).join(",")}:B${Array.from({ length: 20 }, (_, i) => 1 + i).join(",")}`;
 
@@ -238,6 +238,20 @@ describe("solutionParser: geplakte tekst met meerdere oplossingen", () => {
     assertEqual(r.volgorde, ["580", "570"]);
     assertEqual(r.perNummer["570"], "1. 21 - 17 22 x 11 2. 30 - 24 x.");
     assertEqual(r.dubbel, []);
+  });
+
+  it("herkent een afgebroken regel ook als OCR zetnummer en zet aan elkaar plakt", () => {
+    const tekst = "580. 1.33 - 28 18 - 22 11.4 x 16 6 - 11 12.16 x 72 x11\n13.49-43 x.\n581. 1.29 - 24 20 x 49";
+    const r = splitOplossingenTekst(tekst, { verwacht: ["580", "581"] });
+    assertEqual(r.volgorde, ["580", "581"]);
+    assertTrue(r.perNummer["580"].endsWith("13.49-43 x."));
+  });
+
+  it("een auteursregel gevolgd door '1. ...' is één oplossing", () => {
+    const tekst = "584. 1. 37 - 31 26 x 48 x.\n585. М. Галкин.\n1.33-29 19x30 2.39-33 x.\n586. 1. 29 - 23 18 x 40";
+    const r = splitOplossingenTekst(tekst, { verwacht: ["584", "585", "586"] });
+    assertEqual(r.volgorde, ["584", "585", "586"]);
+    assertTrue(r.perNummer["585"].includes("1.33-29"));
   });
 
   it("negeert codeblok-tekens en vet/opsommingstekens uit een chatantwoord", () => {
