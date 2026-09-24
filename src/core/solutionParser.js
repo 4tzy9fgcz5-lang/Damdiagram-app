@@ -1,4 +1,4 @@
-import { getLegalMoves, applyMove, opposite, plyColor, plyMoveNumber } from "./draughtsMoves.js?v=20260925b";
+import { getLegalMoves, applyMove, opposite, plyColor, plyMoveNumber } from "./draughtsMoves.js?v=20260925d";
 
 // Een oplossing zoals die in een boek staat (bv. "1. 31 - 27 8 - 12 2. 38 - 33 (2. 39 - 33)
 // 29 x 49 ... 9. 45 x 5 x.") omzetten in `zetten` + `zijvarianten`, zoals de klikbare
@@ -306,6 +306,19 @@ function cleanMove(mv) {
 
 // ---------- hoofdfunctie ----------
 
+// Haalt een kopje vóór de eerste zet weg ("T. Goedemoed - F. de Koning, DMHol 12/13", "Uwaczan 1984"): de
+// cijfers daarin (jaartal, jaargang/nummer van een tijdschrift) zouden anders aan de eerste zet gaan plakken
+// ("12/13 1.34-30" -> "12131.34-30"). Alleen als de tekst ergens een "1." + zet heeft en er vóór dat punt geen
+// zet staat; zonder zetnummers (Nederlandse boeken: "39-34 (16-21) ...") blijft de tekst zoals hij is.
+function stripKop(tekst) {
+  const t = String(tekst ?? "");
+  const m = /(?<![\d\/.])1\s*\.\s*(?:\.\.\s*)?\d{1,2}\s*[-—–x:×хХ]/.exec(t);
+  if (!m || m.index === 0) return t;
+  const voor = t.slice(0, m.index);
+  if (/\d{1,2}\s*[-—–x:×хХ]\s*\d{1,2}/.test(voor)) return t;
+  return t.slice(m.index);
+}
+
 /**
  * @param {string} tekst   de oplossing zoals afgelezen (zonder het diagramnummer ervoor)
  * @param {{ board: object, turn?: "white"|"black", herstel?: boolean }} opties
@@ -322,7 +335,7 @@ function cleanMove(mv) {
 export function parseOplossing(tekst, { board, turn = "white", herstel = true } = {}) {
   const meldingen = [];
   const empty = { zetten: [], zijvarianten: [], volledig: false, betrouwbaar: false, aangevuld: [], hersteld: [], fout: null, meldingen };
-  const cleaned = unwrapParenMoves(normalizeText(tekst));
+  const cleaned = unwrapParenMoves(normalizeText(stripKop(tekst)));
   const { main, variants } = splitVariants(cleaned);
   const mainStr = toMoveString(main);
   if (!/\d/.test(mainStr)) {

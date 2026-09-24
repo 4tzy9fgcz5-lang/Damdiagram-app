@@ -1,7 +1,7 @@
-import { describe, it, assertEqual, assertTrue } from "./test-runner.js?v=20260925b";
-import { parseFen } from "../src/core/fen.js?v=20260925b";
-import { getLegalMoves, applyMove, opposite, formatZettenMetVarianten } from "../src/core/draughtsMoves.js?v=20260925b";
-import { parseOplossing, splitOplossingenPerNummer, splitOplossingenTekst, extractAuthor, moveNotation } from "../src/core/solutionParser.js?v=20260925b";
+import { describe, it, assertEqual, assertTrue } from "./test-runner.js?v=20260925d";
+import { parseFen } from "../src/core/fen.js?v=20260925d";
+import { getLegalMoves, applyMove, opposite, formatZettenMetVarianten } from "../src/core/draughtsMoves.js?v=20260925d";
+import { parseOplossing, splitOplossingenPerNummer, splitOplossingenTekst, extractAuthor, moveNotation } from "../src/core/solutionParser.js?v=20260925d";
 
 const START_FEN = `W:W${Array.from({ length: 20 }, (_, i) => 31 + i).join(",")}:B${Array.from({ length: 20 }, (_, i) => 1 + i).join(",")}`;
 
@@ -260,6 +260,15 @@ describe("solutionParser: geplakte tekst met meerdere oplossingen", () => {
     assertEqual(r.volgorde, ["185", "187", "188"]);
     assertTrue(r.perNummer["187"].includes("Uwaczan 1984") && r.perNummer["187"].includes("1.29-23"));
     assertTrue(r.perNummer["185"].includes("1.28-23"));
+  });
+
+  it("een kopje met tijdschriftnummer of jaartal vóór de eerste zet plakt niet aan de zetten", () => {
+    const board = parseFen(START_FEN).board;
+    for (const kop of ["T. Goedemoed - F. de Koning, DMHol 12/13", "Brochunowa - Uwaczan 1984"]) {
+      const r = parseOplossing(`${kop} 1. 32 - 28 19 - 23 2. 28 x 19 14 x 23`, { board, turn: "white" });
+      assertEqual(r.zetten.length, 4);
+      assertTrue(r.volledig);
+    }
   });
 
   it("negeert codeblok-tekens en vet/opsommingstekens uit een chatantwoord", () => {

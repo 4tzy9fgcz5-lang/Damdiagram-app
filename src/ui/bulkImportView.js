@@ -8,16 +8,16 @@
 // blijft een klein voorbeeldplaatje (voor de kaders) en het bestand zelf over. De volle foto wordt
 // pas weer geladen als een diagram van die foto aan de beurt is (zie app.js).
 
-import { loadDrawable, drawableSize } from "./imageInput.js?v=20260925b";
-import { detectBulkBoards } from "../recognition/bulkDetect.js?v=20260925b";
-import { getList, addListValue } from "../db/lijsten.js?v=20260925b";
-import { getAllCategorieen } from "../db/categorieen.js?v=20260925b";
-import { createNumberReader, fillMissingNumbers } from "../recognition/numberOcr.js?v=20260925b";
-import { splitOplossingenTekst } from "../core/solutionParser.js?v=20260925b";
-import { helperBeschikbaar, leesFotoMetHelper, schoonOcrTekst } from "../recognition/ocrHelper.js?v=20260925b";
-import { OPLOSSING_OPDRACHT, kopieerNaarKlembord } from "./oplossingOpdracht.js?v=20260925b";
-import { getOplossingenTekst, setOplossingenTekst } from "../db/uiSettings.js?v=20260925b";
-import { setDefaultDoel } from "./editorView.js?v=20260925b";
+import { loadDrawable, drawableSize } from "./imageInput.js?v=20260925d";
+import { detectBulkBoards } from "../recognition/bulkDetect.js?v=20260925d";
+import { getList, addListValue } from "../db/lijsten.js?v=20260925d";
+import { getAllCategorieen } from "../db/categorieen.js?v=20260925d";
+import { createNumberReader, fillMissingNumbers } from "../recognition/numberOcr.js?v=20260925d";
+import { splitOplossingenTekst } from "../core/solutionParser.js?v=20260925d";
+import { helperBeschikbaar, leesFotoMetHelper, schoonOcrTekst } from "../recognition/ocrHelper.js?v=20260925d";
+import { OPLOSSING_OPDRACHT, kopieerNaarKlembord } from "./oplossingOpdracht.js?v=20260925d";
+import { getOplossingenTekst, setOplossingenTekst } from "../db/uiSettings.js?v=20260925d";
+import { setDefaultDoel } from "./editorView.js?v=20260925d";
 
 const COLORS = ["#d1495b", "#1a5c38", "#3a6ea5", "#e0a800", "#8854d0", "#009688"];
 const THUMB_MAX_SIDE = 700;
@@ -323,10 +323,16 @@ export async function renderBulkImportView(container, { onConfirmed } = {}) {
       return;
     }
     const bestaand = oplossingenField.value.trimEnd();
+    // Eerder gelezen of geplakte tekst blijft staan (er kunnen meer pagina's volgen); bij dubbele nummers
+    // telt de laatste. Wil je opnieuw beginnen: "Wis geplakte tekst".
     oplossingenField.value = (bestaand ? bestaand + "\n" : "") + delen.join("\n");
     setOplossingenTekst(oplossingenField.value);
     updateSolutionStatus();
-    zetOcrStatus(`${files.length} foto(’s) gelezen. Kijk de tekst hieronder na: cijfers kunnen soms verkeerd gelezen zijn.`, "#1a5c38");
+    zetOcrStatus(
+      `${files.length} foto(’s) gelezen. Kijk de tekst hieronder na: cijfers kunnen soms verkeerd gelezen zijn.` +
+        (bestaand ? " Er stond al tekst in het vak; die is blijven staan. Wil je opnieuw beginnen? Klik dan eerst op “Wis geplakte tekst”." : ""),
+      "#1a5c38"
+    );
   });
 
   el('[data-action="copy-prompt"]').addEventListener("click", async () => {

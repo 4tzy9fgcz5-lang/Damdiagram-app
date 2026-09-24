@@ -1,6 +1,6 @@
-import { renderDiagramSVG } from "../diagram/render.js?v=20260925b";
-import { applyMove, moveToNotation, plyColor, plyMoveNumber } from "../core/draughtsMoves.js?v=20260925b";
-import { createSolutionInput } from "./solutionInput.js?v=20260925b";
+import { renderDiagramSVG } from "../diagram/render.js?v=20260925d";
+import { applyMove, moveToNotation, plyColor, plyMoveNumber } from "../core/draughtsMoves.js?v=20260925d";
+import { createSolutionInput } from "./solutionInput.js?v=20260925d";
 
 function escapeHtml(str) {
   return str.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));

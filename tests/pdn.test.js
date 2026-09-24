@@ -1,8 +1,8 @@
-import { describe, it, assertEqual, assertTrue } from "./test-runner.js?v=20260925b";
-import { createStartBoard, createEmptyBoard, PIECE_TYPES } from "../src/core/board.js?v=20260925b";
-import { getLegalMoves, applyMove, opposite } from "../src/core/draughtsMoves.js?v=20260925b";
-import { moveNotation } from "../src/core/solutionParser.js?v=20260925b";
-import { leesPartijTekst, leesKopregels } from "../src/core/pdn.js?v=20260925b";
+import { describe, it, assertEqual, assertTrue } from "./test-runner.js?v=20260925d";
+import { createStartBoard, createEmptyBoard, PIECE_TYPES } from "../src/core/board.js?v=20260925d";
+import { getLegalMoves, applyMove, opposite } from "../src/core/draughtsMoves.js?v=20260925d";
+import { moveNotation } from "../src/core/solutionParser.js?v=20260925d";
+import { leesPartijTekst, leesKopregels } from "../src/core/pdn.js?v=20260925d";
 
 // Bouwt notaties op met de echte regelengine (zoals tests/zettenboom.test.js) in plaats van
 // zelf veldnummers te verzinnen — zo test dit bestand alleen het LEZEN van de tekst, niet of ik
