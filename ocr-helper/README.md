@@ -48,6 +48,7 @@ Ga in de browser naar http://localhost:8765/health — je ziet `"ok": true`.
 - `GET /health` — beschikbaarheidscheck.
 - `POST /ocr` — body is de afbeelding zelf (of JSON `{"image": "<base64>"}`).
   Antwoord: `{"lines": [{"text", "confidence", "box"}], "text": "..."}`, regels van boven naar beneden.
+- Pagina met twee kolommen: de helper herkent dat aan waar de regels beginnen, geeft eerst de hele linker- en dan de rechterkolom, en deelt regels die Vision over beide kolommen las weer op (`"columns": 2` in het antwoord).
 - Vision staat op `accurate` met taalcorrectie **uit**, anders "verbetert" Apple cijfers.
 - Alleen deze websites mogen de helper aanroepen: `http://localhost:8000`,
   `http://127.0.0.1:8000` en `https://4tzy9fgcz5-lang.github.io`. Anders zetten:

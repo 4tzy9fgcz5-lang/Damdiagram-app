@@ -1,5 +1,5 @@
-import { describe, it, assertTrue, assertEqual } from "./test-runner.js?v=20260925a";
-import { fitBoardQuad, findMissingBoards, patternSeparation } from "../src/recognition/quadFit.js?v=20260925a";
+import { describe, it, assertTrue, assertEqual } from "./test-runner.js?v=20260925b";
+import { fitBoardQuad, findMissingBoards, patternSeparation } from "../src/recognition/quadFit.js?v=20260925b";
 
 // Tekent een dambord (10x10, donkere velden waar rij+kolom oneven is) met dikke zwarte
 // rand op `ctx`, in het coördinatenstelsel van de huidige transformatie: het speelveld
@@ -146,7 +146,7 @@ describe("losse foto: bord in het midden met een ander diagram ernaast", () => {
 
   it("kiest het bord in het midden, niet een stuk van de buren of twee borden samen", async () => {
     const { imageData, middle } = pageWithNeighbours();
-    const { detectPlayfieldFromImageData } = await import("../src/recognition/detectBoard.js?v=20260925a");
+    const { detectPlayfieldFromImageData } = await import("../src/recognition/detectBoard.js?v=20260925b");
     const found = detectPlayfieldFromImageData(imageData, 600, 800);
     assertTrue(found !== null, "verwachtte een gevonden bord");
     const xs = found.corners.map((p) => p.x);

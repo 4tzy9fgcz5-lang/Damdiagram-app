@@ -42,11 +42,13 @@ export async function leesFotoMetHelper(file) {
 // Maakt van de gelezen regels tekst die `splitOplossingenTekst` goed kan lezen. Weggelaten worden:
 //  - korte regels helemaal tegen de fotorand (smal, binnen 8% van de rand): brokjes van de buurpagina die
 //    in beeld komt; ze zouden anders als schijn-oplossingen ("9. 2-16") de echte oplossing afknippen;
+//  - losse paginanummers ("218");
 //  - regels zonder enig cijfer (bijvoorbeeld het woord "Диаграмма" boven een diagram).
 // De rest blijft zoals gelezen; de controle op de damregels vangt op wat er dan nog niet klopt.
 export function schoonOcrTekst(lines) {
   return (lines || [])
     .filter((l) => /\d/.test(l.text))
+    .filter((l) => !(/^\d{1,3}$/.test(l.text.trim()) && (!l.box || l.box.w < 0.08))) // paginanummers
     .filter((l) => {
       const b = l.box;
       if (!b || b.w >= 0.12) return true;

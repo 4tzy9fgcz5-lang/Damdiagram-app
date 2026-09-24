@@ -1,4 +1,4 @@
-import { getLegalMoves, applyMove, opposite, plyColor, plyMoveNumber } from "./draughtsMoves.js?v=20260925a";
+import { getLegalMoves, applyMove, opposite, plyColor, plyMoveNumber } from "./draughtsMoves.js?v=20260925b";
 
 // Een oplossing zoals die in een boek staat (bv. "1. 31 - 27 8 - 12 2. 38 - 33 (2. 39 - 33)
 // 29 x 49 ... 9. 45 x 5 x.") omzetten in `zetten` + `zijvarianten`, zoals de klikbare
@@ -472,7 +472,8 @@ export function splitOplossingenTekst(tekst, { verwacht } = {}) {
       if (FIRST_MOVE.test(rest)) isStart = true;
       else if (last > 0 && Number(m[1]) === last + 1) isStart = false;
       else if (HAS_MOVE.test(rest)) isStart = true;
-      else if (expected && expected.has(m[1]) && !/\d/.test(rest) && rest.trim().length > 0) isStart = true;
+      // Een verwacht nummer met alleen een naam/jaar erachter (of niets, als de zetten op de volgende regel staan).
+      else if (expected && expected.has(m[1]) && !HAS_MOVE.test(rest)) isStart = true;
       if (nogGeenZet && m[1] === "1") isStart = false;
     }
     if (isStart) {

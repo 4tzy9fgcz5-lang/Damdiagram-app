@@ -1,8 +1,8 @@
-import { listPartijen } from "../db/partijen.js?v=20260925a";
-import { getAllCategorieen } from "../db/categorieen.js?v=20260925a";
-import { naamWeergave } from "../core/namen.js?v=20260925a";
-import { buildMeerderePartijenDocxBlob } from "../export/partijDocx.js?v=20260925a";
-import { downloadBlob } from "../export/docx.js?v=20260925a";
+import { listPartijen } from "../db/partijen.js?v=20260925b";
+import { getAllCategorieen } from "../db/categorieen.js?v=20260925b";
+import { naamWeergave } from "../core/namen.js?v=20260925b";
+import { buildMeerderePartijenDocxBlob } from "../export/partijDocx.js?v=20260925b";
+import { downloadBlob } from "../export/docx.js?v=20260925b";
 
 function escapeHtml(str) {
   return String(str ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));

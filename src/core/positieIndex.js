@@ -1,5 +1,5 @@
-import { applyMove, opposite } from "./draughtsMoves.js?v=20260925a";
-import { boardToFen } from "./fen.js?v=20260925a";
+import { applyMove, opposite } from "./draughtsMoves.js?v=20260925b";
+import { boardToFen } from "./fen.js?v=20260925b";
 
 // De canonieke sleutel van een stand is dezelfde FEN-tekst die `standen.js` al gebruikt om
 // dubbele standen te herkennen (`boardToFen`: velden altijd in dezelfde volgorde, dus twee keer

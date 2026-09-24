@@ -1,7 +1,7 @@
-import { describe, it, assertEqual, assertTrue } from "./test-runner.js?v=20260925a";
-import { parseFen } from "../src/core/fen.js?v=20260925a";
-import { getLegalMoves, applyMove, opposite, formatZettenMetVarianten } from "../src/core/draughtsMoves.js?v=20260925a";
-import { parseOplossing, splitOplossingenPerNummer, splitOplossingenTekst, extractAuthor, moveNotation } from "../src/core/solutionParser.js?v=20260925a";
+import { describe, it, assertEqual, assertTrue } from "./test-runner.js?v=20260925b";
+import { parseFen } from "../src/core/fen.js?v=20260925b";
+import { getLegalMoves, applyMove, opposite, formatZettenMetVarianten } from "../src/core/draughtsMoves.js?v=20260925b";
+import { parseOplossing, splitOplossingenPerNummer, splitOplossingenTekst, extractAuthor, moveNotation } from "../src/core/solutionParser.js?v=20260925b";
 
 const START_FEN = `W:W${Array.from({ length: 20 }, (_, i) => 31 + i).join(",")}:B${Array.from({ length: 20 }, (_, i) => 1 + i).join(",")}`;
 
@@ -252,6 +252,14 @@ describe("solutionParser: geplakte tekst met meerdere oplossingen", () => {
     const r = splitOplossingenTekst(tekst, { verwacht: ["584", "585", "586"] });
     assertEqual(r.volgorde, ["584", "585", "586"]);
     assertTrue(r.perNummer["585"].includes("1.33-29"));
+  });
+
+  it("herkent een verwacht nummer met alleen een naam en jaartal, of met de zetten op de volgende regel", () => {
+    const tekst = "185.\n1.28-23 19x28 2.29-24 26x37\n187. Brochunowa - Uwaczan 1984\n1.29-23 18x38 2. 28-23 19x28\n188.\n1. 28-22 18x49";
+    const r = splitOplossingenTekst(tekst, { verwacht: ["185", "187", "188"] });
+    assertEqual(r.volgorde, ["185", "187", "188"]);
+    assertTrue(r.perNummer["187"].includes("Uwaczan 1984") && r.perNummer["187"].includes("1.29-23"));
+    assertTrue(r.perNummer["185"].includes("1.28-23"));
   });
 
   it("negeert codeblok-tekens en vet/opsommingstekens uit een chatantwoord", () => {
