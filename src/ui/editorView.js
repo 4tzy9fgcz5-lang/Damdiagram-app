@@ -1,20 +1,20 @@
-import { createBoardEditor, createPalette } from "./boardEditor.js?v=20260924f";
-import { createSolutionInput } from "./solutionInput.js?v=20260924f";
-import { parseOplossing, extractAuthor } from "../core/solutionParser.js?v=20260924f";
-import { createEmptyBoard, countPieces, isWhite, isBlack } from "../core/board.js?v=20260924f";
-import { parseFen, boardToFen, FenParseError } from "../core/fen.js?v=20260924f";
-import { parseStandInput, QuickTextParseError } from "../core/quicktext.js?v=20260924f";
-import { validateBoard } from "../core/validate.js?v=20260924f";
-import { saveStand, getStand, findDuplicates } from "../db/standen.js?v=20260924f";
-import { saveEindspel, findEindspelDuplicates } from "../db/eindspelen.js?v=20260924f";
-import { getList, addListValue } from "../db/lijsten.js?v=20260924f";
-import { getAllCategorieen } from "../db/categorieen.js?v=20260924f";
-import { logHerkenningCorrectie } from "../db/herkenningLog.js?v=20260924f";
-import { reclassifyFromDataUrl } from "./diagramCaptureView.js?v=20260924f";
-import { RECOGNITION_VERSION as NEW_MODEL_VERSION } from "../recognition/newClassify.js?v=20260924f";
-import { CNN_RECOGNITION_VERSION as CNN_MODEL_VERSION } from "../recognition/cnnClassify.js?v=20260924f";
+import { createBoardEditor, createPalette } from "./boardEditor.js?v=20260925a";
+import { createSolutionInput } from "./solutionInput.js?v=20260925a";
+import { parseOplossing, extractAuthor } from "../core/solutionParser.js?v=20260925a";
+import { createEmptyBoard, countPieces, isWhite, isBlack } from "../core/board.js?v=20260925a";
+import { parseFen, boardToFen, FenParseError } from "../core/fen.js?v=20260925a";
+import { parseStandInput, QuickTextParseError } from "../core/quicktext.js?v=20260925a";
+import { validateBoard } from "../core/validate.js?v=20260925a";
+import { saveStand, getStand, findDuplicates } from "../db/standen.js?v=20260925a";
+import { saveEindspel, findEindspelDuplicates } from "../db/eindspelen.js?v=20260925a";
+import { getList, addListValue } from "../db/lijsten.js?v=20260925a";
+import { getAllCategorieen } from "../db/categorieen.js?v=20260925a";
+import { logHerkenningCorrectie } from "../db/herkenningLog.js?v=20260925a";
+import { reclassifyFromDataUrl } from "./diagramCaptureView.js?v=20260925a";
+import { RECOGNITION_VERSION as NEW_MODEL_VERSION } from "../recognition/newClassify.js?v=20260925a";
+import { CNN_RECOGNITION_VERSION as CNN_MODEL_VERSION } from "../recognition/cnnClassify.js?v=20260925a";
 
-import { renderStarRating } from "./starRating.js?v=20260924f";
+import { renderStarRating } from "./starRating.js?v=20260925a";
 
 // Onthoudt de laatst gekozen "Combinaties"/"Eindspelen"-keuze voor de rest van
 // dit tabblad (niet in de database), zodat je 'm niet bij elke volgende stand

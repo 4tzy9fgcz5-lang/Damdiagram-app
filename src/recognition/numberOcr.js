@@ -15,7 +15,7 @@
 // en `fillMissingNumbers` verwerpt nu ook een lezing die qua grootte duidelijk niet bij de rest
 // van de import past, zelfs als hij zelf geen "gat" is (zie `findImplausible`).
 
-import { computeHomography, warpPerspective } from "./homography.js?v=20260924f";
+import { computeHomography, warpPerspective } from "./homography.js?v=20260925a";
 
 const TESSERACT_URL = "https://cdn.jsdelivr.net/npm/tesseract.js@7/dist/tesseract.min.js";
 

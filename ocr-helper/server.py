@@ -10,13 +10,17 @@ Luistert alleen op localhost. Endpoints:
 import base64
 import json
 import os
+import ssl
 import sys
+import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import Vision
 from Foundation import NSData
 
 PORT = int(os.environ.get("OCR_PORT", "8765"))
+HTTPS_PORT = int(os.environ.get("OCR_HTTPS_PORT", "8766"))
+CERT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "cert")
 MAX_BYTES = 40 * 1024 * 1024
 
 # Websites die de helper mogen aanroepen. Extra origins: OCR_ORIGINS="https://a,https://b"
@@ -114,9 +118,24 @@ class Handler(BaseHTTPRequestHandler):
         sys.stderr.write("%s - %s\n" % (self.address_string(), fmt % args))
 
 
+def start_https():
+    """Tweede, beveiligde ingang (https) voor Safari, dat een https-website niet met http://localhost laat praten.
+    Alleen actief als https-installeren.sh een certificaat heeft gemaakt."""
+    cert, key = os.path.join(CERT_DIR, "localhost.pem"), os.path.join(CERT_DIR, "localhost-key.pem")
+    if not (os.path.exists(cert) and os.path.exists(key)):
+        return
+    srv = ThreadingHTTPServer(("127.0.0.1", HTTPS_PORT), Handler)
+    ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    ctx.load_cert_chain(cert, key)
+    srv.socket = ctx.wrap_socket(srv.socket, server_side=True)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    print(f"Beveiligd (https) ook op https://localhost:{HTTPS_PORT}", flush=True)
+
+
 if __name__ == "__main__":
     srv = ThreadingHTTPServer(("127.0.0.1", PORT), Handler)
     print(f"OCR-helper luistert op http://localhost:{PORT}", flush=True)
+    start_https()
     try:
         srv.serve_forever()
     except KeyboardInterrupt:

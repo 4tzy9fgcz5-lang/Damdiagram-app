@@ -27,6 +27,18 @@ voer dan `./launchd-install.sh` nog eens uit.
 
 Uitzetten: `./launchd-uninstall.sh`. Meldingen staan in `~/Library/Logs/ocr-helper.log`.
 
+## Safari (app op github.io)
+
+Safari laat een https-website niet praten met `http://localhost`. Voor Safari heeft de helper daarom een
+tweede, beveiligde ingang (`https://localhost:8766`). Eenmalig instellen:
+
+    cd "/Users/janvanderstar/Documents/Damdiagram app/ocr-helper"
+    ./https-installeren.sh
+
+Dat maakt een certificaat alleen voor `localhost`, vraagt je Mac-wachtwoord (of Touch ID) om het te
+vertrouwen, en start de helper opnieuw. Chrome heeft dit niet nodig. Het certificaat en de sleutel staan
+in `~/Library/Application Support/nl.damdatabase.ocr-helper/cert/` en verlaten je Mac niet.
+
 ## Controleren of het draait
 
 Ga in de browser naar http://localhost:8765/health — je ziet `"ok": true`.

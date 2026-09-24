@@ -8,16 +8,16 @@
 // blijft een klein voorbeeldplaatje (voor de kaders) en het bestand zelf over. De volle foto wordt
 // pas weer geladen als een diagram van die foto aan de beurt is (zie app.js).
 
-import { loadDrawable, drawableSize } from "./imageInput.js?v=20260924f";
-import { detectBulkBoards } from "../recognition/bulkDetect.js?v=20260924f";
-import { getList, addListValue } from "../db/lijsten.js?v=20260924f";
-import { getAllCategorieen } from "../db/categorieen.js?v=20260924f";
-import { createNumberReader, fillMissingNumbers } from "../recognition/numberOcr.js?v=20260924f";
-import { splitOplossingenTekst } from "../core/solutionParser.js?v=20260924f";
-import { helperBeschikbaar, leesFotoMetHelper, schoonOcrTekst } from "../recognition/ocrHelper.js?v=20260924f";
-import { OPLOSSING_OPDRACHT, kopieerNaarKlembord } from "./oplossingOpdracht.js?v=20260924f";
-import { getOplossingenTekst, setOplossingenTekst } from "../db/uiSettings.js?v=20260924f";
-import { setDefaultDoel } from "./editorView.js?v=20260924f";
+import { loadDrawable, drawableSize } from "./imageInput.js?v=20260925a";
+import { detectBulkBoards } from "../recognition/bulkDetect.js?v=20260925a";
+import { getList, addListValue } from "../db/lijsten.js?v=20260925a";
+import { getAllCategorieen } from "../db/categorieen.js?v=20260925a";
+import { createNumberReader, fillMissingNumbers } from "../recognition/numberOcr.js?v=20260925a";
+import { splitOplossingenTekst } from "../core/solutionParser.js?v=20260925a";
+import { helperBeschikbaar, leesFotoMetHelper, schoonOcrTekst } from "../recognition/ocrHelper.js?v=20260925a";
+import { OPLOSSING_OPDRACHT, kopieerNaarKlembord } from "./oplossingOpdracht.js?v=20260925a";
+import { getOplossingenTekst, setOplossingenTekst } from "../db/uiSettings.js?v=20260925a";
+import { setDefaultDoel } from "./editorView.js?v=20260925a";
 
 const COLORS = ["#d1495b", "#1a5c38", "#3a6ea5", "#e0a800", "#8854d0", "#009688"];
 const THUMB_MAX_SIDE = 700;
@@ -292,7 +292,7 @@ export async function renderBulkImportView(container, { onConfirmed } = {}) {
   ocrBtn.addEventListener("click", async () => {
     if (!(await helperBeschikbaar())) {
       zetOcrStatus(
-        "De OCR-helper draait niet. Start hem in Terminal met ./start.sh in de map ocr-helper (uitleg: ocr-helper/README.md), of gebruik de Claude-route hieronder.",
+        "De app kan de OCR-helper niet bereiken. Draait hij niet? Start hem dan met ./start.sh in de map ocr-helper. Draait hij wel en gebruik je Safari? Voer dan eenmalig ./https-installeren.sh uit (uitleg: ocr-helper/README.md). Of gebruik de Claude-route hieronder.",
         "#b00020"
       );
       return;

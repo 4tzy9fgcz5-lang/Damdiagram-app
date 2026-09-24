@@ -1,10 +1,10 @@
-import * as docxLib from "../../lib/docx.mjs?v=20260924f";
-import { createStartBoard } from "../core/board.js?v=20260924f";
-import { parseFen } from "../core/fen.js?v=20260924f";
-import { plyColor, plyMoveNumber } from "../core/draughtsMoves.js?v=20260924f";
-import { hoofdlijnKnopen, notatieKortMetVoorloopnul } from "../core/zettenboom.js?v=20260924f";
-import { naamPrint } from "../core/namen.js?v=20260924f";
-import { bouwZettenRooster, zetParen } from "./zetRooster.js?v=20260924f";
+import * as docxLib from "../../lib/docx.mjs?v=20260925a";
+import { createStartBoard } from "../core/board.js?v=20260925a";
+import { parseFen } from "../core/fen.js?v=20260925a";
+import { plyColor, plyMoveNumber } from "../core/draughtsMoves.js?v=20260925a";
+import { hoofdlijnKnopen, notatieKortMetVoorloopnul } from "../core/zettenboom.js?v=20260925a";
+import { naamPrint } from "../core/namen.js?v=20260925a";
+import { bouwZettenRooster, zetParen } from "./zetRooster.js?v=20260925a";
 
 const { Document, Packer, Paragraph, TextRun, convertMillimetersToTwip } = docxLib;
 

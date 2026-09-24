@@ -1,22 +1,32 @@
-// Koppeling met de lokale OCR-helper (map ocr-helper/, Apple Vision) op localhost:8765.
+// Koppeling met de lokale OCR-helper (map ocr-helper/, Apple Vision) op deze Mac.
 // De foto verlaat de Mac niet. Zonder draaiende helper blijft plakken vanuit Claude gewoon werken.
-const HELPER_URL = "http://localhost:8765";
+// Twee adressen: beveiligd (https, nodig voor Safari op een https-website) en gewoon (http, werkt in
+// Chrome en op http://localhost). Het eerste dat antwoordt wordt onthouden.
+const HELPER_URLS = ["https://localhost:8766", "http://localhost:8765"];
+let werkendAdres = null;
 
 // true als de helper draait en antwoordt.
 export async function helperBeschikbaar() {
-  try {
-    const res = await fetch(`${HELPER_URL}/health`, { signal: AbortSignal.timeout(2000) });
-    return res.ok && (await res.json()).ok === true;
-  } catch {
-    return false;
+  for (const url of HELPER_URLS) {
+    try {
+      const res = await fetch(`${url}/health`, { signal: AbortSignal.timeout(2000) });
+      if (res.ok && (await res.json()).ok === true) {
+        werkendAdres = url;
+        return true;
+      }
+    } catch {
+      // volgende adres proberen
+    }
   }
+  werkendAdres = null;
+  return false;
 }
 
 // Leest één foto; geeft { lines: [{text, confidence, box}], text } of gooit een Error met een leesbare melding.
 export async function leesFotoMetHelper(file) {
   let res;
   try {
-    res = await fetch(`${HELPER_URL}/ocr`, {
+    res = await fetch(`${werkendAdres || HELPER_URLS[1]}/ocr`, {
       method: "POST",
       headers: { "Content-Type": file.type || "image/jpeg" },
       body: file,
