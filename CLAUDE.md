@@ -632,8 +632,13 @@ brokjes tegen de fotorand (buurpagina) weg. Meting op IMG_0769/0770 (Russisch bo
 (573-598) gevonden en op nummer gesplitst; Vision geeft altijd zekerheid ~1,0 (taalcorrectie uit), dus de
 damregel-controle blijft het vangnet; spaties tussen zet en zetnummer ontbreken soms ("12.16 x 72").
 `solutionParser.js` aangepast: afgebroken regel herkend ook bij aan elkaar geplakte nummers, en
-"585. Auteur." gevolgd door "1. ..." is één oplossing (2 nieuwe tests, 262 slagen). Nog niet gemeten:
-of de zetten na de omzetter net zo vaak volledig nagespeeld worden als bij de lezing door Claude (19/24).
+"585. Auteur." gevolgd door "1. ..." is één oplossing (2 nieuwe tests, 262 slagen). GEMETEN (2026-09-25, `tools/meetOplossingen.mjs`, diagrammen 570-593 + de Vision-tekst van
+IMG_0768/0769/0770 via `schoonOcrTekst`): 22 van 24 volledig nagespeeld, 2 deels (580 en 584 — dezelfde
+bronfouten/commentaar als bij de lezing door Claude, die met de huidige omzetter óók 22/24 haalt); identieke
+uitkomst per diagram. Twee kolommen (foto's als `~/Downloads/IMG_0851.HEIC`, Pools boek): de helper herkent
+ze aan de beginposities van de regels (`_zoek_kolommen` in `server.py`), levert links dan rechts en splitst
+door Vision samengevoegde regels; 185-196 kwamen goed gesplitst uit de omzetter. Safari op github.io heeft de
+https-ingang nodig (`ocr-helper/https-installeren.sh`, certificaat vertrouwen door Jan zelf).
 
 **Twee andere boeklay-outs getest (Jan, 2026-09-22; foto's `testdata/gemengd/`, gitignored):**
 diagram en oplossing op DEZELFDE pagina.
