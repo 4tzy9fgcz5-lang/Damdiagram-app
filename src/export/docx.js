@@ -1,10 +1,10 @@
-import * as docxLib from "../../lib/docx.mjs?v=20260925d";
-import { renderDiagramSVG } from "../diagram/render.js?v=20260925d";
-import { parseFen } from "../core/fen.js?v=20260925d";
-import { getGridLayout, paginateItems } from "../stencil/layout.js?v=20260925d";
-import { opdrachtregelMetOndertitel } from "../stencil/compose.js?v=20260925d";
-import { svgToPngBytes } from "./rasterize.js?v=20260925d";
-import { resolveOplossingTekst } from "../db/standen.js?v=20260925d";
+import * as docxLib from "../../lib/docx.mjs?v=20260930a";
+import { renderDiagramSVG } from "../diagram/render.js?v=20260930a";
+import { parseFen } from "../core/fen.js?v=20260930a";
+import { getGridLayout, paginateItems, perPaginaVan } from "../stencil/layout.js?v=20260930a";
+import { opdrachtregelMetOndertitel } from "../stencil/compose.js?v=20260930a";
+import { svgToPngBytes } from "./rasterize.js?v=20260930a";
+import { resolveOplossingTekst } from "../db/standen.js?v=20260930a";
 
 const {
   Document,
@@ -127,7 +127,7 @@ async function buildImageRun(fen, imagePxDisplay) {
 }
 
 async function buildOpgavenTable(stencil, items, offset = 0) {
-  const { cols } = getGridLayout(items.length);
+  const { cols, rows } = getGridLayout(items.length, perPaginaVan(stencil));
   const usableWidthMm = PAGE_MM.width - 2 * MARGIN_MM;
   const cellWMm = usableWidthMm / cols;
   const cellPaddingTwip = mmToTwip(CELL_PADDING_MM);
@@ -146,7 +146,13 @@ async function buildOpgavenTable(stencil, items, offset = 0) {
   const contentColWidthTwip = mmToTwip(contentColWMm);
   const innerTableWidthTwip = numberColWidthTwip + contentColWidthTwip;
 
-  const imageSizeMm = Math.max(10, contentColWMm);
+  // Het diagram vult de kolom nooit helemaal: liep het precies tot de rand, dan viel bij
+  // het openen in Word de rechterrand (de zwarte lijn) net weg. Daarnaast begrenst de
+  // paginahoogte de grootte (bij 6 per pagina zijn de cellen breder dan hoog).
+  const RIGHT_SAFETY_MM = 2;
+  const usableHeightMm = PAGE_MM.height - TOP_MARGIN_MM - MARGIN_MM - 4;
+  const maxByHeightMm = usableHeightMm / rows - 2 * CELL_PADDING_MM - CELL_TEXT_RESERVED_MM;
+  const imageSizeMm = Math.max(10, Math.min(contentColWMm - RIGHT_SAFETY_MM, maxByHeightMm));
   const imagePxDisplay = mmToPx(imageSizeMm, DISPLAY_DPI);
   const colWidthTwip = mmToTwip(cellWMm);
   // Voor elke aantal-diagrammen-combinatie in GRID_TABLE (1-12, dus max. 4 rijen bij
@@ -297,7 +303,7 @@ export async function buildStencilDocxBlob(stencil, items, mode = "beide") {
   const sections = [];
 
   if (mode === "opgaven" || mode === "beide") {
-    const paginas = paginateItems(items);
+    const paginas = paginateItems(items, perPaginaVan(stencil));
     let offset = 0;
     for (let i = 0; i < paginas.length; i++) {
       const table = await buildOpgavenTable(stencil, paginas[i], offset);

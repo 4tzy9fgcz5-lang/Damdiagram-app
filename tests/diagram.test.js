@@ -1,7 +1,7 @@
-import { describe, it, assertTrue, assertEqual } from "./test-runner.js?v=20260925d";
-import { renderDiagramSVG, MARGIN, SQUARE } from "../src/diagram/render.js?v=20260925d";
-import { parseFen } from "../src/core/fen.js?v=20260925d";
-import { createEmptyBoard, fieldToCoord } from "../src/core/board.js?v=20260925d";
+import { describe, it, assertTrue, assertEqual } from "./test-runner.js?v=20260930a";
+import { renderDiagramSVG, MARGIN, SQUARE } from "../src/diagram/render.js?v=20260930a";
+import { parseFen } from "../src/core/fen.js?v=20260930a";
+import { createEmptyBoard, fieldToCoord } from "../src/core/board.js?v=20260930a";
 
 function countOccurrences(text, sub) {
   return text.split(sub).length - 1;

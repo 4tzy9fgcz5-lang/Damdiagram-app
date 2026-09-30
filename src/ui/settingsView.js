@@ -1,9 +1,9 @@
-import { renderBackupSection, renderTrainingSection } from "./backupView.js?v=20260925d";
-import { getVerbergOplossing, setVerbergOplossing } from "../db/uiSettings.js?v=20260925d";
-import { getAllCategorieen, addCategorie, renameCategorie, removeCategorie } from "../db/categorieen.js?v=20260925d";
-import { addListValue, renameListValue, removeListValue } from "../db/lijsten.js?v=20260925d";
-import { listStanden, renameCategorieWaardeOpStanden } from "../db/standen.js?v=20260925d";
-import { renderZettenboomProef } from "./zettenboomProefView.js?v=20260925d";
+import { renderBackupSection, renderTrainingSection } from "./backupView.js?v=20260930a";
+import { getVerbergOplossing, setVerbergOplossing } from "../db/uiSettings.js?v=20260930a";
+import { getAllCategorieen, addCategorie, renameCategorie, removeCategorie } from "../db/categorieen.js?v=20260930a";
+import { addListValue, renameListValue, removeListValue, moveListValue } from "../db/lijsten.js?v=20260930a";
+import { listStanden, renameCategorieWaardeOpStanden } from "../db/standen.js?v=20260930a";
+import { renderZettenboomProef } from "./zettenboomProefView.js?v=20260930a";
 
 function escapeHtml(str) {
   return str.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -59,9 +59,11 @@ async function renderDatabaseSettingsSection(container) {
         const waardenHtml = c.waarden.length
           ? c.waarden
               .map(
-                (w) => `
+                (w, wi) => `
               <div style="display:flex;align-items:center;gap:0.5rem;padding:0.2rem 0;">
                 <span style="flex:1;">${escapeHtml(w)}</span>
+                <button type="button" class="secondary" data-action="omhoog-waarde" data-key="${c.key}" data-waarde="${escapeHtml(w)}" title="Eén plek omhoog" aria-label="Eén plek omhoog"${wi === 0 ? " disabled" : ""}>&#9650;</button>
+                <button type="button" class="secondary" data-action="omlaag-waarde" data-key="${c.key}" data-waarde="${escapeHtml(w)}" title="Eén plek omlaag" aria-label="Eén plek omlaag"${wi === c.waarden.length - 1 ? " disabled" : ""}>&#9660;</button>
                 <button type="button" class="secondary" data-action="rename-waarde" data-key="${c.key}" data-waarde="${escapeHtml(w)}">Hernoemen</button>
                 <button type="button" class="secondary" data-action="delete-waarde" data-key="${c.key}" data-waarde="${escapeHtml(w)}">Verwijderen</button>
               </div>`
@@ -118,6 +120,14 @@ async function renderDatabaseSettingsSection(container) {
         await removeCategorie(btn.dataset.key);
         await renderCategorieList();
       });
+    }
+    for (const [actie, delta] of [["omhoog-waarde", -1], ["omlaag-waarde", 1]]) {
+      for (const btn of listHost.querySelectorAll(`[data-action="${actie}"]`)) {
+        btn.addEventListener("click", async () => {
+          await moveListValue(btn.dataset.key, btn.dataset.waarde, delta);
+          await renderCategorieList();
+        });
+      }
     }
     for (const btn of listHost.querySelectorAll('[data-action="rename-waarde"]')) {
       btn.addEventListener("click", async () => {

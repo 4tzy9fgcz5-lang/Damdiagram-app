@@ -1,5 +1,5 @@
-import { describe, it, assertEqual } from "./test-runner.js?v=20260925d";
-import { splitNaam, naamWeergave, naamPrint } from "../src/core/namen.js?v=20260925d";
+import { describe, it, assertEqual } from "./test-runner.js?v=20260930a";
+import { splitNaam, naamWeergave, naamPrint } from "../src/core/namen.js?v=20260930a";
 
 describe("namen: splitNaam", () => {
   it("splitst een gewone naam op het laatste woord", () => {

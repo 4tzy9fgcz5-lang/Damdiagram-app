@@ -1,7 +1,7 @@
-import { describe, it, assertEqual, assertThrows } from "./test-runner.js?v=20260925d";
-import { getGridLayout, computeCellRects, paginateItems, MAX_DIAGRAMS_PER_PAGE } from "../src/stencil/layout.js?v=20260925d";
-import { buildStencilPagesHTML, missingOplossingen } from "../src/stencil/stencilPreview.js?v=20260925d";
-import { opdrachtregelMetOndertitel } from "../src/stencil/compose.js?v=20260925d";
+import { describe, it, assertEqual, assertThrows } from "./test-runner.js?v=20260930a";
+import { getGridLayout, computeCellRects, paginateItems, MAX_DIAGRAMS_PER_PAGE, PAGINA_OPTIES, perPaginaVan } from "../src/stencil/layout.js?v=20260930a";
+import { buildStencilPagesHTML, missingOplossingen } from "../src/stencil/stencilPreview.js?v=20260930a";
+import { opdrachtregelMetOndertitel } from "../src/stencil/compose.js?v=20260930a";
 
 describe("stencil: rasterindeling", () => {
   it("gebruikt altijd 3 kolommen x 4 rijen, ongeacht het aantal diagrammen", () => {
@@ -32,6 +32,27 @@ describe("stencil: rasterindeling", () => {
   });
   it("geeft één lege pagina voor een leeg opgaveblad", () => {
     assertEqual(paginateItems([]), [[]]);
+  });
+});
+
+describe("stencil: aantal diagrammen per A4 kiezen", () => {
+  it("kent 6, 9, 12 en 15 per pagina", () => {
+    assertEqual(PAGINA_OPTIES, [6, 9, 12, 15]);
+    assertEqual(getGridLayout(6, 6), { cols: 2, rows: 3 });
+    assertEqual(getGridLayout(9, 9), { cols: 3, rows: 3 });
+    assertEqual(getGridLayout(15, 15), { cols: 3, rows: 5 });
+  });
+  it("weigert meer diagrammen dan de gekozen pagina aankan", () => {
+    assertThrows(() => getGridLayout(7, 6));
+  });
+  it("oudere opgavebladen zonder keuze blijven op 12", () => {
+    assertEqual(perPaginaVan({}), 12);
+    assertEqual(perPaginaVan({ perPagina: 9 }), 9);
+    assertEqual(perPaginaVan({ perPagina: 7 }), 12);
+  });
+  it("splitst in pagina's van de gekozen grootte", () => {
+    const paginas = paginateItems(Array.from({ length: 14 }, (_, i) => i), 6);
+    assertEqual(paginas.map((p) => p.length), [6, 6, 2]);
   });
 });
 

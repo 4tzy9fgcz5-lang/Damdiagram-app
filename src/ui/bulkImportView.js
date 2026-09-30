@@ -8,16 +8,16 @@
 // blijft een klein voorbeeldplaatje (voor de kaders) en het bestand zelf over. De volle foto wordt
 // pas weer geladen als een diagram van die foto aan de beurt is (zie app.js).
 
-import { loadDrawable, drawableSize } from "./imageInput.js?v=20260925d";
-import { detectBulkBoards } from "../recognition/bulkDetect.js?v=20260925d";
-import { getList, addListValue } from "../db/lijsten.js?v=20260925d";
-import { getAllCategorieen } from "../db/categorieen.js?v=20260925d";
-import { createNumberReader, fillMissingNumbers } from "../recognition/numberOcr.js?v=20260925d";
-import { splitOplossingenTekst } from "../core/solutionParser.js?v=20260925d";
-import { helperBeschikbaar, leesFotoMetHelper, schoonOcrTekst } from "../recognition/ocrHelper.js?v=20260925d";
-import { OPLOSSING_OPDRACHT, kopieerNaarKlembord } from "./oplossingOpdracht.js?v=20260925d";
-import { getOplossingenTekst, setOplossingenTekst } from "../db/uiSettings.js?v=20260925d";
-import { setDefaultDoel } from "./editorView.js?v=20260925d";
+import { loadDrawable, drawableSize } from "./imageInput.js?v=20260930a";
+import { detectBulkBoards } from "../recognition/bulkDetect.js?v=20260930a";
+import { getList, addListValue } from "../db/lijsten.js?v=20260930a";
+import { getAllCategorieen } from "../db/categorieen.js?v=20260930a";
+import { createNumberReader, fillMissingNumbers } from "../recognition/numberOcr.js?v=20260930a";
+import { splitOplossingenTekst } from "../core/solutionParser.js?v=20260930a";
+import { helperBeschikbaar, leesFotoMetHelper, schoonOcrTekst } from "../recognition/ocrHelper.js?v=20260930a";
+import { OPLOSSING_OPDRACHT, kopieerNaarKlembord } from "./oplossingOpdracht.js?v=20260930a";
+import { getOplossingenTekst, setOplossingenTekst } from "../db/uiSettings.js?v=20260930a";
+import { setDefaultDoel } from "./editorView.js?v=20260930a";
 
 const COLORS = ["#d1495b", "#1a5c38", "#3a6ea5", "#e0a800", "#8854d0", "#009688"];
 const THUMB_MAX_SIDE = 700;
@@ -128,6 +128,9 @@ export async function renderBulkImportView(container, { onConfirmed } = {}) {
 
       <label style="margin-top:0.75rem;">Publicatie</label>
       <input type="text" data-field="publicatie" placeholder="boek, tijdschrift of website" />
+
+      <label style="margin-top:0.75rem;">Opdracht (leeg = standaard)</label>
+      <input type="text" data-field="opdracht" placeholder="bijv. Wit speelt en wint" />
 
       <div data-role="categorieen"></div>
 
@@ -751,6 +754,7 @@ export async function renderBulkImportView(container, { onConfirmed } = {}) {
       diagrams,
       auteur: el('[data-field="auteur"]').value.trim(),
       publicatie: el('[data-field="publicatie"]').value.trim(),
+      opdracht: el('[data-field="opdracht"]').value.trim(),
       categorieen: Object.fromEntries(Object.entries(selectedCategorieen).filter(([, v]) => v.length > 0).map(([k, v]) => [k, [...v]])),
       doel,
     });

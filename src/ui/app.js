@@ -1,25 +1,25 @@
-import { renderEditorView } from "./editorView.js?v=20260925d";
-import { renderDatabaseView } from "./databaseView.js?v=20260925d";
-import { renderEindspelenView } from "./eindspelenView.js?v=20260925d";
-import { renderStandDetailView } from "./standDetailView.js?v=20260925d";
-import { renderStencilsListView } from "./stencilsListView.js?v=20260925d";
-import { renderStencilView, addStandenToStencil } from "./stencilView.js?v=20260925d";
-import { saveStencil } from "../db/stencils.js?v=20260925d";
-import { getLastBackupDate } from "./backupView.js?v=20260925d";
-import { renderSettingsView } from "./settingsView.js?v=20260925d";
-import { renderImportView } from "./importView.js?v=20260925d";
-import { renderPhotoImportView } from "./photoImportView.js?v=20260925d";
-import { renderBulkImportView } from "./bulkImportView.js?v=20260925d";
-import { loadDrawable } from "./imageInput.js?v=20260925d";
-import { renderBulkPrepare } from "./bulkPrepareView.js?v=20260925d";
-import { reviewReason } from "../core/bulkReview.js?v=20260925d";
-import { renderDiagramCapture, cropAroundCorners } from "./diagramCaptureView.js?v=20260925d";
-import { listStanden } from "../db/standen.js?v=20260925d";
-import { renderPartijInvoer } from "./partijInvoerView.js?v=20260925d";
-import { renderPartijenListView } from "./partijenListView.js?v=20260925d";
-import { renderPartijDetailView } from "./partijDetailView.js?v=20260925d";
-import { renderFilmModuleView } from "./filmModuleView.js?v=20260925d";
-import { renderPartijAnnoteren } from "./partijAnnoterenView.js?v=20260925d";
+import { renderEditorView } from "./editorView.js?v=20260930a";
+import { renderDatabaseView } from "./databaseView.js?v=20260930a";
+import { renderEindspelenView } from "./eindspelenView.js?v=20260930a";
+import { renderStandDetailView } from "./standDetailView.js?v=20260930a";
+import { renderStencilsListView } from "./stencilsListView.js?v=20260930a";
+import { renderStencilView, addStandenToStencil } from "./stencilView.js?v=20260930a";
+import { saveStencil } from "../db/stencils.js?v=20260930a";
+import { getLastBackupDate } from "./backupView.js?v=20260930a";
+import { renderSettingsView } from "./settingsView.js?v=20260930a";
+import { renderImportView } from "./importView.js?v=20260930a";
+import { renderPhotoImportView } from "./photoImportView.js?v=20260930a";
+import { renderBulkImportView } from "./bulkImportView.js?v=20260930a";
+import { loadDrawable } from "./imageInput.js?v=20260930a";
+import { renderBulkPrepare } from "./bulkPrepareView.js?v=20260930a";
+import { reviewReason } from "../core/bulkReview.js?v=20260930a";
+import { renderDiagramCapture, cropAroundCorners } from "./diagramCaptureView.js?v=20260930a";
+import { listStanden } from "../db/standen.js?v=20260930a";
+import { renderPartijInvoer } from "./partijInvoerView.js?v=20260930a";
+import { renderPartijenListView } from "./partijenListView.js?v=20260930a";
+import { renderPartijDetailView } from "./partijDetailView.js?v=20260930a";
+import { renderFilmModuleView } from "./filmModuleView.js?v=20260930a";
+import { renderPartijAnnoteren } from "./partijAnnoterenView.js?v=20260930a";
 
 const routes = [
   "nieuw",
@@ -43,7 +43,7 @@ const routes = [
 ];
 let pendingRecognition = null;
 // Actieve bulk-import-rij: { pages: [{ file, name }] (de foto's), diagrams: [{ page (plek in pages),
-// corners, manual, nummer, oplossingTekst }], auteur, publicatie, categorieen, index }.
+// corners, manual, nummer, oplossingTekst }], auteur, publicatie, opdracht, categorieen, index }.
 // Alleen in het geheugen — bij een paginaherlaad ben je de voortgang kwijt (zie
 // CLAUDE.md-plan, "tussentijds hervatten" is een latere stap).
 let bulkQueue = null;
@@ -334,8 +334,8 @@ async function render() {
     }
     bulkQueue = null;
     await renderBulkImportView(app, {
-      onConfirmed: ({ pages, diagrams, auteur, publicatie, categorieen, auto, doel }) => {
-        bulkQueue = { pages, diagrams, auteur, publicatie, categorieen, auto, doel, index: 0 };
+      onConfirmed: ({ pages, diagrams, auteur, publicatie, opdracht, categorieen, auto, doel }) => {
+        bulkQueue = { pages, diagrams, auteur, publicatie, opdracht, categorieen, auto, doel, index: 0 };
         location.hash = auto ? "#/bulk-voorbereiden" : "#/bulk-diagram";
       },
     });
@@ -371,6 +371,7 @@ async function render() {
         ...diagram.result,
         auteur: bulkQueue.auteur,
         publicatie: bulkQueue.publicatie,
+        opdracht: bulkQueue.opdracht,
         categorieen: bulkQueue.categorieen,
         doel: bulkQueue.doel,
         nummer: diagram.nummer ?? "",
@@ -405,7 +406,7 @@ async function render() {
       heading: `Diagram ${index + 1} van ${diagrams.length}${diagram.nummer ? ` — nr. ${diagram.nummer}` : ""}${bulkQueue.pages.length > 1 ? ` (foto ${diagram.page + 1} van ${bulkQueue.pages.length})` : ""}`,
       onRecognized: (result) => {
         diagram.hoekenOpnieuw = false;
-        pendingRecognition = { ...result, auteur: bulkQueue.auteur, publicatie: bulkQueue.publicatie, categorieen: bulkQueue.categorieen, doel: bulkQueue.doel, nummer: diagram.nummer ?? "", oplossingTekst: diagram.oplossingTekst ?? "", bulkInfo: bulkQueue.auto ? makeBulkInfo(diagram, index, false) : undefined };
+        pendingRecognition = { ...result, auteur: bulkQueue.auteur, publicatie: bulkQueue.publicatie, opdracht: bulkQueue.opdracht, categorieen: bulkQueue.categorieen, doel: bulkQueue.doel, nummer: diagram.nummer ?? "", oplossingTekst: diagram.oplossingTekst ?? "", bulkInfo: bulkQueue.auto ? makeBulkInfo(diagram, index, false) : undefined };
         location.hash = "#/nieuw";
       },
     });
@@ -421,6 +422,7 @@ async function render() {
       modelVersion: recognition?.modelVersion,
       initialAuteur: recognition?.auteur,
       initialPublicatie: recognition?.publicatie,
+      initialOpdracht: recognition?.opdracht,
       initialCategorieen: recognition?.categorieen,
       initialNummer: recognition?.nummer,
       initialOplossingTekst: recognition?.oplossingTekst,

@@ -1,5 +1,5 @@
-import { openDb, tx, promisify, newId } from "./db.js?v=20260925d";
-import { STORE_STENCILS } from "./schema.js?v=20260925d";
+import { openDb, tx, promisify, newId } from "./db.js?v=20260930a";
+import { STORE_STENCILS } from "./schema.js?v=20260930a";
 
 function nowIso() {
   return new Date().toISOString();
@@ -17,6 +17,8 @@ export async function saveStencil(input) {
     opdrachtregel: input.opdrachtregel ?? "Wit speelt en wint",
     // Elk item: { standId, opdracht }. opdracht start als kopie van het opdrachtveld
     // van de stand zelf, maar kan per stencil losstaand worden aangepast (zie stencilView).
+    // Max. aantal diagrammen per A4: 6, 9, 12 (standaard) of 15.
+    perPagina: input.perPagina ?? 12,
     standen: input.standen ?? [],
     createdAt: input.createdAt ?? nowIso(),
     updatedAt: nowIso(),

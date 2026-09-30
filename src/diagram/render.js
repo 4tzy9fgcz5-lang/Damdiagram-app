@@ -1,4 +1,4 @@
-import { fieldToCoord, FIELD_COUNT, isWhite, isKing } from "../core/board.js?v=20260925d";
+import { fieldToCoord, FIELD_COUNT, isWhite, isKing } from "../core/board.js?v=20260930a";
 
 const VIEW = 300;
 const BORDER_BLACK = 3;

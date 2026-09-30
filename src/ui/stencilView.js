@@ -1,11 +1,11 @@
-import { getStencil, saveStencil } from "../db/stencils.js?v=20260925d";
-import { getStand, saveStand } from "../db/standen.js?v=20260925d";
-import { resolveStencilItems } from "../stencil/compose.js?v=20260925d";
-import { buildStencilPagesHTML, missingOplossingen } from "../stencil/stencilPreview.js?v=20260925d";
-import { buildStencilDocxBlob, downloadBlob } from "../export/docx.js?v=20260925d";
-import { renderDiagramSVG } from "../diagram/render.js?v=20260925d";
-import { parseFen } from "../core/fen.js?v=20260925d";
-import { MAX_DIAGRAMS_PER_PAGE } from "../stencil/layout.js?v=20260925d";
+import { getStencil, saveStencil } from "../db/stencils.js?v=20260930a";
+import { getStand, saveStand } from "../db/standen.js?v=20260930a";
+import { resolveStencilItems } from "../stencil/compose.js?v=20260930a";
+import { buildStencilPagesHTML, missingOplossingen } from "../stencil/stencilPreview.js?v=20260930a";
+import { buildStencilDocxBlob, downloadBlob } from "../export/docx.js?v=20260930a";
+import { renderDiagramSVG } from "../diagram/render.js?v=20260930a";
+import { parseFen } from "../core/fen.js?v=20260930a";
+import { MAX_DIAGRAMS_PER_PAGE, PAGINA_OPTIES, perPaginaVan } from "../stencil/layout.js?v=20260930a";
 
 export async function renderStencilView(container, { stencilId, onOpenStand, onGotoDatabaseToAdd, onBack } = {}) {
   let stencil = await getStencil(stencilId);
@@ -34,6 +34,10 @@ export async function renderStencilView(container, { stencilId, onOpenStand, onG
       <input type="text" data-field="ondertitel" placeholder="komt vooraan bij de opdrachtregel, bijv. 'Clubkampioenschap ronde 3'" />
       <label>Algemene opdrachtregel</label>
       <input type="text" data-field="opdrachtregel" />
+      <label>Max. aantal diagrammen per A4</label>
+      <select data-field="perPagina">
+        ${PAGINA_OPTIES.map((n) => `<option value="${n}">${n} per pagina</option>`).join("")}
+      </select>
     </div>
 
     <div class="card">
@@ -73,6 +77,7 @@ export async function renderStencilView(container, { stencilId, onOpenStand, onG
   el('[data-field="club"]').value = stencil.club;
   el('[data-field="ondertitel"]').value = stencil.ondertitel;
   el('[data-field="opdrachtregel"]').value = stencil.opdrachtregel;
+  el('[data-field="perPagina"]').value = String(perPaginaVan(stencil));
 
   async function persistHeader() {
     stencil = await saveStencil({
@@ -82,9 +87,10 @@ export async function renderStencilView(container, { stencilId, onOpenStand, onG
       club: el('[data-field="club"]').value.trim(),
       ondertitel: el('[data-field="ondertitel"]').value.trim(),
       opdrachtregel: el('[data-field="opdrachtregel"]').value.trim() || "Wit speelt en wint",
+      perPagina: Number(el('[data-field="perPagina"]').value) || 12,
     });
   }
-  for (const field of ["titel", "datum", "club", "ondertitel", "opdrachtregel"]) {
+  for (const field of ["titel", "datum", "club", "ondertitel", "opdrachtregel", "perPagina"]) {
     el(`[data-field="${field}"]`).addEventListener("change", persistHeader);
   }
 

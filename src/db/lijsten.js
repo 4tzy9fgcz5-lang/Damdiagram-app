@@ -1,5 +1,5 @@
-import { openDb, tx, promisify } from "./db.js?v=20260925d";
-import { STORE_LIJSTEN } from "./schema.js?v=20260925d";
+import { openDb, tx, promisify } from "./db.js?v=20260930a";
+import { STORE_LIJSTEN } from "./schema.js?v=20260930a";
 
 export async function getList(naam) {
   const db = await openDb();
@@ -48,4 +48,16 @@ export async function removeListValue(naam, waarde) {
     naam,
     waarden.filter((w) => w !== waarde)
   );
+}
+
+// Verplaatst een waarde één plek omhoog (delta -1) of omlaag (+1); de volgorde
+// waarin de waarden zo bewaard worden is ook de volgorde in de filters en op het
+// invoerscherm.
+export async function moveListValue(naam, waarde, delta) {
+  const waarden = [...(await getList(naam))];
+  const van = waarden.indexOf(waarde);
+  const naar = van + delta;
+  if (van < 0 || naar < 0 || naar >= waarden.length) return waarden;
+  [waarden[van], waarden[naar]] = [waarden[naar], waarden[van]];
+  return saveListValues(naam, waarden);
 }

@@ -10,11 +10,29 @@ const FIXED_GRID = { cols: 3, rows: 4 };
 // maar op één A4-pagina passen er niet meer dan dit aantal (zie paginateItems).
 export const MAX_DIAGRAMS_PER_PAGE = 12;
 
-export function getGridLayout(count) {
-  if (count < 1 || count > MAX_DIAGRAMS_PER_PAGE) {
-    throw new RangeError(`Een pagina heeft 1 tot ${MAX_DIAGRAMS_PER_PAGE} diagrammen, niet ${count}.`);
+// Keuze per opgaveblad: hoeveel diagrammen er maximaal op één A4 staan.
+// Elke keuze heeft zijn eigen vaste rooster (kolommen x rijen).
+export const PAGINA_ROOSTERS = {
+  6: { cols: 2, rows: 3 },
+  9: { cols: 3, rows: 3 },
+  12: FIXED_GRID,
+  15: { cols: 3, rows: 5 },
+};
+export const PAGINA_OPTIES = Object.keys(PAGINA_ROOSTERS).map(Number);
+
+// Oudere opgavebladen hebben het veld niet: die blijven op 12.
+export function perPaginaVan(stencil) {
+  const n = Number(stencil?.perPagina);
+  return PAGINA_ROOSTERS[n] ? n : MAX_DIAGRAMS_PER_PAGE;
+}
+
+export function getGridLayout(count, perPagina = MAX_DIAGRAMS_PER_PAGE) {
+  const rooster = PAGINA_ROOSTERS[perPagina];
+  if (!rooster) throw new RangeError(`Onbekend aantal diagrammen per pagina: ${perPagina}.`);
+  if (count < 1 || count > perPagina) {
+    throw new RangeError(`Een pagina heeft 1 tot ${perPagina} diagrammen, niet ${count}.`);
   }
-  return FIXED_GRID;
+  return rooster;
 }
 
 // Splitst alle items van een opgaveblad in pagina's van elk maximaal

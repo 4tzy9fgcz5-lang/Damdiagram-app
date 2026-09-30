@@ -1,8 +1,8 @@
-import { renderDiagramSVG } from "../diagram/render.js?v=20260925d";
-import { parseFen } from "../core/fen.js?v=20260925d";
-import { resolveOplossingTekst } from "../db/standen.js?v=20260925d";
-import { getGridLayout, paginateItems } from "./layout.js?v=20260925d";
-import { opdrachtregelMetOndertitel } from "./compose.js?v=20260925d";
+import { renderDiagramSVG } from "../diagram/render.js?v=20260930a";
+import { parseFen } from "../core/fen.js?v=20260930a";
+import { resolveOplossingTekst } from "../db/standen.js?v=20260930a";
+import { getGridLayout, paginateItems, perPaginaVan } from "./layout.js?v=20260930a";
+import { opdrachtregelMetOndertitel } from "./compose.js?v=20260930a";
 
 const PAGE_STYLE = `
   @page { size: A4 portrait; margin: 14mm; }
@@ -39,7 +39,7 @@ function headerHTML(stencil, { titelSuffix = "", toonOpdracht = true } = {}) {
 }
 
 function opgavenPaginaHTML(stencil, pageItems, offset, titelSuffix) {
-  const { cols, rows } = getGridLayout(pageItems.length || 1);
+  const { cols, rows } = getGridLayout(pageItems.length || 1, perPaginaVan(stencil));
   const cells = pageItems
     .map((item, i) => {
       const nr = offset + i + 1;
@@ -67,7 +67,7 @@ function opgavenPaginaHTML(stencil, pageItems, offset, titelSuffix) {
 }
 
 function opgavenSheetHTML(stencil, items) {
-  const paginas = paginateItems(items);
+  const paginas = paginateItems(items, perPaginaVan(stencil));
   let offset = 0;
   return paginas
     .map((pageItems, i) => {

@@ -13,19 +13,47 @@ export function formatMoeilijkheid(waarde) {
 export function renderStarRating(host, { value, onChange }) {
   const huidige = value ?? 0;
   host.innerHTML = "";
+  const stars = [];
+  // Tijdens het bewegen met de muis: toon in de sterren zelf en in een klein label
+  // welke waarde je bij klikken zou geven (anders is 3 of 3,5 lastig te zien).
+  const label = document.createElement("span");
+  label.className = "star-hover-label";
+
+  function vulSterren(waarde) {
+    stars.forEach((span, idx) => {
+      const i = idx + 1;
+      const vulling = waarde >= i ? "100%" : waarde >= i - 0.5 ? "50%" : "0%";
+      span.firstChild.style.width = vulling;
+    });
+  }
+
   for (let i = 1; i <= MOEILIJKHEID_MAX; i++) {
-    const vulling = huidige >= i ? "100%" : huidige >= i - 0.5 ? "50%" : "0%";
     const span = document.createElement("span");
     span.className = "star";
     span.dataset.star = String(i);
-    span.innerHTML = `<span class="star-fill" style="width:${vulling}">★</span>★`;
-    span.addEventListener("click", (event) => {
+    span.innerHTML = `<span class="star-fill" style="width:0%">★</span>★`;
+    const waardeBij = (event) => {
       const rect = span.getBoundingClientRect();
-      const linkerHelft = event.clientX - rect.left < rect.width / 2;
-      const nieuw = linkerHelft ? i - 0.5 : i;
+      return event.clientX - rect.left < rect.width / 2 ? i - 0.5 : i;
+    };
+    span.addEventListener("mousemove", (event) => {
+      const w = waardeBij(event);
+      vulSterren(w);
+      label.textContent = `${formatMoeilijkheid(w)} van ${MOEILIJKHEID_MAX}`;
+      label.style.visibility = "visible";
+    });
+    span.addEventListener("click", (event) => {
+      const nieuw = waardeBij(event);
       onChange(huidige === nieuw ? null : nieuw);
     });
+    stars.push(span);
     host.appendChild(span);
   }
+  host.appendChild(label);
+  vulSterren(huidige);
+  host.addEventListener("mouseleave", () => {
+    vulSterren(huidige);
+    label.style.visibility = "hidden";
+  });
   host.title = huidige ? `Moeilijkheidsgraad: ${formatMoeilijkheid(huidige)} van ${MOEILIJKHEID_MAX}` : "Nog geen moeilijkheidsgraad";
 }
