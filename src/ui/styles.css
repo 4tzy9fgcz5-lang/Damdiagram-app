@@ -651,12 +651,3 @@ a.secondary {
     border-color: var(--kleur-rand);
   }
 }
-
-.star-hover-label {
-  align-self: center;
-  margin-left: 0.4rem;
-  font-size: 0.85rem;
-  color: #555;
-  visibility: hidden;
-  white-space: nowrap;
-}

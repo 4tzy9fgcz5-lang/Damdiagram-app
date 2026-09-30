@@ -14,10 +14,8 @@ export function renderStarRating(host, { value, onChange }) {
   const huidige = value ?? 0;
   host.innerHTML = "";
   const stars = [];
-  // Tijdens het bewegen met de muis: toon in de sterren zelf en in een klein label
-  // welke waarde je bij klikken zou geven (anders is 3 of 3,5 lastig te zien).
-  const label = document.createElement("span");
-  label.className = "star-hover-label";
+  // Tijdens het bewegen met de muis: toon in de sterren zelf welke waarde je bij
+  // klikken zou geven (anders is 3 of 3,5 lastig te zien).
 
   function vulSterren(waarde) {
     stars.forEach((span, idx) => {
@@ -39,8 +37,6 @@ export function renderStarRating(host, { value, onChange }) {
     span.addEventListener("mousemove", (event) => {
       const w = waardeBij(event);
       vulSterren(w);
-      label.textContent = `${formatMoeilijkheid(w)} van ${MOEILIJKHEID_MAX}`;
-      label.style.visibility = "visible";
     });
     span.addEventListener("click", (event) => {
       const nieuw = waardeBij(event);
@@ -49,11 +45,9 @@ export function renderStarRating(host, { value, onChange }) {
     stars.push(span);
     host.appendChild(span);
   }
-  host.appendChild(label);
   vulSterren(huidige);
   host.addEventListener("mouseleave", () => {
     vulSterren(huidige);
-    label.style.visibility = "hidden";
   });
   host.title = huidige ? `Moeilijkheidsgraad: ${formatMoeilijkheid(huidige)} van ${MOEILIJKHEID_MAX}` : "Nog geen moeilijkheidsgraad";
 }
