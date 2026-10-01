@@ -1,4 +1,4 @@
-import { resolveOplossingTekst } from "../db/standen.js?v=20260930a";
+import { resolveOplossingTekst } from "../db/standen.js?v=20261001a";
 
 function csvEscape(value) {
   const str = String(value ?? "");

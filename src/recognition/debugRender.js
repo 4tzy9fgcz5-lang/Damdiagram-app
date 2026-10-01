@@ -1,4 +1,4 @@
-import { fieldToCoord, FIELD_COUNT } from "../core/board.js?v=20260930a";
+import { fieldToCoord, FIELD_COUNT } from "../core/board.js?v=20261001a";
 
 // Foto met de 4 aangewezen hoeken en verbindingslijnen erover getekend, geschaald naar
 // een handige weergavebreedte.

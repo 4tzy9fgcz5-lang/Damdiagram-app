@@ -1,6 +1,6 @@
-import * as docxLib from "../../lib/docx.mjs?v=20260930a";
-import { plyColor, plyMoveNumber } from "../core/draughtsMoves.js?v=20260930a";
-import { notatieKortMetVoorloopnul } from "../core/zettenboom.js?v=20260930a";
+import * as docxLib from "../../lib/docx.mjs?v=20261001a";
+import { plyColor, plyMoveNumber } from "../core/draughtsMoves.js?v=20261001a";
+import { notatieKortMetVoorloopnul } from "../core/zettenboom.js?v=20261001a";
 
 const { Paragraph, TextRun, Table, TableRow, TableCell, WidthType, BorderStyle, TableLayoutType, convertMillimetersToTwip } = docxLib;
 

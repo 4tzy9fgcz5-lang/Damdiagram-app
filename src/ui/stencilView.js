@@ -1,11 +1,11 @@
-import { getStencil, saveStencil } from "../db/stencils.js?v=20260930a";
-import { getStand, saveStand } from "../db/standen.js?v=20260930a";
-import { resolveStencilItems } from "../stencil/compose.js?v=20260930a";
-import { buildStencilPagesHTML, missingOplossingen } from "../stencil/stencilPreview.js?v=20260930a";
-import { buildStencilDocxBlob, downloadBlob } from "../export/docx.js?v=20260930a";
-import { renderDiagramSVG } from "../diagram/render.js?v=20260930a";
-import { parseFen } from "../core/fen.js?v=20260930a";
-import { MAX_DIAGRAMS_PER_PAGE, PAGINA_OPTIES, perPaginaVan } from "../stencil/layout.js?v=20260930a";
+import { getStencil, saveStencil } from "../db/stencils.js?v=20261001a";
+import { getStand, saveStand } from "../db/standen.js?v=20261001a";
+import { resolveStencilItems, opdrachtTekst, autoOpdracht } from "../stencil/compose.js?v=20261001a";
+import { buildStencilPagesHTML, missingOplossingen } from "../stencil/stencilPreview.js?v=20261001a";
+import { buildStencilDocxBlob, downloadBlob } from "../export/docx.js?v=20261001a";
+import { renderDiagramSVG } from "../diagram/render.js?v=20261001a";
+import { parseFen } from "../core/fen.js?v=20261001a";
+import { MAX_DIAGRAMS_PER_PAGE, PAGINA_OPTIES, perPaginaVan } from "../stencil/layout.js?v=20261001a";
 
 export async function renderStencilView(container, { stencilId, onOpenStand, onGotoDatabaseToAdd, onBack } = {}) {
   let stencil = await getStencil(stencilId);
@@ -123,7 +123,7 @@ export async function renderStencilView(container, { stencilId, onOpenStand, onG
         <div style="font-weight:700;">${i + 1}.</div>
         ${svg}
         <input type="text" data-role="opdracht" placeholder="opdracht (optioneel)" value="${escapeAttr(
-          item.opdracht || item.stand?.opdracht || ""
+          opdrachtTekst(item)
         )}" style="font-size:0.8rem;padding:0.3rem;" />
         <div class="button-row" style="justify-content:center;margin-top:0.4rem;">
           <button type="button" class="secondary" data-role="up" ${i === 0 ? "disabled" : ""}>&uarr;</button>
@@ -236,19 +236,6 @@ export async function renderStencilView(container, { stencilId, onOpenStand, onG
   el('[data-action="docx-opgaven"]').addEventListener("click", () => exportDocx("opgaven"));
   el('[data-action="docx-oplossingen"]').addEventListener("click", () => exportDocx("oplossingen"));
   el('[data-action="docx-beide"]').addEventListener("click", () => exportDocx("beide"));
-}
-
-// Een forcing of lokzet is voor een oplosser niet altijd meteen als zodanig
-// herkenbaar — dat zet je daarom vast in het opdrachtveld, maar alleen als de
-// stand zelf nog geen eigen opdrachttekst heeft (anders overschrijf je iets
-// dat er bewust al stond).
-function autoOpdracht(stand) {
-  if (!stand || stand.opdracht) return "";
-  const types = stand.categorieen?.type ?? [];
-  const labels = [];
-  if (types.includes("forcing")) labels.push("Forcing");
-  if (types.includes("lokzet")) labels.push("Lokzet");
-  return labels.join(", ");
 }
 
 export async function addStandenToStencil(stencilId, standIds) {

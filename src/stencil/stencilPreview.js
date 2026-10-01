@@ -1,8 +1,8 @@
-import { renderDiagramSVG } from "../diagram/render.js?v=20260930a";
-import { parseFen } from "../core/fen.js?v=20260930a";
-import { resolveOplossingTekst } from "../db/standen.js?v=20260930a";
-import { getGridLayout, paginateItems, perPaginaVan } from "./layout.js?v=20260930a";
-import { opdrachtregelMetOndertitel } from "./compose.js?v=20260930a";
+import { renderDiagramSVG } from "../diagram/render.js?v=20261001a";
+import { parseFen } from "../core/fen.js?v=20261001a";
+import { resolveOplossingTekst } from "../db/standen.js?v=20261001a";
+import { getGridLayout, paginateItems, perPaginaVan } from "./layout.js?v=20261001a";
+import { opdrachtregelMetOndertitel, opdrachtTekst } from "./compose.js?v=20261001a";
 
 const PAGE_STYLE = `
   @page { size: A4 portrait; margin: 14mm; }
@@ -48,7 +48,7 @@ function opgavenPaginaHTML(stencil, pageItems, offset, titelSuffix) {
       }
       const { board } = parseFen(item.stand.fen);
       const svg = renderDiagramSVG(board, { size: 260 });
-      const tekst = item.opdracht || item.stand.opdracht || "";
+      const tekst = opdrachtTekst(item);
       return `<div class="cell">
         <span class="nr">${nr}.</span>
         <div class="cell-content">
