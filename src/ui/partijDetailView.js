@@ -1,11 +1,11 @@
-import { createStartBoard } from "../core/board.js?v=20261001b";
-import { parseFen } from "../core/fen.js?v=20261001b";
-import { naamWeergave } from "../core/namen.js?v=20261001b";
-import { getPartij, deletePartij } from "../db/partijen.js?v=20261001b";
-import { getAllCategorieen } from "../db/categorieen.js?v=20261001b";
-import { createZettenboomPlayer } from "./zettenboomPlayer.js?v=20261001b";
-import { buildPartijDocxBlob } from "../export/partijDocx.js?v=20261001b";
-import { downloadBlob } from "../export/docx.js?v=20261001b";
+import { createStartBoard } from "../core/board.js?v=20261001c";
+import { parseFen } from "../core/fen.js?v=20261001c";
+import { naamWeergave } from "../core/namen.js?v=20261001c";
+import { getPartij, deletePartij } from "../db/partijen.js?v=20261001c";
+import { getAllCategorieen } from "../db/categorieen.js?v=20261001c";
+import { createZettenboomPlayer } from "./zettenboomPlayer.js?v=20261001c";
+import { buildPartijDocxBlob } from "../export/partijDocx.js?v=20261001c";
+import { downloadBlob } from "../export/docx.js?v=20261001c";
 
 function escapeHtml(str) {
   return String(str ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));

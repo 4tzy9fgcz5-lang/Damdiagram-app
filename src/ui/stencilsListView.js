@@ -1,11 +1,12 @@
-import { listStencils, saveStencil, deleteStencil } from "../db/stencils.js?v=20261001b";
+import { listStencils, saveStencil, deleteStencil } from "../db/stencils.js?v=20261001c";
 
-export async function renderStencilsListView(container, { onOpenStencil } = {}) {
+export async function renderStencilsListView(container, { onOpenStencil, onGenerate } = {}) {
   container.innerHTML = `
     <h2>Mijn opgavebladen</h2>
     <div class="card">
       <div class="button-row" style="margin-top:0;">
         <button type="button" class="primary" data-action="new">Nieuw opgaveblad</button>
+        <button type="button" class="secondary" data-action="generate">Opgaveblad laten samenstellen</button>
       </div>
       <div data-role="list" style="margin-top:1rem;"></div>
       <div data-role="empty" style="display:none;color:#666;padding:1rem;text-align:center;">
@@ -23,6 +24,8 @@ export async function renderStencilsListView(container, { onOpenStencil } = {}) 
     onOpenStencil?.(saved.id);
   });
 
+  el('[data-action="generate"]').addEventListener("click", () => onGenerate?.());
+
   const stencils = await listStencils();
   emptyMsg.style.display = stencils.length ? "none" : "block";
 
@@ -34,7 +37,7 @@ export async function renderStencilsListView(container, { onOpenStencil } = {}) 
       <strong>${escapeHtml(stencil.titel)}</strong>
       <span style="color:#666;font-size:0.85rem;"> — ${stencil.standen.length} diagram(men) — ${escapeHtml(
       stencil.datum
-    )}</span>
+    )}${stencil.programma ? ` — programma: ${escapeHtml(stencil.programma)}` : ""}</span>
       <div class="button-row" style="margin-top:0.5rem;">
         <button type="button" class="secondary" data-role="open">Openen</button>
         <button type="button" class="secondary" data-role="del">Verwijderen</button>

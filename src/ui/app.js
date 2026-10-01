@@ -1,25 +1,26 @@
-import { renderEditorView } from "./editorView.js?v=20261001b";
-import { renderDatabaseView } from "./databaseView.js?v=20261001b";
-import { renderEindspelenView } from "./eindspelenView.js?v=20261001b";
-import { renderStandDetailView } from "./standDetailView.js?v=20261001b";
-import { renderStencilsListView } from "./stencilsListView.js?v=20261001b";
-import { renderStencilView, addStandenToStencil } from "./stencilView.js?v=20261001b";
-import { saveStencil } from "../db/stencils.js?v=20261001b";
-import { getLastBackupDate } from "./backupView.js?v=20261001b";
-import { renderSettingsView } from "./settingsView.js?v=20261001b";
-import { renderImportView } from "./importView.js?v=20261001b";
-import { renderPhotoImportView } from "./photoImportView.js?v=20261001b";
-import { renderBulkImportView } from "./bulkImportView.js?v=20261001b";
-import { loadDrawable } from "./imageInput.js?v=20261001b";
-import { renderBulkPrepare } from "./bulkPrepareView.js?v=20261001b";
-import { reviewReason } from "../core/bulkReview.js?v=20261001b";
-import { renderDiagramCapture, cropAroundCorners } from "./diagramCaptureView.js?v=20261001b";
-import { listStanden } from "../db/standen.js?v=20261001b";
-import { renderPartijInvoer } from "./partijInvoerView.js?v=20261001b";
-import { renderPartijenListView } from "./partijenListView.js?v=20261001b";
-import { renderPartijDetailView } from "./partijDetailView.js?v=20261001b";
-import { renderFilmModuleView } from "./filmModuleView.js?v=20261001b";
-import { renderPartijAnnoteren } from "./partijAnnoterenView.js?v=20261001b";
+import { renderEditorView } from "./editorView.js?v=20261001c";
+import { renderDatabaseView } from "./databaseView.js?v=20261001c";
+import { renderEindspelenView } from "./eindspelenView.js?v=20261001c";
+import { renderStandDetailView } from "./standDetailView.js?v=20261001c";
+import { renderStencilsListView } from "./stencilsListView.js?v=20261001c";
+import { renderStencilGenerateView } from "./stencilGenerateView.js?v=20261001c";
+import { renderStencilView, addStandenToStencil } from "./stencilView.js?v=20261001c";
+import { saveStencil } from "../db/stencils.js?v=20261001c";
+import { getLastBackupDate } from "./backupView.js?v=20261001c";
+import { renderSettingsView } from "./settingsView.js?v=20261001c";
+import { renderImportView } from "./importView.js?v=20261001c";
+import { renderPhotoImportView } from "./photoImportView.js?v=20261001c";
+import { renderBulkImportView } from "./bulkImportView.js?v=20261001c";
+import { loadDrawable } from "./imageInput.js?v=20261001c";
+import { renderBulkPrepare } from "./bulkPrepareView.js?v=20261001c";
+import { reviewReason } from "../core/bulkReview.js?v=20261001c";
+import { renderDiagramCapture, cropAroundCorners } from "./diagramCaptureView.js?v=20261001c";
+import { listStanden } from "../db/standen.js?v=20261001c";
+import { renderPartijInvoer } from "./partijInvoerView.js?v=20261001c";
+import { renderPartijenListView } from "./partijenListView.js?v=20261001c";
+import { renderPartijDetailView } from "./partijDetailView.js?v=20261001c";
+import { renderFilmModuleView } from "./filmModuleView.js?v=20261001c";
+import { renderPartijAnnoteren } from "./partijAnnoterenView.js?v=20261001c";
 
 const routes = [
   "nieuw",
@@ -33,6 +34,7 @@ const routes = [
   "stand",
   "stencils",
   "stencil",
+  "stencil-genereren",
   "instellingen",
   "import",
   "partij-nieuw",
@@ -120,6 +122,7 @@ const NAV_FOR_ROUTE = {
   stand: "database",
   stencils: "stencils",
   stencil: "stencils",
+  "stencil-genereren": "stencils",
   instellingen: "instellingen",
   import: "instellingen",
   partijen: "partijen",
@@ -195,6 +198,18 @@ async function render() {
     await renderStencilsListView(app, {
       onOpenStencil: (id) => {
         location.hash = `#/stencil/${id}`;
+      },
+      onGenerate: () => {
+        location.hash = "#/stencil-genereren";
+      },
+    });
+  } else if (name === "stencil-genereren") {
+    await renderStencilGenerateView(app, {
+      onCreated: (id) => {
+        location.hash = `#/stencil/${id}`;
+      },
+      onBack: () => {
+        location.hash = "#/stencils";
       },
     });
   } else if (name === "stencil") {

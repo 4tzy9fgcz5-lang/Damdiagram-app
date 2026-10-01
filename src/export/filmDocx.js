@@ -1,12 +1,12 @@
-import * as docxLib from "../../lib/docx.mjs?v=20261001b";
-import { createStartBoard, createEmptyBoard } from "../core/board.js?v=20261001b";
-import { parseFen } from "../core/fen.js?v=20261001b";
-import { applyMove, plyMoveNumber } from "../core/draughtsMoves.js?v=20261001b";
-import { hoofdlijnKnopen, notatieKortMetVoorloopnul } from "../core/zettenboom.js?v=20261001b";
-import { renderDiagramSVG } from "../diagram/render.js?v=20261001b";
-import { svgToPngBytes } from "./rasterize.js?v=20261001b";
-import { naamPrint } from "../core/namen.js?v=20261001b";
-import { bouwZettenRooster, zetParen } from "./zetRooster.js?v=20261001b";
+import * as docxLib from "../../lib/docx.mjs?v=20261001c";
+import { createStartBoard, createEmptyBoard } from "../core/board.js?v=20261001c";
+import { parseFen } from "../core/fen.js?v=20261001c";
+import { applyMove, plyMoveNumber } from "../core/draughtsMoves.js?v=20261001c";
+import { hoofdlijnKnopen, notatieKortMetVoorloopnul } from "../core/zettenboom.js?v=20261001c";
+import { renderDiagramSVG } from "../diagram/render.js?v=20261001c";
+import { svgToPngBytes } from "./rasterize.js?v=20261001c";
+import { naamPrint } from "../core/namen.js?v=20261001c";
+import { bouwZettenRooster, zetParen } from "./zetRooster.js?v=20261001c";
 
 const {
   Document,

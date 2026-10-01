@@ -1,5 +1,5 @@
-import { openDb, tx, promisify, newId } from "./db.js?v=20261001b";
-import { STORE_STENCILS } from "./schema.js?v=20261001b";
+import { openDb, tx, promisify, newId } from "./db.js?v=20261001c";
+import { STORE_STENCILS } from "./schema.js?v=20261001c";
 
 function nowIso() {
   return new Date().toISOString();
@@ -12,6 +12,9 @@ export async function saveStencil(input) {
     id: input.id ?? newId(),
     titel: input.titel ?? "Opgaveblad",
     club: input.club ?? "",
+    // Trainingsprogramma (bv. een club of speler): bladen met dezelfde naam delen geen standen
+    // als ze automatisch worden samengesteld. Leeg = geen programma.
+    programma: input.programma ?? "",
     datum: input.datum ?? nowIso().slice(0, 10),
     ondertitel: input.ondertitel ?? "",
     opdrachtregel: input.opdrachtregel ?? "Wit speelt en wint",

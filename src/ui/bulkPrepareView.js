@@ -5,10 +5,10 @@
 // Foto voor foto: een foto wordt één keer op volle resolutie geladen, alle diagrammen ervan worden
 // herkend, en de foto wordt weer losgelaten — zo blijft het geheugen klein bij een heel boek.
 
-import { loadDrawable } from "./imageInput.js?v=20261001b";
-import { recognizeDiagram } from "./diagramCaptureView.js?v=20261001b";
-import { parseOplossing } from "../core/solutionParser.js?v=20261001b";
-import { orderForReview, reviewCounts } from "../core/bulkReview.js?v=20261001b";
+import { loadDrawable } from "./imageInput.js?v=20261001c";
+import { recognizeDiagram } from "./diagramCaptureView.js?v=20261001c";
+import { parseOplossing } from "../core/solutionParser.js?v=20261001c";
+import { orderForReview, reviewCounts } from "../core/bulkReview.js?v=20261001c";
 
 const tick = () => new Promise((r) => setTimeout(r, 0));
 

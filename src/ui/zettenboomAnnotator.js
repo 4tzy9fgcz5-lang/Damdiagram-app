@@ -1,7 +1,7 @@
-import { renderDiagramSVG } from "../diagram/render.js?v=20261001b";
-import { isValidField } from "../core/board.js?v=20261001b";
-import { getLegalMoves, plyColor, plyMoveNumber } from "../core/draughtsMoves.js?v=20261001b";
-import { knoopOpPad, standBijPad, notatieMetVoorloopnul, voegZetToe } from "../core/zettenboom.js?v=20261001b";
+import { renderDiagramSVG } from "../diagram/render.js?v=20261001c";
+import { isValidField } from "../core/board.js?v=20261001c";
+import { getLegalMoves, plyColor, plyMoveNumber } from "../core/draughtsMoves.js?v=20261001c";
+import { knoopOpPad, standBijPad, notatieMetVoorloopnul, voegZetToe } from "../core/zettenboom.js?v=20261001c";
 
 function escapeHtml(str) {
   return str.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));

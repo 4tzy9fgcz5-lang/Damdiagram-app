@@ -1,4 +1,4 @@
-import { computeHomography, warpPerspective } from "./homography.js?v=20261001b";
+import { computeHomography, warpPerspective } from "./homography.js?v=20261001c";
 
 // Meet hoe goed een kader (4 hoeken) bij een echt 10x10-dambordpatroon past.
 // Doel: bij de automatische hoekdetectie de beste van een paar kandidaat-kaders
