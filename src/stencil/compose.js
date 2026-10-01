@@ -1,5 +1,5 @@
-import { getStand } from "../db/standen.js?v=20261001a";
-import { parseFen } from "../core/fen.js?v=20261001a";
+import { getStand } from "../db/standen.js?v=20261001b";
+import { parseFen } from "../core/fen.js?v=20261001b";
 
 export async function resolveStencilItems(stencil) {
   const items = [];

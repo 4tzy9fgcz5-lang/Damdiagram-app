@@ -1,4 +1,4 @@
-import { FIELD_COUNT, fieldToCoord, PIECE_TYPES, createEmptyBoard } from "../core/board.js?v=20261001a";
+import { FIELD_COUNT, fieldToCoord, PIECE_TYPES, createEmptyBoard } from "../core/board.js?v=20261001b";
 
 function median(values) {
   const sorted = [...values].sort((a, b) => a - b);
