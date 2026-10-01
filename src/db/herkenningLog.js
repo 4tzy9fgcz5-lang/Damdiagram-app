@@ -1,6 +1,6 @@
-import { openDb, tx, promisify, newId } from "./db.js?v=20261001c";
-import { STORE_HERKENNING_LOG } from "./schema.js?v=20261001c";
-import { FIELD_COUNT } from "../core/board.js?v=20261001c";
+import { openDb, tx, promisify, newId } from "./db.js?v=20261001d";
+import { STORE_HERKENNING_LOG } from "./schema.js?v=20261001d";
+import { FIELD_COUNT } from "../core/board.js?v=20261001d";
 
 function nowIso() {
   return new Date().toISOString();

@@ -1,18 +1,19 @@
-import { listStencils, saveStencil } from "../db/stencils.js?v=20261001c";
-import { listStanden } from "../db/standen.js?v=20261001c";
-import { getAllCategorieen } from "../db/categorieen.js?v=20261001c";
-import { autoOpdracht } from "../stencil/compose.js?v=20261001c";
-import { PAGINA_OPTIES } from "../stencil/layout.js?v=20261001c";
-import { renderDiagramSVG } from "../diagram/render.js?v=20261001c";
-import { parseFen } from "../core/fen.js?v=20261001c";
-import { formatMoeilijkheid } from "./starRating.js?v=20261001c";
+import { listStencils, saveStencil } from "../db/stencils.js?v=20261001d";
+import { listStanden } from "../db/standen.js?v=20261001d";
+import { getAllCategorieen } from "../db/categorieen.js?v=20261001d";
+import { autoOpdracht } from "../stencil/compose.js?v=20261001d";
+import { PAGINA_OPTIES } from "../stencil/layout.js?v=20261001d";
+import { renderDiagramSVG } from "../diagram/render.js?v=20261001d";
+import { parseFen } from "../core/fen.js?v=20261001d";
+import { formatMoeilijkheid } from "./starRating.js?v=20261001d";
 import {
   VERDELING_OPTIES,
   niveausTussen,
   verdeelAantal,
-  kiesStandenVoorBlad,
+  kiesReeks,
+  verdeelReeks,
   standIdsInProgramma,
-} from "../stencil/genereer.js?v=20261001c";
+} from "../stencil/genereer.js?v=20261001d";
 
 export async function renderStencilGenerateView(container, { onCreated, onBack } = {}) {
   const [categorieen, alleStencils] = await Promise.all([getAllCategorieen(), listStencils()]);
@@ -31,8 +32,12 @@ export async function renderStencilGenerateView(container, { onCreated, onBack }
           <input type="text" data-field="titel" value="Opgaveblad" />
         </div>
         <div>
-          <label>Aantal diagrammen</label>
+          <label>Aantal diagrammen per blad</label>
           <input type="number" data-field="aantal" min="1" max="60" value="12" />
+        </div>
+        <div>
+          <label>Aantal bladen</label>
+          <input type="number" data-field="bladen" min="1" max="20" value="1" />
         </div>
       </div>
       <label>Trainingsprogramma (optioneel)</label>
@@ -106,9 +111,19 @@ export async function renderStencilGenerateView(container, { onCreated, onBack }
   };
   const handmatig = {};
 
+  const aantalBladen = () => Math.max(1, Math.min(20, Math.floor(Number(veld("bladen").value) || 1)));
+
+  // Verdeling van één blad (bij "oplopend" is dat het gemiddelde: gelijkmatig).
   function huidigeAantallen() {
     const modus = veld("verdeling").value;
-    return verdeelAantal(Number(veld("aantal").value) || 0, niveaus(), modus, handmatig);
+    return verdeelAantal(Number(veld("aantal").value) || 0, niveaus(), modus === "oplopend" ? "gelijk" : modus, handmatig);
+  }
+
+  // Verdeling per blad: bij "oplopend" schuift elk blad op naar moeilijker, anders is elk blad gelijk.
+  function aantallenPerBlad() {
+    const n = aantalBladen();
+    if (veld("verdeling").value === "oplopend") return verdeelReeks(n, Number(veld("aantal").value) || 0, niveaus());
+    return Array.from({ length: n }, () => huidigeAantallen());
   }
 
   function werkVerdelingBij() {
@@ -132,21 +147,34 @@ export async function renderStencilGenerateView(container, { onCreated, onBack }
       );
       veld("aantal").value = String(nv.reduce((som, n) => som + (handmatig[n] ?? 0), 0));
     }
-    const aant = huidigeAantallen();
-    el('[data-role="verdeling-tekst"]').textContent =
-      "Verdeling: " + nv.map((n) => `${n}★ ${aant[n]}`).join(" · ");
+    toonVerdelingTekst();
+  }
+
+  function toonVerdelingTekst() {
+    const nv = niveaus();
+    const reeks = aantallenPerBlad();
+    const regel = (aant) => nv.map((n) => `${n}★ ${aant[n]}`).join(" · ");
+    el('[data-role="verdeling-tekst"]').innerHTML =
+      reeks.length > 1 && veld("verdeling").value === "oplopend"
+        ? reeks.map((aant, i) => `Blad ${i + 1}: ${regel(aant)}`).join("<br>")
+        : "Verdeling per blad: " + regel(reeks[0]);
   }
 
   // Bij "zelf bepalen": alleen het totaal bijwerken, niet de invoervakjes opnieuw tekenen (anders raak je de focus kwijt).
   function werkZelfTotaalBij() {
     const nv = niveaus();
     veld("aantal").value = String(nv.reduce((som, n) => som + (handmatig[n] ?? 0), 0));
-    const aant = huidigeAantallen();
-    el('[data-role="verdeling-tekst"]').textContent = "Verdeling: " + nv.map((n) => `${n}★ ${aant[n]}`).join(" · ");
+    toonVerdelingTekst();
   }
 
   veld("verdeling").addEventListener("change", werkVerdelingBij);
   veld("aantal").addEventListener("input", werkVerdelingBij);
+  veld("bladen").addEventListener("input", () => {
+    // Bij meer bladen is "oplopend" de logische keuze; terug naar 1 blad: weer gelijkmatig.
+    if (aantalBladen() > 1 && veld("verdeling").value === "gelijk") veld("verdeling").value = "oplopend";
+    else if (aantalBladen() === 1 && veld("verdeling").value === "oplopend") veld("verdeling").value = "gelijk";
+    werkVerdelingBij();
+  });
   veld("min").addEventListener("change", werkVerdelingBij);
   veld("max").addEventListener("change", werkVerdelingBij);
   werkVerdelingBij();
@@ -174,61 +202,89 @@ export async function renderStencilGenerateView(container, { onCreated, onBack }
     const kandidaten = await listStanden(filters);
     const programma = veld("programma").value.trim();
     const uitgesloten = standIdsInProgramma(await listStencils(), programma);
-    const aantallen = huidigeAantallen();
-    const gevraagd = Object.values(aantallen).reduce((a, b) => a + b, 0);
-    if (gevraagd === 0) {
+    const perBlad = aantallenPerBlad();
+    const gevraagd = perBlad.map((a) => Object.values(a).reduce((x, y) => x + y, 0));
+    if (gevraagd.every((g) => g === 0)) {
       resultaat.innerHTML = `<p style="color:#a30000;">Kies eerst hoeveel diagrammen je wilt.</p>`;
       voorstel = null;
       return;
     }
-    voorstel = kiesStandenVoorBlad({ standen: kandidaten, uitgesloten, aantallen, aanvullen: veld("aanvullen").checked });
+    voorstel = kiesReeks({ standen: kandidaten, uitgesloten, aantallenPerBlad: perBlad, aanvullen: veld("aanvullen").checked });
     toonVoorstel(gevraagd, kandidaten.length);
   }
 
   function toonVoorstel(gevraagd, aantalKandidaten) {
-    const v = voorstel;
-    const meldingen = [];
-    for (const t of v.tekorten) {
-      meldingen.push(`Van ${t.niveau} ${t.niveau === 1 ? "ster" : "sterren"} zijn er maar ${t.beschikbaar} beschikbaar (${t.gevraagd} gevraagd).`);
-    }
-    if (v.aangevuld > 0) meldingen.push(`${v.aangevuld} diagram(men) zijn aangevuld uit een naastliggend niveau.`);
-    if (v.tekorten.length && !veld("aanvullen").checked) {
+    const bladen = voorstel;
+    const meer = bladen.length > 1;
+    const totaalGekozen = bladen.reduce((som, r) => som + r.gekozen.length, 0);
+    const totaalGevraagd = gevraagd.reduce((a, b) => a + b, 0);
+    const sterren = (n) => `${n} ${n === 1 ? "ster" : "sterren"}`;
+    const meldingenVan = (v, i) => {
+      const voor = meer ? `Blad ${i + 1}: ` : "";
+      const lijst = [];
+      for (const t of v.tekorten) lijst.push(`${voor}van ${sterren(t.niveau)} zijn er maar ${t.beschikbaar} beschikbaar (${t.gevraagd} gevraagd).`);
+      if (v.aangevuld > 0) lijst.push(`${voor}${v.aangevuld} diagram(men) aangevuld uit een naastliggend niveau.`);
+      return lijst;
+    };
+    const meldingen = bladen.flatMap(meldingenVan);
+    if (bladen.some((r) => r.tekorten.length) && !veld("aanvullen").checked) {
       meldingen.push(`Vink "Bij een tekort aanvullen" aan en klik opnieuw op Samenstellen om de rest uit het niveau ernaast te halen.`);
     }
-    if (v.uitgeslotenAantal > 0) meldingen.push(`${v.uitgeslotenAantal} stand(en) overgeslagen omdat ze al in dit programma gebruikt zijn.`);
-    if (v.zonderSterren > 0) meldingen.push(`${v.zonderSterren} stand(en) zonder sterren overgeslagen.`);
+    // Overgeslagen standen: alleen de eerste meting telt (de rest komt door standen die al op een eerder blad van deze reeks staan).
+    if (bladen[0].uitgeslotenAantal > 0) meldingen.push(`${bladen[0].uitgeslotenAantal} stand(en) overgeslagen omdat ze al in dit programma gebruikt zijn.`);
+    if (bladen[0].zonderSterren > 0) meldingen.push(`${bladen[0].zonderSterren} stand(en) zonder sterren overgeslagen.`);
 
     resultaat.innerHTML = `
-      <p><strong>${v.gekozen.length} van ${gevraagd} diagrammen gevonden</strong> (uit ${aantalKandidaten} passende standen).</p>
+      <p><strong>${totaalGekozen} van ${totaalGevraagd} diagrammen gevonden</strong>${meer ? ` over ${bladen.length} bladen` : ""} (uit ${aantalKandidaten} passende standen).</p>
       ${meldingen.length ? `<ul style="color:#8a5a00;">${meldingen.map((m) => `<li>${escapeHtml(m)}</li>`).join("")}</ul>` : ""}
-      <div class="stand-grid" data-role="grid"></div>
+      <div data-role="bladen"></div>
       <div class="button-row">
         <button type="button" class="secondary" data-action="opnieuw">Opnieuw schudden</button>
-        <button type="button" class="primary" data-action="aanmaken" ${v.gekozen.length ? "" : "disabled"}>Opgaveblad aanmaken</button>
+        <button type="button" class="primary" data-action="aanmaken" ${totaalGekozen ? "" : "disabled"}>${meer ? `${bladen.length} opgavebladen aanmaken` : "Opgaveblad aanmaken"}</button>
       </div>`;
-    const grid = resultaat.querySelector('[data-role="grid"]');
-    v.gekozen.forEach((s, i) => {
-      const card = document.createElement("div");
-      card.className = "stand-card";
-      card.innerHTML = `<div style="font-weight:700;">${i + 1}. <span style="font-weight:400;color:#666;">${formatMoeilijkheid(s.moeilijkheid)}★</span></div>${renderDiagramSVG(parseFen(s.fen).board, { size: 120 })}`;
-      grid.appendChild(card);
+    const host = resultaat.querySelector('[data-role="bladen"]');
+    bladen.forEach((v, bi) => {
+      if (meer) {
+        const kop = document.createElement("h4");
+        kop.textContent = `Blad ${bi + 1} — ${v.gekozen.length} diagram(men)`;
+        kop.style.margin = "1rem 0 0.4rem";
+        host.appendChild(kop);
+      }
+      const grid = document.createElement("div");
+      grid.className = "stand-grid";
+      v.gekozen.forEach((s, i) => {
+        const card = document.createElement("div");
+        card.className = "stand-card";
+        card.innerHTML = `<div style="font-weight:700;">${i + 1}. <span style="font-weight:400;color:#666;">${formatMoeilijkheid(s.moeilijkheid)}★</span></div>${renderDiagramSVG(parseFen(s.fen).board, { size: 120 })}`;
+        grid.appendChild(card);
+      });
+      host.appendChild(grid);
     });
     resultaat.querySelector('[data-action="opnieuw"]').addEventListener("click", samenstellen);
     resultaat.querySelector('[data-action="aanmaken"]').addEventListener("click", aanmaken);
   }
 
   async function aanmaken() {
-    if (!voorstel?.gekozen.length) return;
-    const aantal = voorstel.gekozen.length;
-    const perPagina = PAGINA_OPTIES.find((n) => n >= aantal) ?? Math.max(...PAGINA_OPTIES);
-    const saved = await saveStencil({
-      titel: veld("titel").value.trim() || "Opgaveblad",
-      programma: veld("programma").value.trim(),
-      club: veld("club").value.trim(),
-      perPagina,
-      standen: voorstel.gekozen.map((s) => ({ standId: s.id, opdracht: autoOpdracht(s) })),
-    });
-    onCreated?.(saved.id);
+    const bladen = (voorstel ?? []).filter((r) => r.gekozen.length);
+    if (!bladen.length) return;
+    const basis = veld("titel").value.trim() || "Opgaveblad";
+    const meer = voorstel.length > 1;
+    let eerste = null;
+    for (let i = 0; i < voorstel.length; i++) {
+      const gekozen = voorstel[i].gekozen;
+      if (!gekozen.length) continue;
+      const perPagina = PAGINA_OPTIES.find((n) => n >= gekozen.length) ?? Math.max(...PAGINA_OPTIES);
+      const saved = await saveStencil({
+        titel: meer ? `${basis} ${i + 1}` : basis,
+        programma: veld("programma").value.trim(),
+        club: veld("club").value.trim(),
+        perPagina,
+        standen: gekozen.map((s) => ({ standId: s.id, opdracht: autoOpdracht(s) })),
+      });
+      eerste ??= saved.id;
+    }
+    // Eén blad: meteen openen; een reeks: terug naar het overzicht waar ze allemaal staan.
+    onCreated?.(meer ? null : eerste);
   }
 
   el('[data-action="samenstellen"]').addEventListener("click", samenstellen);

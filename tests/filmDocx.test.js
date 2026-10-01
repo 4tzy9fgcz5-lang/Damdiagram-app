@@ -1,8 +1,8 @@
-import { describe, it, assertTrue, assertEqual } from "./test-runner.js?v=20261001c";
-import { buildFilmDocxBlob } from "../src/export/filmDocx.js?v=20261001c";
-import { createStartBoard } from "../src/core/board.js?v=20261001c";
-import { getLegalMoves, applyMove, opposite } from "../src/core/draughtsMoves.js?v=20261001c";
-import { maakWortel, voegZetToe } from "../src/core/zettenboom.js?v=20261001c";
+import { describe, it, assertTrue, assertEqual } from "./test-runner.js?v=20261001d";
+import { buildFilmDocxBlob } from "../src/export/filmDocx.js?v=20261001d";
+import { createStartBoard } from "../src/core/board.js?v=20261001d";
+import { getLegalMoves, applyMove, opposite } from "../src/core/draughtsMoves.js?v=20261001d";
+import { maakWortel, voegZetToe } from "../src/core/zettenboom.js?v=20261001d";
 
 async function readMagicBytes(blob, count) {
   const buf = await blob.slice(0, count).arrayBuffer();

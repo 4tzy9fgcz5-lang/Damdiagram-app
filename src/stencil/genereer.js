@@ -8,6 +8,7 @@
 export const VERDELING_OPTIES = [
   { key: "gelijk", label: "Gelijkmatig over alle niveaus" },
   { key: "makkelijk", label: "Meer makkelijk dan moeilijk" },
+  { key: "oplopend", label: "Oplopend per blad (bij meer dan 1 blad: elk blad iets moeilijker)" },
   { key: "zelf", label: "Zelf bepalen per niveau" },
 ];
 
@@ -36,17 +37,65 @@ export function verdeelAantal(totaal, niveaus, modus, handmatig = {}) {
   const gewichten = niveaus.map((_, i) =>
     modus === "makkelijk" && niveaus.length > 1 ? 2 - i / (niveaus.length - 1) : 1
   );
+  const aantallen = verdeelOpGewichten(totaal, gewichten);
+  niveaus.forEach((n, i) => (uit[n] = aantallen[i]));
+  return uit;
+}
+
+// Grootste-rest-methode: verdeelt `totaal` zo evenredig mogelijk over de gewichten.
+// Restje: grootste afgeronde deel eerst; bij gelijkspel het laatste (moeilijkste) niveau.
+function verdeelOpGewichten(totaal, gewichten) {
   const som = gewichten.reduce((a, b) => a + b, 0);
   const ideaal = gewichten.map((g) => (totaal * g) / som);
   const aantallen = ideaal.map((x) => Math.floor(x + 1e-9));
   let rest = totaal - aantallen.reduce((a, b) => a + b, 0);
-  // Restje: grootste afgeronde deel eerst; bij gelijkspel het moeilijkste niveau.
   const volgorde = ideaal
     .map((x, i) => ({ i, frac: x - Math.floor(x + 1e-9) }))
     .sort((a, b) => b.frac - a.frac || b.i - a.i);
   for (let k = 0; rest > 0; k = (k + 1) % volgorde.length, rest--) aantallen[volgorde[k].i]++;
-  niveaus.forEach((n, i) => (uit[n] = aantallen[i]));
-  return uit;
+  return aantallen;
+}
+
+// Doorlopend plan: `aantalBladen` bladen van `perBlad` diagrammen, elk blad iets moeilijker.
+// Blad 1 volgt "meer makkelijk" (gewichten 2 -> 1 van laag naar hoog niveau), het laatste blad
+// het spiegelbeeld (1 -> 2), de bladen ertussen schuiven geleidelijk op. Geeft een lijst
+// { niveau: aantal }, één per blad.
+export function verdeelReeks(aantalBladen, perBlad, niveaus) {
+  const reeks = [];
+  for (let b = 0; b < aantalBladen; b++) {
+    const t = aantalBladen > 1 ? b / (aantalBladen - 1) : 0.5;
+    const gewichten = niveaus.map((_, j) => {
+      const p = niveaus.length > 1 ? j / (niveaus.length - 1) : 0.5;
+      return (1 - t) * (2 - p) + t * (1 + p);
+    });
+    const aantallen = verdeelOpGewichten(perBlad, gewichten);
+    const uit = {};
+    niveaus.forEach((n, i) => (uit[n] = aantallen[i]));
+    reeks.push(uit);
+  }
+  // Afronding kan twee opeenvolgende bladen gelijk maken. Dan schuift er telkens één diagram
+  // (van het laagste niveau dat nog iets heeft) een niveau op, tot het blad echt moeilijker is.
+  const gemiddelde = (aant) => niveaus.reduce((som, n) => som + n * aant[n], 0);
+  for (let b = 1; b < reeks.length; b++) {
+    while (gemiddelde(reeks[b]) <= gemiddelde(reeks[b - 1])) {
+      const i = niveaus.findIndex((n, k) => k < niveaus.length - 1 && reeks[b][n] > 0);
+      if (i === -1) break;
+      reeks[b][niveaus[i]]--;
+      reeks[b][niveaus[i + 1]]++;
+    }
+  }
+  return reeks;
+}
+
+// Kiest alle bladen van een reeks achter elkaar uit dezelfde voorraad: een stand die op een
+// eerder blad staat, komt op geen enkel ander blad van de reeks terug.
+export function kiesReeks({ standen, uitgesloten = new Set(), aantallenPerBlad, aanvullen = false, rng = Math.random }) {
+  const gebruikt = new Set(uitgesloten);
+  return aantallenPerBlad.map((aantallen) => {
+    const r = kiesStandenVoorBlad({ standen, uitgesloten: gebruikt, aantallen, aanvullen, rng });
+    for (const s of r.gekozen) gebruikt.add(s.id);
+    return r;
+  });
 }
 
 function schud(lijst, rng) {

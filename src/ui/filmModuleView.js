@@ -1,12 +1,12 @@
-import { createStartBoard } from "../core/board.js?v=20261001c";
-import { parseFen } from "../core/fen.js?v=20261001c";
-import { applyMove, plyColor, plyMoveNumber, moveToNotation } from "../core/draughtsMoves.js?v=20261001c";
-import { hoofdlijnKnopen } from "../core/zettenboom.js?v=20261001c";
-import { renderDiagramSVG } from "../diagram/render.js?v=20261001c";
-import { naamWeergave } from "../core/namen.js?v=20261001c";
-import { getPartij, savePartij } from "../db/partijen.js?v=20261001c";
-import { buildFilmDocxBlob } from "../export/filmDocx.js?v=20261001c";
-import { downloadBlob } from "../export/docx.js?v=20261001c";
+import { createStartBoard } from "../core/board.js?v=20261001d";
+import { parseFen } from "../core/fen.js?v=20261001d";
+import { applyMove, plyColor, plyMoveNumber, moveToNotation } from "../core/draughtsMoves.js?v=20261001d";
+import { hoofdlijnKnopen } from "../core/zettenboom.js?v=20261001d";
+import { renderDiagramSVG } from "../diagram/render.js?v=20261001d";
+import { naamWeergave } from "../core/namen.js?v=20261001d";
+import { getPartij, savePartij } from "../db/partijen.js?v=20261001d";
+import { buildFilmDocxBlob } from "../export/filmDocx.js?v=20261001d";
+import { downloadBlob } from "../export/docx.js?v=20261001d";
 
 function escapeHtml(str) {
   return String(str ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));

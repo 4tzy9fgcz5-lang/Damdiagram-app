@@ -410,6 +410,21 @@ uitgepakt en de ruwe `document.xml` nagemeten (kolombreedtes in twips
 kloppen exact met de berekening); de nieuwe filmmodule-navigatie en het
 annotatiescherm zijn handmatig doorlopen op smal en breed scherm.
 
+## Opgavebladen automatisch samenstellen (2026-10-01)
+
+Knop "Opgaveblad laten samenstellen" bij Opgavebladen (`#/stencil-genereren`,
+`src/ui/stencilGenerateView.js`; logica in `src/stencil/genereer.js`, tests
+`tests/genereer.test.js`). Kiest standen op categorie + moeilijkheidsbereik en
+verdeelt ze over niveaus (hele sterren; een halve ster telt bij de hele eronder,
+standen zonder sterren worden overgeslagen). Verdeling: gelijkmatig, meer
+makkelijk dan moeilijk, zelf bepalen, of **oplopend** (doorlopend plan: N bladen,
+blad 1 = "meer makkelijk", laatste blad = spiegelbeeld, elk blad gemiddeld
+strikt moeilijker; alle bladen delen één voorraad dus geen dubbelen binnen de
+reeks). Een opgaveblad heeft nu een optioneel veld `programma` (club/speler): bladen
+met dezelfde naam delen nooit een stand. Geen schemawijziging (extra veld op een
+bestaand record, oude bladen: leeg). Tekort aan standen wordt gemeld; aanvullen uit
+een naastliggend niveau alleen als het vinkje aanstaat.
+
 ## Openstaande punten (uitbreiding)
 
 - Hosting voor meerdere gebruikers (inlog, dossiers): eerder besproken, nog niet

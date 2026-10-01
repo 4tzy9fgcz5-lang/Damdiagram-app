@@ -1,5 +1,5 @@
-import { describe, it, assertEqual } from "./test-runner.js?v=20261001c";
-import { niveauVan, verdeelAantal, kiesStandenVoorBlad, standIdsInProgramma } from "../src/stencil/genereer.js?v=20261001c";
+import { describe, it, assertEqual } from "./test-runner.js?v=20261001d";
+import { niveauVan, verdeelAantal, kiesStandenVoorBlad, standIdsInProgramma, verdeelReeks, kiesReeks } from "../src/stencil/genereer.js?v=20261001d";
 
 function stand(id, moeilijkheid) {
   return { id, moeilijkheid };
@@ -78,5 +78,40 @@ describe("genereer: programma", () => {
   it("lege programmanaam sluit niets uit; eigen blad telt niet mee", () => {
     assertEqual(standIdsInProgramma(stencils, "").size, 0);
     assertEqual([...standIdsInProgramma(stencils, "Club X", "s2")].sort(), ["a", "b"]);
+  });
+});
+
+describe("genereer: doorlopend plan (reeks bladen)", () => {
+  const niveaus = [1, 2, 3, 4];
+  const gemiddeld = (aant) => {
+    const totaal = niveaus.reduce((som, n) => som + aant[n], 0);
+    return niveaus.reduce((som, n) => som + n * aant[n], 0) / totaal;
+  };
+  it("elk blad heeft precies het gevraagde aantal diagrammen", () => {
+    for (const b of verdeelReeks(6, 12, niveaus)) assertEqual(niveaus.reduce((som, n) => som + b[n], 0), 12);
+  });
+  it("eerste blad is 'meer makkelijk', laatste blad het spiegelbeeld", () => {
+    const r = verdeelReeks(6, 24, niveaus);
+    assertEqual(r[0], verdeelAantal(24, niveaus, "makkelijk"));
+    assertEqual([r[5][1], r[5][2], r[5][3], r[5][4]], [r[0][4], r[0][3], r[0][2], r[0][1]]);
+  });
+  it("elk blad is gemiddeld moeilijker dan het vorige", () => {
+    for (const perBlad of [12, 24]) {
+      const r = verdeelReeks(6, perBlad, niveaus).map(gemiddeld);
+      for (let i = 1; i < r.length; i++) assertEqual(r[i] > r[i - 1], true);
+    }
+  });
+  it("kiesReeks gebruikt nooit dezelfde stand op twee bladen", () => {
+    const standen = [];
+    for (let i = 0; i < 40; i++) standen.push({ id: "s" + i, moeilijkheid: 1 + (i % 4) });
+    const reeks = kiesReeks({ standen, aantallenPerBlad: verdeelReeks(3, 8, niveaus), rng: vast });
+    const ids = reeks.flatMap((r) => r.gekozen.map((s) => s.id));
+    assertEqual(ids.length, 24);
+    assertEqual(new Set(ids).size, 24);
+  });
+  it("kiesReeks respecteert uitgesloten standen", () => {
+    const standen = [stand("a", 1), stand("b", 1), stand("c", 1)];
+    const reeks = kiesReeks({ standen, uitgesloten: new Set(["a"]), aantallenPerBlad: [{ 1: 1 }, { 1: 1 }, { 1: 1 }], rng: vast });
+    assertEqual(reeks.map((r) => r.gekozen.length), [1, 1, 0]);
   });
 });
