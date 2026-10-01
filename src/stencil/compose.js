@@ -24,9 +24,13 @@ export function autoOpdracht(stand) {
   } catch {
     // ongeldige FEN: dan geen regel
   }
-  const types = stand.categorieen?.type ?? [];
-  if (types.includes("forcing")) labels.push("Forcing");
-  if (types.includes("lokzet")) labels.push("Lokzet");
+  // Zoek in ALLE categorieën (Jan kan ze zelf hernoemen of een eigen "Type" maken) en
+  // let niet op hoofdletters: "Forcing", "forcing" en "Forcing (dwingend)" tellen allemaal.
+  const waarden = Object.values(stand.categorieen ?? {})
+    .flat()
+    .map((w) => String(w).toLowerCase());
+  if (waarden.some((w) => w.includes("forcing"))) labels.push("Forcing");
+  if (waarden.some((w) => w.includes("lokzet"))) labels.push("Lokzet");
   return labels.join(", ");
 }
 
