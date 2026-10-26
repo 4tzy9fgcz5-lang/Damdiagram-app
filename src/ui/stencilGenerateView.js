@@ -1,11 +1,11 @@
-import { listStencils, saveStencil } from "../db/stencils.js?v=20261026a";
-import { listStanden } from "../db/standen.js?v=20261026a";
-import { getAllCategorieen } from "../db/categorieen.js?v=20261026a";
-import { autoOpdracht } from "../stencil/compose.js?v=20261026a";
-import { PAGINA_OPTIES } from "../stencil/layout.js?v=20261026a";
-import { renderDiagramSVG } from "../diagram/render.js?v=20261026a";
-import { parseFen } from "../core/fen.js?v=20261026a";
-import { formatMoeilijkheid } from "./starRating.js?v=20261026a";
+import { listStencils, saveStencil } from "../db/stencils.js?v=20261026b";
+import { listStanden } from "../db/standen.js?v=20261026b";
+import { getAllCategorieen } from "../db/categorieen.js?v=20261026b";
+import { autoOpdracht } from "../stencil/compose.js?v=20261026b";
+import { PAGINA_OPTIES } from "../stencil/layout.js?v=20261026b";
+import { renderDiagramSVG } from "../diagram/render.js?v=20261026b";
+import { parseFen } from "../core/fen.js?v=20261026b";
+import { formatMoeilijkheid } from "./starRating.js?v=20261026b";
 import {
   VERDELING_OPTIES,
   niveausTussen,
@@ -13,7 +13,7 @@ import {
   kiesReeks,
   verdeelReeks,
   standIdsInProgramma,
-} from "../stencil/genereer.js?v=20261026a";
+} from "../stencil/genereer.js?v=20261026b";
 
 export async function renderStencilGenerateView(container, { onCreated, onBack } = {}) {
   const [categorieen, alleStencils] = await Promise.all([getAllCategorieen(), listStencils()]);

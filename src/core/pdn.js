@@ -1,6 +1,6 @@
-import { createStartBoard } from "./board.js?v=20261026a";
-import { applyMove, opposite } from "./draughtsMoves.js?v=20261026a";
-import { maakWortel, voegZetToe } from "./zettenboom.js?v=20261026a";
+import { createStartBoard } from "./board.js?v=20261026b";
+import { applyMove, opposite } from "./draughtsMoves.js?v=20261026b";
+import { maakWortel, voegZetToe } from "./zettenboom.js?v=20261026b";
 
 // Leest partij-/studietekst in het formaat uit CLAUDE.md ("Doelarchitectuur"): zetnummers,
 // `{commentaar}` en geneste `(varianten)`, met !/?/!!/??-tekens direct achter een zet — zoals
@@ -35,7 +35,7 @@ function stripTags(text) {
 // de zettenregels: weghalen, en een commentaar dat daarna leeg is ook.
 function stripKloktijden(text) {
   return text
-    .replace(/\[%(?:clk|emt|egt)\s+[^\]]*\]/gi, " ")
+    .replace(/\[%[a-z]+\s+[^\]]*\]/gi, " ")
     .replace(/\{\s*(?:\d{1,2}:){1,2}\d{1,2}(?:[.,]\d+)?\s*\}/g, " ")
     .replace(/\{\s*\}/g, " ");
 }

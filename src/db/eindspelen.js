@@ -1,7 +1,7 @@
-import { openDb, tx, promisify, newId } from "./db.js?v=20261026a";
-import { STORE_EINDSPELEN } from "./schema.js?v=20261026a";
-import { parseFen, boardToFen } from "../core/fen.js?v=20261026a";
-import { mirrorBoard } from "../core/board.js?v=20261026a";
+import { openDb, tx, promisify, newId } from "./db.js?v=20261026b";
+import { STORE_EINDSPELEN } from "./schema.js?v=20261026b";
+import { parseFen, boardToFen } from "../core/fen.js?v=20261026b";
+import { mirrorBoard } from "../core/board.js?v=20261026b";
 
 // Zelfde opzet als standen.js (saveStand/getStand/findDuplicates), maar dan
 // voor de eigen eindspelen-opslagplaats. Twee verschillen met een
