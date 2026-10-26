@@ -1,6 +1,6 @@
-import { createStartBoard } from "./board.js?v=20261001d";
-import { applyMove, opposite } from "./draughtsMoves.js?v=20261001d";
-import { maakWortel, voegZetToe } from "./zettenboom.js?v=20261001d";
+import { createStartBoard } from "./board.js?v=20261026a";
+import { applyMove, opposite } from "./draughtsMoves.js?v=20261026a";
+import { maakWortel, voegZetToe } from "./zettenboom.js?v=20261026a";
 
 // Leest partij-/studietekst in het formaat uit CLAUDE.md ("Doelarchitectuur"): zetnummers,
 // `{commentaar}` en geneste `(varianten)`, met !/?/!!/??-tekens direct achter een zet — zoals
@@ -29,6 +29,15 @@ function normalizeText(raw) {
 
 function stripTags(text) {
   return text.replace(/\[[A-Za-z]+\s+"[^"]*"\]/g, " ");
+}
+
+// Kloktijden van live ingevoerde partijen (bv. `{[%clk 0:59:30]}` of `{0:59:30}`) horen niet in
+// de zettenregels: weghalen, en een commentaar dat daarna leeg is ook.
+function stripKloktijden(text) {
+  return text
+    .replace(/\[%(?:clk|emt|egt)\s+[^\]]*\]/gi, " ")
+    .replace(/\{\s*(?:\d{1,2}:){1,2}\d{1,2}(?:[.,]\d+)?\s*\}/g, " ")
+    .replace(/\{\s*\}/g, " ");
 }
 
 // Welke `[Tag "waarde"]`-regels we herkennen (zoals toernooibase en andere PDN-bronnen ze
@@ -200,7 +209,7 @@ export function leesPartijTekst(tekst, { bord = createStartBoard(), beurt = "whi
   const ruw = String(tekst ?? "");
   const meldingen = [];
   const wortel = maakWortel();
-  const state = { tekst: normalizeText(stripKopregel(stripTags(ruw))), i: 0 };
+  const state = { tekst: normalizeText(stripKopregel(stripKloktijden(stripTags(ruw)))), i: 0 };
   ontleedReeks(state, wortel, bord, beurt, meldingen, { gemeld: false });
   return { boom: wortel, meldingen, kopregels: leesKopregels(ruw) };
 }

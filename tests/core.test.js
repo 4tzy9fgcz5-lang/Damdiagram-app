@@ -1,4 +1,4 @@
-import { describe, it, assertEqual, assertThrows, assertTrue } from "./test-runner.js?v=20261001d";
+import { describe, it, assertEqual, assertThrows, assertTrue } from "./test-runner.js?v=20261026a";
 import {
   fieldToCoord,
   coordToField,
@@ -8,10 +8,10 @@ import {
   createStartBoard,
   boardsEqual,
   PIECE_TYPES,
-} from "../src/core/board.js?v=20261001d";
-import { parseFen, boardToFen, FenParseError } from "../src/core/fen.js?v=20261001d";
-import { parseQuickText, QuickTextParseError } from "../src/core/quicktext.js?v=20261001d";
-import { validateBoard } from "../src/core/validate.js?v=20261001d";
+} from "../src/core/board.js?v=20261026a";
+import { parseFen, boardToFen, FenParseError } from "../src/core/fen.js?v=20261026a";
+import { parseQuickText, QuickTextParseError } from "../src/core/quicktext.js?v=20261026a";
+import { validateBoard } from "../src/core/validate.js?v=20261026a";
 
 describe("veldnummering", () => {
   it("veld 1 staat rechtsboven-tweede kolom (rij0, kolom1)", () => {

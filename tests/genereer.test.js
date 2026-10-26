@@ -1,5 +1,5 @@
-import { describe, it, assertEqual } from "./test-runner.js?v=20261001d";
-import { niveauVan, verdeelAantal, kiesStandenVoorBlad, standIdsInProgramma, verdeelReeks, kiesReeks } from "../src/stencil/genereer.js?v=20261001d";
+import { describe, it, assertEqual } from "./test-runner.js?v=20261026a";
+import { niveauVan, verdeelAantal, kiesStandenVoorBlad, standIdsInProgramma, verdeelReeks, kiesReeks } from "../src/stencil/genereer.js?v=20261026a";
 
 function stand(id, moeilijkheid) {
   return { id, moeilijkheid };
